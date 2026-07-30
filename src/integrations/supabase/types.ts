@@ -844,6 +844,7 @@ export type Database = {
           idempotency_key: string | null
           modules_completed: string[]
           modules_failed: string[]
+          modules_from_cache: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested: string[]
           next_retry_at: string | null
           provider_request_count: number
@@ -873,6 +874,7 @@ export type Database = {
           idempotency_key?: string | null
           modules_completed?: string[]
           modules_failed?: string[]
+          modules_from_cache?: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested?: string[]
           next_retry_at?: string | null
           provider_request_count?: number
@@ -902,6 +904,7 @@ export type Database = {
           idempotency_key?: string | null
           modules_completed?: string[]
           modules_failed?: string[]
+          modules_from_cache?: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested?: string[]
           next_retry_at?: string | null
           provider_request_count?: number

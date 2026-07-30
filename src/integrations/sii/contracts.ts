@@ -191,7 +191,14 @@ export interface ProviderQuery {
   rut: string;
   period: string;
   providerConnectionRef: string;
+  /**
+   * Número de consultas exitosas previas de este periodo. El RCV cambia entre
+   * consultas: sirve para que el proveedor refleje ese avance sin alterar los
+   * identificadores de los documentos ya conocidos.
+   */
+  revision?: number;
 }
+
 
 /**
  * Interfaz única del proveedor. Hoy la implementa `mockSiiProviderAdapter`;
