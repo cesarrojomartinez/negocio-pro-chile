@@ -26,13 +26,16 @@ import {
 } from "@/lib/apiGateway.server";
 import {
   ErrorNegocio,
-  VERSION_CONSENTIMIENTO,
   exigirRol,
   registrarActividad,
+} from "@/lib/companies.server";
+import {
+  VERSION_CONSENTIMIENTO,
   syncSiiCompanyPeriod,
   type ConexionSii,
   type ResultadoSincronizacion,
 } from "@/lib/siiSync.server";
+
 
 export interface EntradaPruebaReal {
   companyId: string;

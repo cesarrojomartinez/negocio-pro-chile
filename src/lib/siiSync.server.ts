@@ -48,7 +48,7 @@ import { diaCivil } from "@/lib/syncPolicy";
 import { normalizarRut } from "@/lib/rut";
 
 
-const VERSION_CONSENTIMIENTO = "demo-2026-07";
+export const VERSION_CONSENTIMIENTO = "demo-2026-07";
 const MESES_F29 = 6;
 
 /** Errores que invalidan la sesión: no tiene sentido seguir pidiendo módulos. */
