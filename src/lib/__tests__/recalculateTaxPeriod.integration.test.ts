@@ -344,10 +344,23 @@ describe("paridad frontend / backend — casos deterministas", () => {
     return { back, front };
   }
 
+  function registrar(nombre: string, back: Record<string, unknown>, front: Record<string, unknown>) {
+    const campos = [
+      "ivaDebito","ivaCredito","ivaCreditoPotencial","ivaEstimado","nuevoRemanente",
+      "ppmEstimado","totalTributarioEstimado","margenPreventivo","reservaRecomendada",
+    ];
+    const linea = campos
+      .map((c) => `${c}=${back[c]}/${front[c]}`)
+      .join(" ");
+    console.log(`[PARIDAD] ${nombre} :: ${linea}`);
+  }
+
   function esperarParidad(
     back: Awaited<ReturnType<typeof recalculateTaxPeriod>>,
     front: ReturnType<typeof construirDashboard>,
+    nombre = "",
   ) {
+    registrar(nombre, back as unknown as Record<string, unknown>, front.resumen as unknown as Record<string, unknown>);
     expect(back.ivaDebito).toBe(front.resumen.ivaDebito);
     expect(back.ivaCredito).toBe(front.resumen.ivaCredito);
     expect(back.ivaCreditoPotencial).toBe(front.resumen.ivaCreditoPotencial);
@@ -370,7 +383,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
       {},
     );
     expect(back.ivaEstimado).toBe(114_000);
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 1");
   }, 120_000);
 
   it("caso 2: nuevo remanente (crédito mayor al débito)", async () => {
@@ -384,7 +397,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
     );
     expect(back.ivaEstimado).toBe(0);
     expect(back.nuevoRemanente).toBe(57_000);
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 2");
   }, 120_000);
 
   it("caso 3: compras pendientes", async () => {
@@ -402,7 +415,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
     expect(back.ivaCredito).toBe(57_000);
     expect(back.ivaCreditoPotencial).toBe(76_000);
     expect(back.confiabilidad).not.toBe("high");
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 3");
   }, 120_000);
 
   it("caso 4: sin tasa de PPM", async () => {
@@ -413,7 +426,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
     );
     expect(back.ppmEstimado).toBe(0);
     expect(back.fuentePpm).toBe("unknown");
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 4");
   }, 120_000);
 
   it("caso 5: sin periodo anterior comparable (variaciones nulas)", async () => {
@@ -423,7 +436,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
       {},
     );
     expect(back.remanenteAnterior).toBe(front.resumen.remanenteAnterior);
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 5");
   }, 120_000);
 
   it("caso 6: meta superada", async () => {
@@ -433,7 +446,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
       { meta: 1_000_000 },
     );
     expect(front.meta.metaSuperada).toBe(true);
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 6");
   }, 120_000);
 
   it("caso 7: periodo sin datos", async () => {
@@ -441,7 +454,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
     expect(back.ivaDebito).toBe(0);
     expect(back.totalTributarioEstimado).toBe(0);
     expect(back.confiabilidad).toBe("unknown");
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 7");
   }, 120_000);
 
   it("caso 8: reserva recomendada igual a cero", async () => {
@@ -454,7 +467,7 @@ describe("paridad frontend / backend — casos deterministas", () => {
       { ppm: 0 },
     );
     expect(back.reservaRecomendada).toBe(0);
-    esperarParidad(back, front);
+    esperarParidad(back, front, "caso 8");
   }, 120_000);
 });
 
