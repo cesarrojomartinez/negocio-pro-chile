@@ -186,7 +186,9 @@ export function F29OficialPanel({
               {extraccion.validaciones
                 .filter((v) => v.estado !== "ok")
                 .map((v) => (
-                  <li key={v.id}>• {v.mensaje}</li>
+                  <li key={v.id}>
+                    • {v.titulo}: {v.detalle}
+                  </li>
                 ))}
             </ul>
           )}
