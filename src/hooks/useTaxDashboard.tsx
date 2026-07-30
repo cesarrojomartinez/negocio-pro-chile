@@ -31,6 +31,8 @@ interface DashboardState {
   error: string | null;
   actualizando: boolean;
   periodoId: string;
+  /** Empresa activa en modo autenticado; `null` en modo demostración. */
+  companyId: string | null;
   periodosDisponibles: OpcionPeriodo[];
   escenario: EscenarioId;
   margenPorcentaje: number;
@@ -415,6 +417,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       error,
       actualizando,
       periodoId,
+      companyId,
       periodosDisponibles,
       escenario,
       margenPorcentaje,
