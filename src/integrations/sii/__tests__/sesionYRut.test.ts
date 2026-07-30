@@ -6,7 +6,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-import { mapearError, requestApiGateway } from "../apiGatewayClient";
+import { mapearError, requestApiGateway, RegistroConsumo } from "../apiGatewayClient";
 import { crearAdaptadorApiGateway } from "../apiGatewaySiiProviderAdapter";
 import { construirCuerpoAuth } from "../apiGatewaySiiProviderAdapter";
 import { formatearRut, rutConGuion } from "@/lib/rut";
@@ -122,9 +122,10 @@ describe("auth_cache=0", () => {
         rutUsuario: "779762289",
         claveTributaria: "clave-de-prueba",
       },
+      registro: new RegistroConsumo(),
       sesionNueva: true,
     });
-    await adaptador.fetchSales({ rut: "779762289", periodo: "2026-03" });
+    await adaptador.fetchSalesRcv({ rut: "779762289", periodo: "2026-03" });
 
     expect(urls.length).toBeGreaterThan(1);
     const conCache0 = urls.filter((u) => u.includes("auth_cache=0"));
@@ -146,8 +147,9 @@ describe("auth_cache=0", () => {
         rutUsuario: "779762289",
         claveTributaria: "clave-de-prueba",
       },
+      registro: new RegistroConsumo(),
     });
-    await adaptador.fetchSales({ rut: "779762289", periodo: "2026-03" });
+    await adaptador.fetchSalesRcv({ rut: "779762289", periodo: "2026-03" });
     expect(urls.some((u) => u.includes("auth_cache=0"))).toBe(false);
     vi.unstubAllGlobals();
   });
