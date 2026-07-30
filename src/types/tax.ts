@@ -171,7 +171,25 @@ export interface PeriodoData {
   confiabilidad: NivelConfiabilidad;
 }
 
+/**
+ * Origen real de la información del periodo seleccionado.
+ * No es equivalente al estado de conexión de la empresa.
+ */
+export type FuentePeriodo =
+  /** Datos demostrativos (modo demostración o empresa marcada como demo). */
+  | "mock"
+  /** Documentos reales importados del Registro de Compras y Ventas. */
+  | "rcv_real"
+  /** Solo antecedentes del F29 confirmados por el contador. */
+  | "accountant_confirmed"
+  /** Documentos reales del RCV más antecedentes confirmados del F29. */
+  | "rcv_real_plus_accountant"
+  /** El periodo aún no fue sincronizado ni tiene antecedentes. */
+  | "not_synchronized";
+
 export interface DashboardData {
+  /** Origen de la información del periodo mostrado. */
+  fuentePeriodo: FuentePeriodo;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
   meta: MetaComercial;
