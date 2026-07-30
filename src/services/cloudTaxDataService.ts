@@ -233,7 +233,7 @@ export const cloudTaxDataService: TaxDataService & {
     const { data, error } = await supabase
       .from("tax_company_settings")
       .select(
-        "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, alerts_enabled",
+        "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, ppm_rate_confirmed, alerts_enabled",
       )
       .eq("company_id", companyId)
       .maybeSingle();
@@ -244,9 +244,11 @@ export const cloudTaxDataService: TaxDataService & {
       dineroReservado: Number(data.reserved_amount),
       margenPorcentaje: Number(data.preventive_margin_percent),
       tasaPpm: Number(data.estimated_ppm_rate),
+      tasaPpmConfirmada: !!data.ppm_rate_confirmed,
       alertasActivas: data.alerts_enabled,
     };
   },
+
 
   async getGoals(companyId, periodo) {
     const { data: periodRow } = await supabase
