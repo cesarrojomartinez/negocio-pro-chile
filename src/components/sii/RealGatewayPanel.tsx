@@ -15,6 +15,10 @@ import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import type { ResultadoAuditoriaF29 } from "@/lib/f29Audit.server";
 import { formatCLP, formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
+import { esRutValido, formatearRut } from "@/lib/rut";
+
+/** Códigos que indican sesión vencida del proveedor (no clave incorrecta). */
+const CODIGOS_SESION_VENCIDA = ["SESSION_INVALID", "SESSION_EXPIRED", "AUTH_EXPIRED"];
 
 /** Clave del sondeo guardado para esta sesión del navegador. */
 const CLAVE_SONDEO = "mnd.diagnostico-productos";
@@ -75,6 +79,8 @@ export function RealGatewayPanel() {
   const [diagnostico, setDiagnostico] = useState<DiagnosticoApiGateway | null>(null);
   const [cargando, setCargando] = useState(true);
   const [rutUsuario, setRutUsuario] = useState("");
+  /** Se activa sola tras un error de sesión y se apaga después de usarla. */
+  const [sesionNueva, setSesionNueva] = useState(false);
   const [clave, setClave] = useState("");
   const [periodo, setPeriodo] = useState(periodoId);
   const [acepta, setAcepta] = useState(false);
@@ -175,7 +181,10 @@ export function RealGatewayPanel() {
         periodo,
         rutUsuario,
         claveTributaria: clave,
+        sesionNueva,
       });
+      // `auth_cache=0` nunca queda activo de forma permanente.
+      setSesionNueva(CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? ""));
       const guardado = {
         periodo,
         ejecutadaEn: new Date().toISOString(),
@@ -332,6 +341,9 @@ export function RealGatewayPanel() {
             placeholder="12345678-9"
             value={rutUsuario}
             onChange={(e) => setRutUsuario(e.target.value)}
+            onBlur={() =>
+              esRutValido(rutUsuario) && setRutUsuario(formatearRut(rutUsuario))
+            }
           />
         </div>
         <div className="space-y-1.5">
@@ -367,6 +379,13 @@ export function RealGatewayPanel() {
         </Label>
       </div>
 
+
+      {sesionNueva && (
+        <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
+          La sesión del SII utilizada por el proveedor venció. La próxima consulta
+          creará una sesión nueva por única vez.
+        </p>
+      )}
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
