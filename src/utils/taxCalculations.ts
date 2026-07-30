@@ -67,11 +67,36 @@ const seguro = (n: number): number => (Number.isFinite(n) ? n : 0);
 const redondear = (n: number): number => Math.round(seguro(n));
 
 /* ------------------------------------------------------------------ */
+/* Efecto tributario del documento                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tipos de documento cuyo efecto tributario es negativo: rebajan la base y el
+ * impuesto del periodo (DTE 60, 61 y 112 del SII).
+ */
+export const TIPOS_EFECTO_NEGATIVO = new Set(["notaCredito", "60", "61", "112"]);
+
+/**
+ * Efecto tributario del documento: +1 suma, −1 resta.
+ * El signo es una propiedad del TIPO de documento, no del monto almacenado.
+ * Por eso todos los cálculos usan `efecto × |monto|`: así el resultado es el
+ * mismo tanto si el origen guarda los montos en positivo (datos
+ * demostrativos) como ya firmados (importación real del RCV).
+ */
+export function efectoTributario(tipoDocumento: string): 1 | -1 {
+  return TIPOS_EFECTO_NEGATIVO.has(tipoDocumento) ? -1 : 1;
+}
+
+/** Monto con el efecto tributario aplicado sobre el valor absoluto. */
+export function montoFirmado(monto: number, efecto: 1 | -1): number {
+  return efecto * Math.abs(seguro(monto));
+}
+
+/* ------------------------------------------------------------------ */
 /* IVA débito                                                          */
 /* ------------------------------------------------------------------ */
 
-const VENTA_RESTA_DEBITO = new Set(["notaCredito"]);
-const VENTA_SUMA_DEBITO = new Set(["factura", "boleta", "notaDebito"]);
+const VENTA_CONSIDERADA = new Set(["factura", "boleta", "notaDebito", "notaCredito"]);
 
 function ventaVigente(d: DocumentoTributario): boolean {
   return d.estado !== "anulado";
@@ -91,28 +116,28 @@ export function calculateVatDebit(documents: DocumentoTributario[]): VatDebitRes
   for (const d of documents) {
     if (!ventaVigente(d)) continue;
     const tipo = d.tipoDocumento as string;
-    const suma = VENTA_SUMA_DEBITO.has(tipo);
-    const resta = VENTA_RESTA_DEBITO.has(tipo);
-    if (!suma && !resta) continue;
+    if (!VENTA_CONSIDERADA.has(tipo)) continue;
+    const efecto = efectoTributario(tipo);
 
-    let iva = seguro(d.iva);
+    let iva = Math.abs(seguro(d.iva));
     if (iva === 0) {
-      const afecto = Math.max(0, seguro(d.neto));
+      const afecto = Math.abs(seguro(d.neto));
       if (afecto > 0) {
         iva = Math.round(afecto * VAT_RATE);
         inferredDocuments += 1;
       }
     }
-    vatDebit += resta ? -iva : iva;
-    if (!resta) exemptSales += Math.max(0, seguro(d.exento));
+    vatDebit += efecto * iva;
+    exemptSales += montoFirmado(d.exento, efecto);
   }
 
   return {
     vatDebit: Math.max(0, redondear(vatDebit)),
     inferred: inferredDocuments > 0,
     inferredDocuments,
-    exemptSales: redondear(exemptSales),
+    exemptSales: Math.max(0, redondear(exemptSales)),
   };
+
 }
 
 /* ------------------------------------------------------------------ */
@@ -134,7 +159,7 @@ export function calculateVatCredit(documents: DocumentoTributario[]): VatCreditR
 
   for (const d of documents) {
     const estado = d.estado as string;
-    const iva = Math.max(0, seguro(d.iva));
+    const iva = montoFirmado(d.iva, efectoTributario(d.tipoDocumento as string));
     if (CREDITO_UTILIZABLE.has(estado)) {
       vatCreditUsable += iva;
       usableDocuments += 1;
@@ -727,21 +752,28 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
   const vigentes = docs.filter(ventaVigente);
   const facturas = vigentes.filter((d) => d.tipoDocumento === "factura");
   const boletas = vigentes.filter((d) => d.tipoDocumento === "boleta");
-  const notas = vigentes.filter((d) => d.tipoDocumento === "notaCredito");
+  const notas = vigentes.filter((d) => efectoTributario(d.tipoDocumento as string) === -1);
 
-  const suma = (arr: DocumentoTributario[]) => arr.reduce((a, d) => a + seguro(d.total), 0);
+  // Los montos se toman en valor absoluto: el signo lo aporta el efecto
+  // tributario del tipo de documento, no el dato almacenado.
+  const suma = (arr: DocumentoTributario[]) =>
+    arr.reduce((a, d) => a + Math.abs(seguro(d.total)), 0);
   const ventasFacturas = suma(facturas);
   const ventasBoletas = suma(boletas);
   const notasCredito = suma(notas);
   const ventasExentas = vigentes.reduce(
-    (a, d) => a + (d.tipoDocumento === "notaCredito" ? 0 : seguro(d.exento)),
+    (a, d) => a + montoFirmado(d.exento, efectoTributario(d.tipoDocumento as string)),
     0,
   );
   const ventasTotales = ventasFacturas + ventasBoletas - notasCredito;
+  const ventasNetas = vigentes.reduce(
+    (a, d) => a + montoFirmado(d.neto, efectoTributario(d.tipoDocumento as string)),
+    0,
+  );
 
   const porDia = new Map<string, number>();
   for (const d of [...facturas, ...boletas]) {
-    porDia.set(d.fecha, (porDia.get(d.fecha) ?? 0) + seguro(d.total));
+    porDia.set(d.fecha, (porDia.get(d.fecha) ?? 0) + Math.abs(seguro(d.total)));
   }
   const serieDiaria = [...porDia.entries()]
     .map(([fecha, monto]) => ({ fecha, monto }))
@@ -751,11 +783,14 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
 
   return {
     ventasTotales,
+    ventasNetas: redondear(ventasNetas),
     ventasFacturas,
     ventasBoletas,
-    ventasExentas,
+    ventasExentas: redondear(ventasExentas),
     notasCredito,
     cantidadDocumentos,
+    cantidadNotasCredito: notas.length,
+    cantidadDocumentosInformados: cantidadDocumentos + notas.length,
     cantidadFacturas: facturas.length,
     cantidadBoletas: boletas.length,
     ticketPromedio: cantidadDocumentos
@@ -768,14 +803,17 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
 export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCompras {
   const credito = calculateVatCredit(docs);
   const consideradas = docs.filter((d) => CREDITO_UTILIZABLE.has(d.estado as string));
-  const comprasTotales = consideradas.reduce((a, d) => a + seguro(d.total), 0);
-  const comprasNetas = consideradas.reduce((a, d) => a + seguro(d.neto), 0);
+  const firmado = (d: DocumentoTributario, campo: "total" | "neto" | "exento") =>
+    montoFirmado(d[campo], efectoTributario(d.tipoDocumento as string));
+  const comprasTotales = consideradas.reduce((a, d) => a + firmado(d, "total"), 0);
+  const comprasNetas = consideradas.reduce((a, d) => a + firmado(d, "neto"), 0);
+
 
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
   for (const d of consideradas) {
     const prev = porProveedor.get(d.contraparte) ?? { monto: 0, documentos: 0 };
     porProveedor.set(d.contraparte, {
-      monto: prev.monto + seguro(d.total),
+      monto: prev.monto + firmado(d, "total"),
       documentos: prev.documentos + 1,
     });
   }
@@ -818,13 +856,12 @@ export function construirResumenMensual(
   const fuentePpm: PpmSource = data.fuentePpm ?? (data.tasaPpm ? "configured" : "unknown");
   const fuenteRetenciones: WithholdingsSource = data.fuenteRetenciones ?? "unknown";
 
-  const basePpm = Math.max(
-    0,
-    Math.round(
-      (ventas.ventasFacturas + ventas.ventasBoletas - ventas.notasCredito) /
-        (1 + VAT_RATE),
-    ) + ventas.ventasExentas,
-  );
+  /**
+   * Base del PPM: neto de ventas con el efecto tributario ya aplicado (las
+   * notas de crédito rebajan la base) más las ventas exentas.
+   */
+  const basePpm = Math.max(0, redondear(ventas.ventasNetas + ventas.ventasExentas));
+
   const ppm = calculatePpm({
     ppmTaxBase: basePpm,
     ppmRate: data.tasaPpm ?? null,
@@ -853,7 +890,11 @@ export function construirResumenMensual(
     comprasNetas: compras.comprasNetas,
     comprasExentas: data.documentosCompra
       .filter((d) => CREDITO_UTILIZABLE.has(d.estado as string))
-      .reduce((a, d) => a + seguro(d.exento), 0),
+      .reduce(
+        (a, d) => a + montoFirmado(d.exento, efectoTributario(d.tipoDocumento as string)),
+        0,
+      ),
+
     ivaDebito: debito.vatDebit,
     ivaDebitoInferido: debito.inferred,
     ivaCredito: compras.ivaCredito,

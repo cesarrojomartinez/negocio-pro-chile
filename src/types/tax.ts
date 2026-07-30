@@ -135,16 +135,23 @@ export interface ResumenCompras {
 
 export interface ResumenVentas {
   ventasTotales: number;
+  /** Neto de ventas con el efecto tributario aplicado (notas de crédito restan). */
+  ventasNetas: number;
   ventasFacturas: number;
   ventasBoletas: number;
   ventasExentas: number;
   notasCredito: number;
+  /** Documentos que suman ventas (facturas y boletas). */
   cantidadDocumentos: number;
+  cantidadNotasCredito: number;
+  /** Total de documentos informados en el periodo, incluidas las notas de crédito. */
+  cantidadDocumentosInformados: number;
   cantidadFacturas: number;
   cantidadBoletas: number;
   ticketPromedio: number;
   serieDiaria: { fecha: string; monto: number }[];
 }
+
 
 export interface PeriodoData {
   periodo: string;

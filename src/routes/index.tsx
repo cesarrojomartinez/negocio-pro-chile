@@ -100,6 +100,7 @@ function Inicio() {
                 resumen={data.resumen}
                 margenPorcentaje={margenPorcentaje}
                 onCambiarMargen={setMargenPorcentaje}
+                esDemo={modo === "demo"}
               />
               <div className="space-y-5">
                 <MetaCard meta={data.meta} onGuardarMeta={setMetaMensual} />

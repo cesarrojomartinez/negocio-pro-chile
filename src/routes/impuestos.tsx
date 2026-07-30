@@ -63,7 +63,8 @@ const FACTORES = [
 ];
 
 function Impuestos() {
-  const { data, cargando, margenPorcentaje, setMargenPorcentaje } = useTaxDashboard();
+  const { data, cargando, margenPorcentaje, setMargenPorcentaje, modo } =
+    useTaxDashboard();
 
   return (
     <AppShell>
@@ -108,6 +109,7 @@ function Impuestos() {
               resumen={data.resumen}
               margenPorcentaje={margenPorcentaje}
               onCambiarMargen={setMargenPorcentaje}
+              esDemo={modo === "demo"}
             />
 
             <SectionCard
@@ -129,8 +131,8 @@ function Impuestos() {
             <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
 
             <p className="text-xs text-muted-foreground">
-              Estimación informativa. No corresponde a una declaración oficial del
-              SII.
+              Estimación informativa. El resultado definitivo debe ser confirmado
+              por tu contador.
             </p>
           </>
         )}

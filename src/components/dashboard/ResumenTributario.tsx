@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/accordion";
 import { DataRow, SectionCard } from "@/components/shared/SectionCard";
 import { formatCLP } from "@/utils/currency";
+import { descripcionOrigenEstimacion, textoRemanente } from "@/lib/f29Antecedent";
 import type { ResumenMensual } from "@/types/tax";
 import { MargenSelector } from "./MargenSelector";
 
@@ -14,16 +15,23 @@ export function ResumenTributario({
   margenPorcentaje,
   onCambiarMargen,
   mostrarSelectorMargen = true,
+  esDemo,
 }: {
   resumen: ResumenMensual;
   margenPorcentaje: number;
   onCambiarMargen: (v: number) => void;
   mostrarSelectorMargen?: boolean;
+  /** Modo demostración: cambia el origen declarado de las cifras. */
+  esDemo: boolean;
 }) {
   return (
     <SectionCard
       titulo="Estimación tributaria del mes"
-      descripcion="Estimación al día de hoy, calculada con tus datos demostrativos."
+      descripcion={descripcionOrigenEstimacion({
+        esDemo,
+        fuentePpm: resumen.fuentePpm,
+        fuenteRemanente: resumen.fuenteRemanente,
+      })}
     >
       <div className="rounded-2xl bg-secondary/60 p-4">
         <DataRow
@@ -39,11 +47,11 @@ export function ResumenTributario({
           label="Remanente anterior"
           value={`−${formatCLP(resumen.remanenteAnterior)}`}
           tone="success"
-          hint={
-            resumen.remanenteAnterior === 0
-              ? "No registras remanente del periodo anterior."
-              : undefined
-          }
+          hint={textoRemanente(
+            resumen.remanenteAnterior,
+            resumen.fuenteRemanente,
+            formatCLP,
+          )}
         />
         <DataRow
           label="IVA estimado por pagar"
@@ -109,8 +117,8 @@ export function ResumenTributario({
       </Accordion>
 
       <p className="mt-3 text-xs text-muted-foreground">
-        Estimación informativa. No corresponde a una declaración oficial del SII.
-        Revisa este resultado con tu contador.
+        Estimación informativa. El resultado definitivo debe ser confirmado por tu
+        contador.
       </p>
     </SectionCard>
   );

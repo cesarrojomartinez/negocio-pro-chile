@@ -1,16 +1,28 @@
 import type { DocumentoTributario } from "./tax";
 
 /** Origen del remanente de IVA arrastrado desde el periodo anterior. */
-export type CarryforwardSource = "f29" | "previous_period" | "mock" | "unknown";
+export type CarryforwardSource =
+  | "accountant_confirmed_f29"
+  | "f29"
+  | "previous_period"
+  | "mock"
+  | "unknown";
 /** Origen de la tasa de PPM utilizada. */
-export type PpmSource = "configured" | "previous_f29" | "mock" | "unknown";
+export type PpmSource =
+  | "accountant_confirmed_f29"
+  | "configured"
+  | "previous_f29"
+  | "mock"
+  | "unknown";
 /** Origen de las retenciones estimadas. */
 export type WithholdingsSource =
+  | "accountant_confirmed_f29"
   | "f29_history"
   | "documents"
   | "configured"
   | "mock"
   | "unknown";
+
 
 export type ConfidenceLevel = "high" | "medium" | "low" | "unknown";
 
