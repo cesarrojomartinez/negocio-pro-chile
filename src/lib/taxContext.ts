@@ -166,7 +166,8 @@ export interface EntradaContextoTributario {
   f29Confirmado?: boolean;
   /** El periodo ya cerró respecto de la fecha actual. */
   periodoCerrado?: boolean;
-  calculatedAt?: string;
+  /** Marca de tiempo del cálculo. Se omite para mantener la función pura. */
+  calculatedAt?: string | null;
 }
 
 export interface DiferenciaComponente {
@@ -205,7 +206,7 @@ export interface ContextoTributario {
   calculation_status: CalculationStatus;
   confidence_level: ConfidenceLevel;
   missing_components: ComponenteFaltante[];
-  calculated_at: string;
+  calculated_at: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -363,7 +364,7 @@ export function construirContextoTributario(
     calculation_status,
     confidence_level,
     missing_components: faltantes,
-    calculated_at: entrada.calculatedAt ?? new Date().toISOString(),
+    calculated_at: entrada.calculatedAt ?? null,
   };
 }
 

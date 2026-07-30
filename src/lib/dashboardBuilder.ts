@@ -56,6 +56,8 @@ export interface EntradaDashboard {
   esDemo?: boolean;
   /** El periodo tiene un F29 confirmado por el contador. */
   f29Confirmado?: boolean;
+  /** Marca de tiempo del cálculo, si el llamador la controla. */
+  calculadoEn?: string | null;
 }
 
 /**
@@ -152,6 +154,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     declaredTaxTotal: data.totalDeclarado ?? null,
     f29Confirmado: !!entrada.f29Confirmado,
     periodoCerrado: estado === "closed",
+    calculatedAt: entrada.calculadoEn ?? null,
   });
 
   return {
