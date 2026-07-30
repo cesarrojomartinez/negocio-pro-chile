@@ -255,6 +255,7 @@ export function RealGatewayPanel() {
   };
 
   return (
+    <div ref={contenedorRef}>
     <SectionCard
       titulo="Prueba controlada con el proveedor real"
       descripcion="Consulta única a tu información real del SII a través del proveedor autorizado. Se ejecuta desde el servidor y consume créditos."
