@@ -492,6 +492,7 @@ export const cloudTaxDataService: TaxDataService & {
     const resumenAnteriorGuardado = await resumenGuardado(companyId, anteriorId);
     const docsAnterior = await documentosDe(companyId, anteriorId);
     const resumenActualGuardado = await resumenGuardado(companyId, consulta.periodoId);
+    const informacionReal = await hayInformacionRealDe(companyId, consulta.periodoId);
 
     const { data: periodRow } = await supabase
       .from("tax_periods")
