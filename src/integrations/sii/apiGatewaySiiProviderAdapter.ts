@@ -188,6 +188,11 @@ export interface OpcionesAdaptadorReal {
   registro: RegistroConsumo;
   /** Tope de tipos de documento a consultar por módulo. Protege los créditos. */
   maxTiposPorModulo?: number;
+  /**
+   * Fuerza una sesión nueva en el proveedor (`auth_cache=0`) SOLO en la primera
+   * consulta de la ejecución. Nunca queda activado de forma permanente.
+   */
+  sesionNueva?: boolean;
 }
 
 /**
@@ -199,6 +204,8 @@ export function crearAdaptadorApiGateway(
 ): SiiProviderAdapter {
   const { config, credenciales, registro } = opciones;
   const maxTipos = opciones.maxTiposPorModulo ?? 6;
+  /** Se consume en la primera solicitud y no se vuelve a aplicar. */
+  let sinCacheAuthPendiente = opciones.sesionNueva === true;
 
   // Cuerpo EXACTO exigido por API Gateway: solo `auth.pass.rut` (el RUT del
   // usuario autorizado, sin puntos y con guion) y `auth.pass.clave`.
@@ -214,6 +221,8 @@ export function crearAdaptadorApiGateway(
     ruta: string,
     query?: Record<string, string>,
   ): Promise<{ datos: T; log: ApiGatewayCallLog }> {
+    const sinCacheAuth = sinCacheAuthPendiente;
+    sinCacheAuthPendiente = false;
     return requestApiGateway<CuerpoAuth, T>({
       config,
       modulo,
@@ -222,6 +231,7 @@ export function crearAdaptadorApiGateway(
       query,
       body: cuerpo,
       registro,
+      sinCacheAuth,
     });
   }
 

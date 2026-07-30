@@ -31,6 +31,7 @@ export const pruebaRealApiGatewayFn = createServerFn({ method: "POST" })
       rutUsuario: string;
       claveTributaria: string;
       consentimiento: boolean;
+      sesionNueva?: boolean;
     }) => data,
   )
   .handler(async ({ data, context }) =>
