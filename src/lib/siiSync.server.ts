@@ -519,7 +519,15 @@ export async function syncSiiCompanyPeriod(
   const empresa = await empresaDe(entrada.companyId);
   const conexionFila = await conexionDe(entrada.companyId, proveedorId);
 
-  if (!conexionFila || !["connected", "stale"].includes(String(conexionFila.status)))
+  // "connecting" es una primera conexión en curso y "error" es un intento
+  // anterior fallido: en ambos casos se puede volver a consultar. Solo
+  // "disconnected" (o la ausencia de conexión) bloquea la sincronización.
+  const ESTADOS_QUE_PERMITEN_SINCRONIZAR = ["connected", "connecting", "stale", "error"];
+  if (
+    !conexionFila ||
+    !ESTADOS_QUE_PERMITEN_SINCRONIZAR.includes(String(conexionFila.status))
+  )
+
     throw new ErrorNegocio(
       esReal
         ? "Primero necesitas autorizar la conexión real de esta empresa."
@@ -953,16 +961,18 @@ export async function syncSiiCompanyPeriod(
 
   /**
    * Estado de la conexión según lo ocurrido:
-   * - sesión inválida: queda en error y exige volver a autorizar;
-   * - proveedor caído o resultado parcial: queda "stale" (hay datos, pero
-   *   pueden estar incompletos);
-   * - todo bien: conectada.
+   * - sesión inválida o ninguna consulta exitosa: queda en "error";
+   * - resultado parcial (hay datos, pero pueden estar incompletos): "stale";
+   * - todo bien: "connected".
+   * "stale" nunca se usa antes de una primera sincronización exitosa.
    */
-  const estadoConexion = sesionInvalida
-    ? "error"
-    : estado === "success"
-      ? "connected"
-      : "stale";
+  const estadoConexion =
+    sesionInvalida || estado === "failed"
+      ? "error"
+      : estado === "success"
+        ? "connected"
+        : "stale";
+
 
   await supabaseAdmin
     .from("tax_sii_connections")
