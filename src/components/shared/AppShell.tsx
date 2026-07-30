@@ -13,6 +13,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
+
 import {
   Select,
   SelectContent,
@@ -247,7 +249,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </header>
 
-          <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-10">{children}</main>
+          <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-10">
+            <SimulatedDataNotice className="mb-4" compacto />
+            {children}
+          </main>
+
         </div>
       </div>
 
