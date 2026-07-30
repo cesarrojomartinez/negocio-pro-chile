@@ -28,6 +28,7 @@ export function RealGatewayPanel() {
   const [cargando, setCargando] = useState(true);
   const [rutUsuario, setRutUsuario] = useState("");
   const [clave, setClave] = useState("");
+  const [periodo, setPeriodo] = useState(periodoId);
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
@@ -78,13 +79,11 @@ export function RealGatewayPanel() {
     try {
       const r = await apiGatewayService.ejecutarPrueba({
         companyId: empresaActiva.id,
-        periodo: periodoId,
+        periodo,
         rutUsuario,
         claveTributaria: clave,
       });
       setResultado(r);
-      // La clave se descarta inmediatamente después de usarla.
-      setClave("");
       if (r.errorCodigo) toast.error(r.mensaje);
       else toast.success(r.mensaje);
     } catch (error) {
@@ -92,9 +91,12 @@ export function RealGatewayPanel() {
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
       );
     } finally {
+      // La clave se descarta siempre, funcione o falle la consulta.
+      setClave("");
       setEjecutando(false);
     }
   };
+
 
   return (
     <SectionCard
@@ -192,6 +194,15 @@ export function RealGatewayPanel() {
             onChange={(e) => setClave(e.target.value)}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="periodo-real">Periodo a consultar</Label>
+          <Input
+            id="periodo-real"
+            type="month"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="mt-3 flex items-start gap-2">
@@ -202,9 +213,10 @@ export function RealGatewayPanel() {
         />
         <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
           Autorizo esta consulta puntual a mi información del SII para el periodo{" "}
-          {periodoId}.
+          {periodo}.
         </Label>
       </div>
+
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
@@ -216,7 +228,7 @@ export function RealGatewayPanel() {
           ) : (
             <KeyRound className="h-4 w-4" aria-hidden />
           )}
-          {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodoId}`}
+          {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodo}`}
         </Button>
         <Button
           variant="outline"
@@ -279,6 +291,13 @@ export function RealGatewayPanel() {
               />
             ) : null}
           </div>
+          <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
+            El Formulario 29 está disponible, pero API Gateway no entrega de forma
+            estructurada todos sus conceptos tributarios. Remanente, PPM,
+            retenciones y total pagado quedan como desconocidos cuando no llegan
+            en la respuesta. Estimación informativa: el resultado definitivo debe
+            ser confirmado por tu contador.
+          </p>
         </div>
       )}
     </SectionCard>
