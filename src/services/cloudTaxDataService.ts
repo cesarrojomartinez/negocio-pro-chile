@@ -15,7 +15,9 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
+  resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+
 import { estadoDelPeriodo, simulateAdditionalSale } from "@/utils/taxCalculations";
 import type { ConsultaDashboard, TaxDataService } from "./taxDataService";
 import type { Empresa, EstadoConexionSii } from "@/types/company";
@@ -53,8 +55,11 @@ export interface ConfiguracionCloud {
   dineroReservado: number;
   margenPorcentaje: number;
   tasaPpm: number;
+  /** La tasa de PPM guardada fue confirmada (no es el valor por omisión). */
+  tasaPpmConfirmada: boolean;
   alertasActivas: boolean;
 }
+
 
 function mapDocumento(fila: {
   id: string;
@@ -150,6 +155,44 @@ async function antecedenteF29De(companyId: string, periodo: string) {
   return interpretarAntecedenteF29(data);
 }
 
+/**
+ * Última tasa de PPM confirmada por el contador en un periodo anterior.
+ * Evita que una empresa real herede la tasa demostrativa por omisión.
+ */
+async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
+  const { data: periodos } = await supabase
+    .from("tax_periods")
+    .select("id, period")
+    .eq("company_id", companyId)
+    .lt("period", periodo)
+    .order("period", { ascending: false })
+    .limit(12);
+  const lista = periodos ?? [];
+  if (lista.length === 0) return null;
+
+  const { data: filas } = await supabase
+    .from("tax_f29_history")
+    .select(
+      "tax_period_id, declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .in(
+      "tax_period_id",
+      lista.map((p) => p.id),
+    );
+
+  for (const p of lista) {
+    const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
+    if (!fila) continue;
+    const antecedente = interpretarAntecedenteF29(fila);
+    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      return antecedente.tasaPpm;
+  }
+  return null;
+}
+
+
+
 
 export const cloudTaxDataService: TaxDataService & {
   getCompanies(): Promise<EmpresaCloud[]>;
@@ -230,7 +273,7 @@ export const cloudTaxDataService: TaxDataService & {
     const { data, error } = await supabase
       .from("tax_company_settings")
       .select(
-        "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, alerts_enabled",
+        "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, ppm_rate_confirmed, alerts_enabled",
       )
       .eq("company_id", companyId)
       .maybeSingle();
@@ -241,9 +284,11 @@ export const cloudTaxDataService: TaxDataService & {
       dineroReservado: Number(data.reserved_amount),
       margenPorcentaje: Number(data.preventive_margin_percent),
       tasaPpm: Number(data.estimated_ppm_rate),
+      tasaPpmConfirmada: !!data.ppm_rate_confirmed,
       alertasActivas: data.alerts_enabled,
     };
   },
+
 
   async getGoals(companyId, periodo) {
     const { data: periodRow } = await supabase
@@ -364,14 +409,23 @@ export const cloudTaxDataService: TaxDataService & {
       .maybeSingle();
 
     const dias = diasDePeriodo(consulta.periodoId);
-    const tasaPpmCruda = settings?.tasaPpm ?? null;
-    const tasaPpm = tasaPpmCruda && tasaPpmCruda > 0 ? tasaPpmCruda : null;
     const metaMensual =
       consulta.metaMensual ?? metaGuardada ?? settings?.metaMensual ?? 0;
     const dineroReservado = consulta.dineroReservado ?? settings?.dineroReservado ?? 0;
     const margenPorcentaje = consulta.margenPorcentaje;
 
     const antecedenteF29 = await antecedenteF29De(companyId, consulta.periodoId);
+    const esDemoEmpresa = !!empresaRow.is_demo;
+    const tasaPrevia = esDemoEmpresa
+      ? null
+      : await tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId);
+    const { tasaPpm, fuentePpm } = resolverTasaPpm({
+      esDemo: esDemoEmpresa,
+      antecedentePeriodo: antecedenteF29,
+      tasaConfigurada: settings?.tasaPpm ?? null,
+      configuracionConfirmada: !!settings?.tasaPpmConfirmada,
+      tasaConfirmadaPrevia: tasaPrevia,
+    });
     const parametros = aplicarAntecedenteF29(
       {
         remanenteAnterior: Number(
@@ -379,7 +433,8 @@ export const cloudTaxDataService: TaxDataService & {
         ),
         fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
         tasaPpm,
-        fuentePpm: tasaPpm == null ? "unknown" : "configured",
+        fuentePpm,
+
         retenciones: Number(resumenActualGuardado?.estimated_withholdings ?? 0),
         fuenteRetenciones:
           Number(resumenActualGuardado?.estimated_withholdings ?? 0) > 0

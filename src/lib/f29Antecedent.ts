@@ -132,7 +132,52 @@ export function descripcionOrigenEstimacion(fuente: FuentePeriodo): string {
 
 /** Texto único para un periodo sin información importada. */
 export const MENSAJE_PERIODO_SIN_SINCRONIZAR =
-  "Este periodo todavía no fue sincronizado con el SII.";
+  "Este periodo todavía no fue sincronizado con el SII ni confirmado por tu contador.";
+
+export interface EntradaTasaPpm {
+  /** Empresa demostrativa o modo demostración. */
+  esDemo: boolean;
+  /** Antecedente del F29 del propio periodo. */
+  antecedentePeriodo: AntecedenteF29 | null;
+  /** Tasa guardada en la configuración de la empresa. */
+  tasaConfigurada: number | null;
+  /** La tasa guardada fue confirmada (no es el valor por omisión). */
+  configuracionConfirmada: boolean;
+  /** Tasa de un F29 confirmado de un periodo anterior, si existe. */
+  tasaConfirmadaPrevia: number | null;
+}
+
+/**
+ * Prioridad de la tasa de PPM por periodo:
+ * 1) F29 confirmado del periodo, 2) configuración confirmada vigente,
+ * 3) F29 confirmado anterior, 4) desconocida.
+ * En una empresa real nunca se usa la tasa demostrativa por omisión.
+ */
+export function resolverTasaPpm(entrada: EntradaTasaPpm): {
+  tasaPpm: number | null;
+  fuentePpm: PpmSource;
+} {
+  const propio = entrada.antecedentePeriodo;
+  if (propio?.confirmado && propio.tasaPpm != null && propio.tasaPpm > 0)
+    return { tasaPpm: propio.tasaPpm, fuentePpm: ORIGEN_F29_CONTADOR };
+
+  if (entrada.esDemo)
+    return entrada.tasaConfigurada && entrada.tasaConfigurada > 0
+      ? { tasaPpm: entrada.tasaConfigurada, fuentePpm: "mock" }
+      : { tasaPpm: null, fuentePpm: "unknown" };
+
+  if (
+    entrada.configuracionConfirmada &&
+    entrada.tasaConfigurada != null &&
+    entrada.tasaConfigurada > 0
+  )
+    return { tasaPpm: entrada.tasaConfigurada, fuentePpm: "configured" };
+
+  if (entrada.tasaConfirmadaPrevia != null && entrada.tasaConfirmadaPrevia > 0)
+    return { tasaPpm: entrada.tasaConfirmadaPrevia, fuentePpm: "previous_f29" };
+
+  return { tasaPpm: null, fuentePpm: "unknown" };
+}
 
 /** Etiqueta breve del origen del periodo, para el encabezado. */
 export function etiquetaFuentePeriodo(fuente: FuentePeriodo): string {

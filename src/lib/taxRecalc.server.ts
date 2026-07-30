@@ -4,7 +4,9 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
+  resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+
 import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
@@ -104,6 +106,41 @@ async function remanenteAnterior(
   return { monto: 0, fuente: "unknown" };
 }
 
+/** Última tasa de PPM confirmada por el contador en periodos anteriores. */
+async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
+  const { data: periodos } = await supabaseAdmin
+    .from("tax_periods")
+    .select("id, period")
+    .eq("company_id", companyId)
+    .lt("period", periodo)
+    .order("period", { ascending: false })
+    .limit(12);
+  const lista = periodos ?? [];
+  if (lista.length === 0) return null;
+
+  const { data: filas } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select(
+      "tax_period_id, declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .in(
+      "tax_period_id",
+      lista.map((p) => p.id),
+    );
+
+  for (const p of lista) {
+    const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
+    if (!fila) continue;
+    const antecedente = interpretarAntecedenteF29(fila);
+    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      return antecedente.tasaPpm;
+  }
+  return null;
+}
+
+
+
 export interface ResultadoRecalculo {
   periodo: string;
   ivaDebito: number;
@@ -160,8 +197,9 @@ export async function recalculateTaxPeriod(
   const { data: settings } = await supabaseAdmin
     .from("tax_company_settings")
     .select(
-      "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate",
+      "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, ppm_rate_confirmed",
     )
+
     .eq("company_id", entrada.companyId)
     .maybeSingle();
 
@@ -205,17 +243,24 @@ export async function recalculateTaxPeriod(
     .maybeSingle();
   const antecedente = interpretarAntecedenteF29(f29Periodo);
 
+  const tasaPrevia = esDemo
+    ? null
+    : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
+  const tasaResuelta = resolverTasaPpm({
+    esDemo,
+    antecedentePeriodo: antecedente,
+    tasaConfigurada: tasaPpmConfigurada,
+    configuracionConfirmada: !!settings?.ppm_rate_confirmed,
+    tasaConfirmadaPrevia: tasaPrevia,
+  });
+
   const retencionesBase = Number(resumenActual?.estimated_withholdings ?? 0);
   const parametros = aplicarAntecedenteF29(
     {
       remanenteAnterior: remanente.monto,
       fuenteRemanente: remanente.fuente,
-      tasaPpm: tasaPpmConfigurada,
-      fuentePpm: (tasaPpmConfigurada == null
-        ? "unknown"
-        : esDemo
-          ? "mock"
-          : "configured") as PpmSource,
+      tasaPpm: tasaResuelta.tasaPpm,
+      fuentePpm: tasaResuelta.fuentePpm,
       retenciones: retencionesBase,
       fuenteRetenciones: (retencionesBase > 0
         ? ((resumenActual?.withholdings_source as WithholdingsSource) ??
@@ -224,6 +269,7 @@ export async function recalculateTaxPeriod(
     },
     antecedente,
   );
+
   const tasaPpm = parametros.tasaPpm;
   const fuentePpm = parametros.fuentePpm;
   const retenciones = parametros.retenciones;

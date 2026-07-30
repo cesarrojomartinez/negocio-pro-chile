@@ -56,7 +56,7 @@ function Compras() {
         ) : data.documentosCompra.length === 0 ? (
           <EmptyState
             titulo="Sin compras registradas"
-            mensaje="Todavía no hay documentos de compra en este periodo demostrativo."
+            mensaje="Todavía no hay documentos de compra registrados en este periodo."
           />
         ) : (
           <>
