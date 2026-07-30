@@ -141,6 +141,29 @@ async function resumenGuardado(companyId: string, periodo: string) {
   return data;
 }
 
+/**
+ * Señales de que el periodo sí tiene información real persistida, aunque el
+ * F29 no esté confirmado: origen del periodo, resumen guardado o snapshots.
+ */
+async function hayInformacionRealDe(companyId: string, periodo: string) {
+  const { data: periodRow } = await supabase
+    .from("tax_periods")
+    .select("id, data_source, last_calculated_at")
+    .eq("company_id", companyId)
+    .eq("period", periodo)
+    .maybeSingle();
+  if (!periodRow) return false;
+  if (periodRow.data_source === "api_gateway") return true;
+  const { count } = await supabase
+    .from("tax_provider_snapshots")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("provider", "api_gateway")
+    .eq("tax_period_id", periodRow.id);
+  return (count ?? 0) > 0;
+}
+
+
 /** Antecedente del F29 del periodo, cuando el contador ya lo confirmó. */
 async function antecedenteF29De(companyId: string, periodo: string) {
   const { data: periodRow } = await supabase
@@ -469,6 +492,7 @@ export const cloudTaxDataService: TaxDataService & {
     const resumenAnteriorGuardado = await resumenGuardado(companyId, anteriorId);
     const docsAnterior = await documentosDe(companyId, anteriorId);
     const resumenActualGuardado = await resumenGuardado(companyId, consulta.periodoId);
+    const informacionReal = await hayInformacionRealDe(companyId, consulta.periodoId);
 
     const { data: periodRow } = await supabase
       .from("tax_periods")
@@ -598,6 +622,9 @@ export const cloudTaxDataService: TaxDataService & {
       configuradoManualmente: settings != null,
       esDemo: !!empresaRow.is_demo,
       f29Confirmado: !!antecedenteF29?.confirmado,
+      sincronizacionReal:
+        !empresaRow.is_demo &&
+        (informacionReal || resumenActualGuardado != null),
     });
   },
 

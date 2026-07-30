@@ -47,12 +47,21 @@ interface DashboardState {
   resumenSincronizacion: string | null;
   /** Verdadero cuando la información visible proviene del proveedor simulado. */
   datosSimulados: boolean;
+  /** La empresa activa usa el proveedor real (API Gateway) y no el mock. */
+  conexionReal: boolean;
+  /**
+   * Se incrementa cuando el usuario pide una actualización real: el panel de
+   * consulta segura lo observa para abrir el formulario con RUT y clave.
+   */
+  solicitudActualizacionReal: number;
   setPeriodo: (id: string) => void;
   setEscenario: (id: EscenarioId) => void;
   setMargenPorcentaje: (v: number) => void;
   setDineroReservado: (v: number) => void;
   setMetaMensual: (v: number) => void;
   actualizar: () => Promise<void>;
+  /** Relee lo ya guardado, sin consultar a ningún proveedor. */
+  refrescarDatos: () => Promise<void>;
   conectarDemo: () => Promise<void>;
   desconectar: () => void;
 }
@@ -84,6 +93,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [refrescoInicial, setRefrescoInicial] = useState<string | null>(null);
+  const [solicitudActualizacionReal, setSolicitudActualizacionReal] = useState(0);
 
   const esCloud = modo === "cloud";
   const companyId = empresaActiva?.id ?? null;
@@ -261,35 +271,64 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     [companyId, periodoId, refrescarEmpresas],
   );
 
-  const actualizar = useCallback(async () => {
+  /** Empresa con proveedor real autorizado: nunca debe caer en el mock. */
+  const conexionReal = esCloud && conexionSii?.proveedor === "api_gateway";
+
+  /** Relectura de lo ya guardado: no consulta a ningún proveedor. */
+  const refrescarDatos = useCallback(async () => {
     setActualizando(true);
     try {
-      if (esCloud && companyId) {
-        const r = await sincronizarCloud("manual");
-        await cargar();
-        if (r && r.estado === "failed") {
-          toast.error("No pudimos actualizar la información", {
-            description: r.mensaje,
-          });
-        } else if (r && r.estado === "partial") {
-          toast.warning("Actualización parcial", { description: r.mensaje });
-        } else if (r && !r.ejecutada) {
-          toast("Sin cambios", { description: r.mensaje });
-        } else {
-          toast.success("Información actualizada", {
-            description:
-              "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
-          });
-        }
-        return;
-      }
-      const fecha = await mockTaxDataService.sincronizar();
-      setUltimaSincronizacionDemo(fecha);
-      setEstadoConexionDemo((prev) => (prev === "disconnected" ? prev : "connected"));
+      await refrescarEmpresas();
       await cargar();
-      toast.success("Información actualizada", {
-        description: "Los datos mostrados son una estimación informativa.",
+    } finally {
+      setActualizando(false);
+    }
+  }, [cargar, refrescarEmpresas]);
+
+  /** Actualización con el proveedor demostrativo. */
+  const actualizarMock = useCallback(async () => {
+    if (esCloud && companyId) {
+      const r = await sincronizarCloud("manual");
+      await cargar();
+      if (r && r.estado === "failed") {
+        toast.error("No pudimos actualizar la información", {
+          description: r.mensaje,
+        });
+      } else if (r && r.estado === "partial") {
+        toast.warning("Actualización parcial", { description: r.mensaje });
+      } else if (r && !r.ejecutada) {
+        toast("Sin cambios", { description: r.mensaje });
+      } else {
+        toast.success("Información actualizada", {
+          description:
+            "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
+        });
+      }
+      return;
+    }
+    const fecha = await mockTaxDataService.sincronizar();
+    setUltimaSincronizacionDemo(fecha);
+    setEstadoConexionDemo((prev) => (prev === "disconnected" ? prev : "connected"));
+    await cargar();
+    toast.success("Información actualizada", {
+      description: "Los datos mostrados son una estimación informativa.",
+    });
+  }, [cargar, esCloud, companyId, sincronizarCloud]);
+
+  const actualizar = useCallback(async () => {
+    // Conexión real: la clave tributaria solo se pide en el formulario seguro.
+    if (conexionReal) {
+      setSolicitudActualizacionReal((n) => n + 1);
+      await refrescarDatos();
+      toast.info("Mostrando la última información guardada", {
+        description:
+          "Para traer datos nuevos del SII, completa el formulario de actualización segura en Configuración.",
       });
+      return;
+    }
+    setActualizando(true);
+    try {
+      await actualizarMock();
     } catch (error) {
       toast.error("No pudimos actualizar la información", {
         description:
@@ -300,7 +339,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     } finally {
       setActualizando(false);
     }
-  }, [cargar, esCloud, companyId, sincronizarCloud]);
+  }, [conexionReal, refrescarDatos, actualizarMock]);
 
   const conectarDemo = useCallback(async () => {
     if (esCloud && companyId) {
@@ -378,6 +417,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!esCloud || !companyId || soloLectura) return;
     if (!conexionSii || !["connected", "stale"].includes(conexionSii.estado)) return;
+    // Con proveedor real no existe refresco automático: requiere clave del usuario.
+    if (conexionSii.proveedor === "api_gateway") return;
     const clave = `${companyId}|${periodoId}`;
     if (refrescoInicial === clave) return;
     setRefrescoInicial(clave);
@@ -428,6 +469,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       ultimaSincronizacion,
       conexionSii,
       resumenSincronizacion,
+      conexionReal,
+      solicitudActualizacionReal,
       // Depende del periodo mostrado, no del estado de conexión de la empresa.
       datosSimulados: data?.fuentePeriodo === "mock",
       setPeriodo: cambiarPeriodo,
@@ -436,6 +479,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       setDineroReservado: cambiarReservado,
       setMetaMensual: cambiarMeta,
       actualizar,
+      refrescarDatos,
       conectarDemo,
       desconectar,
     }),
@@ -457,6 +501,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       ultimaSincronizacion,
       conexionSii,
       resumenSincronizacion,
+      conexionReal,
+      solicitudActualizacionReal,
       esCloud,
       cambiarPeriodo,
       cambiarEscenario,
@@ -464,6 +510,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       cambiarReservado,
       cambiarMeta,
       actualizar,
+      refrescarDatos,
       conectarDemo,
       desconectar,
     ],

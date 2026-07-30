@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, KeyRound, Loader2, PlugZap, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,7 +74,8 @@ const ESTILO_PRODUCTO: Record<string, string> = {
  */
 export function RealGatewayPanel() {
   const { empresaActiva } = useCompany();
-  const { periodoId } = useTaxDashboard();
+  const { periodoId, refrescarDatos, solicitudActualizacionReal } = useTaxDashboard();
+  const contenedorRef = useRef<HTMLDivElement | null>(null);
 
   const [diagnostico, setDiagnostico] = useState<DiagnosticoApiGateway | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -207,6 +208,8 @@ export function RealGatewayPanel() {
       else if (m.tono === "warning") toast.warning(m.texto);
       else if (m.tono === "info") toast.info(m.texto);
       else toast.success(m.texto);
+      // Tras una consulta real hay datos nuevos guardados: refrescamos el panel.
+      if (m.tono !== "error") await refrescarDatos();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
@@ -217,6 +220,14 @@ export function RealGatewayPanel() {
       setEjecutando(false);
     }
   };
+  // Cuando el usuario pide "Actualizar" con proveedor real, traemos el formulario
+  // a la vista para que ingrese su clave (nunca se guarda).
+  useEffect(() => {
+    if (solicitudActualizacionReal > 0) {
+      contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [solicitudActualizacionReal]);
+
 
 
 
@@ -244,6 +255,7 @@ export function RealGatewayPanel() {
   };
 
   return (
+    <div ref={contenedorRef}>
     <SectionCard
       titulo="Prueba controlada con el proveedor real"
       descripcion="Consulta única a tu información real del SII a través del proveedor autorizado. Se ejecuta desde el servidor y consume créditos."
@@ -775,5 +787,6 @@ export function RealGatewayPanel() {
       )}
 
     </SectionCard>
+    </div>
   );
 }

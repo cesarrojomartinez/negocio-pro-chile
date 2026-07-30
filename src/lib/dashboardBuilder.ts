@@ -27,19 +27,25 @@ import type {
 
 /**
  * Determina el origen real del periodo. Una empresa conectada no implica que
- * todos sus periodos tengan información importada.
+ * todos sus periodos tengan información importada, pero una sincronización
+ * real exitosa (o un resumen real guardado) sí basta para considerarlo real
+ * aunque el F29 todavía no esté confirmado.
  */
 export function determinarFuentePeriodo(entrada: {
   esDemo: boolean;
   hayDocumentos: boolean;
   f29Confirmado: boolean;
+  /** Existe sincronización real exitosa, snapshot o resumen real del periodo. */
+  sincronizacionReal?: boolean;
 }): FuentePeriodo {
   if (entrada.esDemo) return "mock";
-  if (entrada.hayDocumentos && entrada.f29Confirmado) return "rcv_real_plus_accountant";
-  if (entrada.hayDocumentos) return "rcv_real";
+  const hayRcvReal = entrada.hayDocumentos || !!entrada.sincronizacionReal;
+  if (hayRcvReal && entrada.f29Confirmado) return "rcv_real_plus_accountant";
+  if (hayRcvReal) return "rcv_real";
   if (entrada.f29Confirmado) return "accountant_confirmed";
   return "not_synchronized";
 }
+
 
 export interface EntradaDashboard {
   empresa: Empresa;
@@ -56,6 +62,8 @@ export interface EntradaDashboard {
   esDemo?: boolean;
   /** El periodo tiene un F29 confirmado por el contador. */
   f29Confirmado?: boolean;
+  /** Hubo sincronización real exitosa o hay resumen real guardado. */
+  sincronizacionReal?: boolean;
   /** Marca de tiempo del cálculo, si el llamador la controla. */
   calculadoEn?: string | null;
 }
@@ -108,6 +116,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     hayDocumentos:
       data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
     f29Confirmado: !!entrada.f29Confirmado,
+    sincronizacionReal: !!entrada.sincronizacionReal,
   });
 
   const fuenteDocumentos: ConceptSource = entrada.esDemo

@@ -81,8 +81,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const esCloud = modo === "cloud";
   // El encabezado describe el periodo seleccionado, no la conexión de la empresa.
-  const fuentePeriodo: FuentePeriodo =
-    data?.fuentePeriodo ?? (esCloud ? "not_synchronized" : "mock");
+  // Mientras no haya datos cargados no se afirma nada sobre el origen.
+  const fuentePeriodo: FuentePeriodo | null =
+    data?.fuentePeriodo ?? (esCloud ? null : "mock");
   const empresaId = esCloud ? (empresaActiva?.id ?? "") : EMPRESA_DEMO.id;
   const rutVisible = esCloud
     ? empresaActiva
@@ -255,7 +256,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="text-xs text-muted-foreground">
                   Fuente del periodo:
                 </span>
-                <FuentePeriodoBadge fuente={fuentePeriodo} />
+                {fuentePeriodo ? (
+                  <FuentePeriodoBadge fuente={fuentePeriodo} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Cargando…</span>
+                )}
               </span>
               <span className="text-xs text-muted-foreground">
                 {fuentePeriodo === "accountant_confirmed"
