@@ -153,6 +153,44 @@ async function antecedenteF29De(companyId: string, periodo: string) {
   return interpretarAntecedenteF29(data);
 }
 
+/**
+ * Última tasa de PPM confirmada por el contador en un periodo anterior.
+ * Evita que una empresa real herede la tasa demostrativa por omisión.
+ */
+async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
+  const { data: periodos } = await supabase
+    .from("tax_periods")
+    .select("id, period")
+    .eq("company_id", companyId)
+    .lt("period", periodo)
+    .order("period", { ascending: false })
+    .limit(12);
+  const lista = periodos ?? [];
+  if (lista.length === 0) return null;
+
+  const { data: filas } = await supabase
+    .from("tax_f29_history")
+    .select(
+      "tax_period_id, declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .in(
+      "tax_period_id",
+      lista.map((p) => p.id),
+    );
+
+  for (const p of lista) {
+    const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
+    if (!fila) continue;
+    const antecedente = interpretarAntecedenteF29(fila);
+    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      return antecedente.tasaPpm;
+  }
+  return null;
+}
+
+
+
 
 export const cloudTaxDataService: TaxDataService & {
   getCompanies(): Promise<EmpresaCloud[]>;
