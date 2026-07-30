@@ -18,6 +18,11 @@ import {
   resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+import {
+  hayHistorialDeVigencias,
+  seleccionarParametroVigente,
+  type FilaParametroVigencia,
+} from "@/lib/vigenciaParametros";
 
 import { estadoDelPeriodo, simulateAdditionalSale } from "@/utils/taxCalculations";
 import type { ConsultaDashboard, TaxDataService } from "./taxDataService";
@@ -192,31 +197,40 @@ async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
   return null;
 }
 
-/** Parámetro tributario vigente de la empresa para el periodo indicado. */
+/**
+ * Parámetro tributario de la empresa vigente al inicio del periodo, con la
+ * indicación de si existe historial de vigencias para ese parámetro.
+ */
 async function parametroVigenteDe(
   companyId: string,
   tipo: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime",
   periodo: string,
-): Promise<number | null> {
-  const primerDia = `${periodo}-01`;
+): Promise<{ valor: number | null; hayHistorial: boolean }> {
   const { data } = await supabase
     .from("tax_company_tax_parameters")
-    .select("value, effective_from, effective_to")
+    .select("value, effective_from, effective_to, confirmed, source, confirmed_at")
     .eq("company_id", companyId)
     .eq("parameter_type", tipo)
     .eq("confirmed", true)
-    .lte("effective_from", primerDia)
-    .order("effective_from", { ascending: false })
-    .limit(5);
+    .order("effective_from", { ascending: false });
 
-  const vigente = (data ?? []).find(
-    (p) => p.effective_to == null || String(p.effective_to) >= primerDia,
-  );
-  return vigente == null ? null : Number(vigente.value);
+  const filas = (data ?? []) as FilaParametroVigencia[];
+  const vigente = seleccionarParametroVigente(filas, periodo);
+  return { valor: vigente?.valor ?? null, hayHistorial: hayHistorialDeVigencias(filas) };
 }
 
 
 
+
+
+/** Diferencia registrada entre el remanente calculado y el declarado. */
+export interface ConciliacionRemanenteCloud {
+  periodoAnterior: string;
+  remanenteCalculadoPrevio: number;
+  remanenteDeclarado: number;
+  diferencia: number;
+  estado: string;
+}
 
 export const cloudTaxDataService: TaxDataService & {
   getCompanies(): Promise<EmpresaCloud[]>;
@@ -240,8 +254,39 @@ export const cloudTaxDataService: TaxDataService & {
   connectDemo(companyId: string): Promise<string | null>;
   disconnectDemo(companyId: string): Promise<void>;
   getConnectionStatus(companyId: string): Promise<EstadoConexionSii>;
+  getConciliacionRemanente(
+    companyId: string,
+    periodo: string,
+  ): Promise<ConciliacionRemanenteCloud | null>;
 } = {
   esDemo: false,
+
+  async getConciliacionRemanente(companyId, periodo) {
+    const { data: periodRow } = await supabase
+      .from("tax_periods")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("period", periodo)
+      .maybeSingle();
+    if (!periodRow) return null;
+    const { data } = await supabase
+      .from("tax_carryforward_reconciliations")
+      .select(
+        "previous_period, calculated_previous_carryforward, declared_previous_carryforward, difference, status",
+      )
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodRow.id)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      periodoAnterior: data.previous_period,
+      remanenteCalculadoPrevio: Number(data.calculated_previous_carryforward),
+      remanenteDeclarado: Number(data.declared_previous_carryforward),
+      diferencia: Number(data.difference),
+      estado: data.status,
+    };
+  },
+
 
   async getCompanies() {
     const { data, error } = await supabase
@@ -445,17 +490,19 @@ export const cloudTaxDataService: TaxDataService & {
     const tasaPrevia = esDemoEmpresa
       ? null
       : await tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId);
-    const tasaParametro = esDemoEmpresa
-      ? null
+    const paramPpm = esDemoEmpresa
+      ? { valor: null, hayHistorial: false }
       : await parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId);
     const { tasaPpm, fuentePpm } = resolverTasaPpm({
       esDemo: esDemoEmpresa,
       antecedentePeriodo: antecedenteF29,
-      tasaParametroVigente: tasaParametro,
+      tasaParametroVigente: paramPpm.valor,
+      hayHistorialVigencias: paramPpm.hayHistorial,
       tasaConfigurada: settings?.tasaPpm ?? null,
       configuracionConfirmada: !!settings?.tasaPpmConfirmada,
       tasaConfirmadaPrevia: tasaPrevia,
     });
+
     const remanente = resolverRemanenteAnterior({
       esDemo: esDemoEmpresa,
       antecedentePeriodo: antecedenteF29,

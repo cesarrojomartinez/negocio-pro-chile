@@ -141,6 +141,12 @@ export interface EntradaTasaPpm {
   antecedentePeriodo: AntecedenteF29 | null;
   /** Parámetro tributario vigente de la empresa para el periodo. */
   tasaParametroVigente?: number | null;
+  /**
+   * La empresa tiene parámetros de PPM con vigencia registrada. Cuando existe
+   * historial, la tasa global sin fecha de la configuración NO puede aplicarse:
+   * sería una tasa de otro periodo viajando hacia atrás.
+   */
+  hayHistorialVigencias?: boolean;
   /** Tasa guardada en la configuración de la empresa. */
   tasaConfigurada: number | null;
   /** La tasa guardada fue confirmada (no es el valor por omisión). */
@@ -151,9 +157,11 @@ export interface EntradaTasaPpm {
 
 /**
  * Prioridad de la tasa de PPM por periodo:
- * 1) F29 confirmado del periodo, 2) parámetro tributario vigente de la empresa,
- * 3) configuración confirmada, 4) F29 confirmado anterior, 5) desconocida.
- * En una empresa real nunca se usa la tasa demostrativa por omisión.
+ * 1) F29 confirmado del periodo, 2) parámetro con vigencia que cubre el
+ * periodo, 3) configuración confirmada sin fecha (solo si la empresa no tiene
+ * historial de vigencias), 4) F29 confirmado de un periodo ANTERIOR,
+ * 5) desconocida.
+ * Ninguna tasa confirmada en un periodo posterior puede aplicarse hacia atrás.
  */
 export function resolverTasaPpm(entrada: EntradaTasaPpm): {
   tasaPpm: number | null;
@@ -172,6 +180,7 @@ export function resolverTasaPpm(entrada: EntradaTasaPpm): {
     return { tasaPpm: entrada.tasaParametroVigente, fuentePpm: "configured" };
 
   if (
+    !entrada.hayHistorialVigencias &&
     entrada.configuracionConfirmada &&
     entrada.tasaConfigurada != null &&
     entrada.tasaConfigurada > 0
@@ -183,6 +192,7 @@ export function resolverTasaPpm(entrada: EntradaTasaPpm): {
 
   return { tasaPpm: null, fuentePpm: "unknown" };
 }
+
 
 export interface EntradaRemanente {
   esDemo: boolean;

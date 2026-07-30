@@ -148,6 +148,63 @@ export type Database = {
           },
         ]
       }
+      tax_carryforward_reconciliations: {
+        Row: {
+          calculated_previous_carryforward: number
+          company_id: string
+          created_at: string
+          declared_previous_carryforward: number
+          difference: number
+          id: string
+          notes: string | null
+          previous_period: string
+          status: string
+          tax_period_id: string
+          updated_at: string
+        }
+        Insert: {
+          calculated_previous_carryforward: number
+          company_id: string
+          created_at?: string
+          declared_previous_carryforward: number
+          difference: number
+          id?: string
+          notes?: string | null
+          previous_period: string
+          status?: string
+          tax_period_id: string
+          updated_at?: string
+        }
+        Update: {
+          calculated_previous_carryforward?: number
+          company_id?: string
+          created_at?: string
+          declared_previous_carryforward?: number
+          difference?: number
+          id?: string
+          notes?: string | null
+          previous_period?: string
+          status?: string
+          tax_period_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_carryforward_reconciliations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_carryforward_reconciliations_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_companies: {
         Row: {
           active_period: string | null
@@ -309,6 +366,8 @@ export type Database = {
         Row: {
           company_id: string
           confirmed: boolean
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           effective_from: string
           effective_to: string | null
@@ -322,6 +381,8 @@ export type Database = {
         Insert: {
           company_id: string
           confirmed?: boolean
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           effective_from: string
           effective_to?: string | null
@@ -335,6 +396,8 @@ export type Database = {
         Update: {
           company_id?: string
           confirmed?: boolean
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           effective_from?: string
           effective_to?: string | null

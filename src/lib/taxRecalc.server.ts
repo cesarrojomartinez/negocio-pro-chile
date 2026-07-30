@@ -8,6 +8,12 @@ import {
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
 
+import {
+  conciliarRemanente,
+  hayHistorialDeVigencias,
+  seleccionarParametroVigente,
+  type FilaParametroVigencia,
+} from "@/lib/vigenciaParametros";
 import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
@@ -110,28 +116,29 @@ async function contextoPeriodoPrevio(
   };
 }
 
-/** Parámetro tributario vigente de la empresa para el periodo indicado. */
+/**
+ * Parámetro tributario de la empresa vigente al inicio del periodo.
+ * Devuelve además si la empresa tiene historial de vigencias, porque en ese
+ * caso una tasa global sin fecha ya no puede aplicarse a periodos antiguos.
+ */
 async function parametroVigente(
   companyId: string,
   tipo: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime",
   periodo: string,
-): Promise<number | null> {
-  const primerDia = `${periodo}-01`;
+): Promise<{ valor: number | null; hayHistorial: boolean }> {
   const { data } = await supabaseAdmin
     .from("tax_company_tax_parameters")
-    .select("value, effective_from, effective_to, confirmed")
+    .select("value, effective_from, effective_to, confirmed, source, confirmed_at")
     .eq("company_id", companyId)
     .eq("parameter_type", tipo)
     .eq("confirmed", true)
-    .lte("effective_from", primerDia)
-    .order("effective_from", { ascending: false })
-    .limit(5);
+    .order("effective_from", { ascending: false });
 
-  const vigente = (data ?? []).find(
-    (p) => p.effective_to == null || String(p.effective_to) >= primerDia,
-  );
-  return vigente == null ? null : Number(vigente.value);
+  const filas = (data ?? []) as FilaParametroVigencia[];
+  const vigente = seleccionarParametroVigente(filas, periodo);
+  return { valor: vigente?.valor ?? null, hayHistorial: hayHistorialDeVigencias(filas) };
 }
+
 
 /** Última tasa de PPM confirmada por el contador en periodos anteriores. */
 async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
@@ -281,21 +288,23 @@ export async function recalculateTaxPeriod(
   const tasaPrevia = esDemo
     ? null
     : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
-  const tasaParametro = esDemo
-    ? null
+  const paramPpm = esDemo
+    ? { valor: null, hayHistorial: false }
     : await parametroVigente(entrada.companyId, "ppm_rate", entrada.periodo);
   const tasaResuelta = resolverTasaPpm({
     esDemo,
     antecedentePeriodo: antecedente,
-    tasaParametroVigente: tasaParametro,
+    tasaParametroVigente: paramPpm.valor,
+    hayHistorialVigencias: paramPpm.hayHistorial,
     tasaConfigurada: tasaPpmConfigurada,
     configuracionConfirmada: !!settings?.ppm_rate_confirmed,
     tasaConfirmadaPrevia: tasaPrevia,
   });
 
-  const retencionesParametro = esDemo
-    ? null
+  const paramRetenciones = esDemo
+    ? { valor: null, hayHistorial: false }
     : await parametroVigente(entrada.companyId, "usual_withholdings", entrada.periodo);
+  const retencionesParametro = paramRetenciones.valor;
   const retencionesBase =
     retencionesParametro ?? Number(resumenActual?.estimated_withholdings ?? 0);
   const parametros = aplicarAntecedenteF29(
@@ -314,6 +323,7 @@ export async function recalculateTaxPeriod(
     },
     antecedente,
   );
+
 
   const tasaPpm = parametros.tasaPpm;
   const fuentePpm = parametros.fuentePpm;
@@ -463,6 +473,36 @@ export async function recalculateTaxPeriod(
     .from("tax_periods")
     .update({ last_calculated_at: calculadoEn, confidence_level: nivel })
     .eq("id", periodoRow.id);
+
+  // Conciliación del encadenamiento de remanentes. Nunca se corrige un valor
+  // automáticamente: la diferencia queda registrada para el contador.
+  const conciliacion = conciliarRemanente(
+    previo.remanente,
+    confirmado ? (antecedente?.remanenteAnterior ?? null) : null,
+  );
+  if (conciliacion) {
+    await supabaseAdmin.from("tax_carryforward_reconciliations").upsert(
+      {
+        company_id: entrada.companyId,
+        tax_period_id: periodoRow.id,
+        previous_period: previoNombre,
+        calculated_previous_carryforward: conciliacion.remanenteCalculadoPrevio,
+        declared_previous_carryforward: conciliacion.remanenteDeclarado,
+        difference: conciliacion.diferencia,
+        status: "pending",
+        notes: `El periodo ${previoNombre} dejó un remanente calculado distinto del declarado en el F29 de ${entrada.periodo}.`,
+        updated_at: calculadoEn,
+      },
+      { onConflict: "company_id,tax_period_id" },
+    );
+  } else {
+    await supabaseAdmin
+      .from("tax_carryforward_reconciliations")
+      .delete()
+      .eq("company_id", entrada.companyId)
+      .eq("tax_period_id", periodoRow.id);
+  }
+
 
   await registrarActividad(
     entrada.companyId,

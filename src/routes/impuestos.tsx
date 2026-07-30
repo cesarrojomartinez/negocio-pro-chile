@@ -6,6 +6,7 @@ import { SectionCard } from "@/components/shared/SectionCard";
 import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
+import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemanente";
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
@@ -65,8 +66,9 @@ const FACTORES = [
 ];
 
 function Impuestos() {
-  const { data, cargando, margenPorcentaje, setMargenPorcentaje, modo } =
+  const { data, cargando, margenPorcentaje, setMargenPorcentaje, modo, companyId, periodoId } =
     useTaxDashboard();
+
 
   return (
     <AppShell>
@@ -108,6 +110,8 @@ function Impuestos() {
             </div>
 
             <EstadoCalculo contexto={data.contexto} />
+            <ConciliacionRemanente companyId={companyId} periodo={periodoId} />
+
 
             <ResumenTributario
               resumen={data.resumen}
