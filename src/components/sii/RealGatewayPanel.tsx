@@ -13,6 +13,8 @@ import { apiGatewayService } from "@/services/apiGatewayService";
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import { formatFechaHora } from "@/utils/currency";
+import { mensajeProveedor } from "@/utils/mensajesProveedor";
+
 
 /**
  * Prueba controlada con el proveedor real.
