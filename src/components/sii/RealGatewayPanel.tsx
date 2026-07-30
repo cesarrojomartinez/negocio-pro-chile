@@ -12,7 +12,7 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { apiGatewayService } from "@/services/apiGatewayService";
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
-import { formatFechaHora } from "@/utils/currency";
+import { formatCLP, formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 
 /** Clave del sondeo guardado para esta sesión del navegador. */
