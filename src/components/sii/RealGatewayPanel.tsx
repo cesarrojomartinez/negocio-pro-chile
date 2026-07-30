@@ -787,5 +787,6 @@ export function RealGatewayPanel() {
       )}
 
     </SectionCard>
+    </div>
   );
 }
