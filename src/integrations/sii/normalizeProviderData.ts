@@ -80,7 +80,13 @@ function normalizarDocumento(
     return { motivo: "Folio inválido" };
 
   const m = normalizarMontos(doc);
-  const esNotaCredito = doc.documentType === "notaCredito";
+  /**
+   * El SII entrega los montos de las notas de crédito en positivo. El signo es
+   * un EFECTO tributario, no un dato del documento: se aplica aquí de forma
+   * explícita a partir de `taxEffect`, con el tipo de documento como respaldo.
+   */
+  const efecto: 1 | -1 =
+    doc.taxEffect === -1 || doc.documentType === "notaCredito" ? -1 : 1;
 
   return {
     inferido: m.inferido,
@@ -92,18 +98,30 @@ function normalizarDocumento(
       document_date: doc.issueDate,
       counterparty_name: doc.counterpartyName?.trim() || "Sin identificar",
       counterparty_rut: doc.counterpartyRut?.trim() || null,
-      net_amount: esNotaCredito ? -Math.abs(m.neto) : m.neto,
-      vat_amount: esNotaCredito ? -Math.abs(m.iva) : m.iva,
-      exempt_amount: esNotaCredito ? -Math.abs(m.exento) : m.exento,
-      total_amount: esNotaCredito ? -Math.abs(m.total) : m.total,
+      net_amount: efecto * Math.abs(m.neto),
+      vat_amount: efecto * Math.abs(m.iva),
+      exempt_amount: efecto * Math.abs(m.exento),
+      total_amount: efecto * Math.abs(m.total),
       rcv_status: doc.rcvStatus,
       raw_metadata: {
-        origen: "proveedor_simulado",
         ivaInferido: m.inferido,
+        efectoTributario: efecto,
       },
     },
   };
 }
+
+/** Totales con signo aplicado. Sirve para validar contra el resumen del RCV. */
+export function totalesFirmados(filas: FilaDocumentoNormalizada[]) {
+  return {
+    neto: filas.reduce((s, f) => s + f.net_amount, 0),
+    iva: filas.reduce((s, f) => s + f.vat_amount, 0),
+    exento: filas.reduce((s, f) => s + f.exempt_amount, 0),
+    total: filas.reduce((s, f) => s + f.total_amount, 0),
+    documentos: filas.length,
+  };
+}
+
 
 /** Elimina duplicados por identificador externo conservando el último recibido. */
 function deduplicar(filas: FilaDocumentoNormalizada[]): FilaDocumentoNormalizada[] {
