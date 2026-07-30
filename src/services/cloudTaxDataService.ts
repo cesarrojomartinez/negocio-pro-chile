@@ -415,31 +415,43 @@ export const cloudTaxDataService: TaxDataService & {
     const margenPorcentaje = consulta.margenPorcentaje;
 
     const antecedenteF29 = await antecedenteF29De(companyId, consulta.periodoId);
+    const antecedenteAnterior = await antecedenteF29De(companyId, anteriorId);
     const esDemoEmpresa = !!empresaRow.is_demo;
+    const confirmado = !!antecedenteF29?.confirmado;
     const tasaPrevia = esDemoEmpresa
       ? null
       : await tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId);
+    const tasaParametro = esDemoEmpresa
+      ? null
+      : await parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId);
     const { tasaPpm, fuentePpm } = resolverTasaPpm({
       esDemo: esDemoEmpresa,
       antecedentePeriodo: antecedenteF29,
+      tasaParametroVigente: tasaParametro,
       tasaConfigurada: settings?.tasaPpm ?? null,
       configuracionConfirmada: !!settings?.tasaPpmConfirmada,
       tasaConfirmadaPrevia: tasaPrevia,
     });
+    const remanente = resolverRemanenteAnterior({
+      esDemo: esDemoEmpresa,
+      antecedentePeriodo: antecedenteF29,
+      remanenteCalculadoPrevio:
+        resumenAnteriorGuardado?.estimated_new_carryforward == null
+          ? null
+          : Number(resumenAnteriorGuardado.estimated_new_carryforward),
+      periodoAnteriorConfirmado: !!antecedenteAnterior?.confirmado,
+    });
+    const retencionesGuardadas = Number(
+      resumenActualGuardado?.estimated_withholdings ?? 0,
+    );
     const parametros = aplicarAntecedenteF29(
       {
-        remanenteAnterior: Number(
-          resumenAnteriorGuardado?.estimated_new_carryforward ?? 0,
-        ),
-        fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
+        remanenteAnterior: remanente.remanenteAnterior,
+        fuenteRemanente: remanente.fuenteRemanente,
         tasaPpm,
         fuentePpm,
-
-        retenciones: Number(resumenActualGuardado?.estimated_withholdings ?? 0),
-        fuenteRetenciones:
-          Number(resumenActualGuardado?.estimated_withholdings ?? 0) > 0
-            ? "configured"
-            : "unknown",
+        retenciones: retencionesGuardadas,
+        fuenteRetenciones: retencionesGuardadas > 0 ? "configured" : "unknown",
       },
       antecedenteF29,
     );
@@ -450,10 +462,16 @@ export const cloudTaxDataService: TaxDataService & {
       documentosCompra: docs.compra,
       remanenteAnterior: parametros.remanenteAnterior,
       fuenteRemanente: parametros.fuenteRemanente,
+      remanenteConocido: remanente.conocido || confirmado,
       tasaPpm: parametros.tasaPpm,
       fuentePpm: parametros.fuentePpm,
+      basePpmConfirmada: confirmado ? antecedenteF29?.basePpmDeclarada : null,
       retencionesEstimadas: parametros.retenciones,
       fuenteRetenciones: parametros.fuenteRetenciones,
+      ivaDeclarado: confirmado ? antecedenteF29?.ivaDeclarado : null,
+      ppmDeclarado: confirmado ? antecedenteF29?.ppmDeclarado : null,
+      retencionesDeclaradas: confirmado ? antecedenteF29?.retenciones : null,
+      totalDeclarado: confirmado ? antecedenteF29?.totalDeclarado : null,
       metaMensual,
       dineroReservado,
       diasTranscurridos: dias.diasTranscurridos,
