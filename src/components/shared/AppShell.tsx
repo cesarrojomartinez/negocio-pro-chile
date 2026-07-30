@@ -109,7 +109,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur">
             <div className="flex flex-wrap items-center gap-2 px-4 py-3 sm:gap-3 sm:px-6">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-w-0 basis-full items-center gap-2 sm:basis-auto sm:flex-1">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground lg:hidden">
                   <Calculator className="h-4.5 w-4.5" aria-hidden />
                 </span>
@@ -117,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Select value={EMPRESA_DEMO.id} onValueChange={() => undefined}>
                     <SelectTrigger
                       aria-label="Seleccionar empresa"
-                      className="h-9 max-w-[220px] border-0 bg-transparent px-1 font-semibold shadow-none focus-visible:ring-2"
+                      className="h-9 w-full max-w-[260px] border-0 bg-transparent px-1 font-semibold shadow-none focus-visible:ring-2"
                     >
                       <SelectValue />
                     </SelectTrigger>
@@ -136,7 +136,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Select value={periodoId} onValueChange={setPeriodo}>
                 <SelectTrigger
                   aria-label="Seleccionar periodo"
-                  className="h-10 w-[150px]"
+                  className="h-10 w-[140px] flex-1 sm:flex-none"
                 >
                   <SelectValue />
                 </SelectTrigger>

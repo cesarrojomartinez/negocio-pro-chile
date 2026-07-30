@@ -56,7 +56,7 @@ function Inicio() {
       <div className="space-y-5">
         <header>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Hola, Camila 👋
+            Hola, Camila
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Así va Comercial Los Vilos SpA en {etiquetaPeriodo}.
