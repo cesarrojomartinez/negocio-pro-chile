@@ -163,6 +163,14 @@ export function RealGatewayPanel() {
     };
   }, []);
 
+  // Cuando el usuario pide "Actualizar" con proveedor real, traemos el formulario
+  // a la vista para que ingrese su clave (nunca se guarda).
+  useEffect(() => {
+    if (solicitudActualizacionReal > 0) {
+      contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [solicitudActualizacionReal]);
+
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
   // Se prefiere el último sondeo real por sobre el estado "no verificado".
@@ -220,13 +228,6 @@ export function RealGatewayPanel() {
       setEjecutando(false);
     }
   };
-  // Cuando el usuario pide "Actualizar" con proveedor real, traemos el formulario
-  // a la vista para que ingrese su clave (nunca se guarda).
-  useEffect(() => {
-    if (solicitudActualizacionReal > 0) {
-      contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [solicitudActualizacionReal]);
 
 
 
