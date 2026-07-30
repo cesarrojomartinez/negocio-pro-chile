@@ -172,7 +172,7 @@ export function F29OficialPanel({
           <div className="rounded-2xl bg-secondary/60 p-4">
             {CAMPOS_VISIBLES.map((campo) => {
               const texto = valorFormateado(
-                (extraccion.campos as Record<string, unknown>)[campo.clave],
+                (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
                 campo.tipo,
               );
               return texto ? (
