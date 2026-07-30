@@ -397,6 +397,7 @@ export async function recalculateTaxPeriod(
   });
 
   const r = dashboard.resumen;
+  const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
   const nivel = nivelDesdeEspanol(dashboard.confiabilidad);
 
@@ -404,6 +405,21 @@ export async function recalculateTaxPeriod(
     {
       company_id: entrada.companyId,
       tax_period_id: periodoRow.id,
+      sales_source: ctx.sources.sales_source,
+      vat_debit_source: ctx.sources.vat_debit_source,
+      vat_credit_source: ctx.sources.vat_credit_source,
+      ppm_base_source: ctx.sources.ppm_base_source,
+      special_adjustments_source: ctx.sources.special_adjustments_source,
+      carryforward_known: ctx.carryforward_known,
+      other_vat_debits: ctx.other_vat_debits,
+      other_vat_credits: ctx.other_vat_credits,
+      special_debits: ctx.special_debits,
+      special_credits: ctx.special_credits,
+      total_vat_credits: ctx.total_vat_credits,
+      gross_vat_position: ctx.gross_vat_position,
+      declared_tax_total: ctx.declared_tax_total,
+      calculation_status: ctx.calculation_status,
+      missing_components: ctx.missing_components,
       sales_total: r.ventasTotales,
       invoice_sales: r.ventasFacturas,
       receipt_sales: r.ventasBoletas,
