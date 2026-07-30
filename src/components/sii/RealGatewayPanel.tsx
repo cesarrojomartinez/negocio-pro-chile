@@ -12,6 +12,7 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { apiGatewayService } from "@/services/apiGatewayService";
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
+import type { ResultadoAuditoriaF29 } from "@/lib/f29Audit.server";
 import { formatCLP, formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 
@@ -79,6 +80,9 @@ export function RealGatewayPanel() {
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   const [comprobandoProductos, setComprobandoProductos] = useState(false);
+  const [auditando, setAuditando] = useState(false);
+  /** Última auditoría del F29. Solo lectura; nunca guarda la clave. */
+  const [auditoria, setAuditoria] = useState<ResultadoAuditoriaF29 | null>(null);
   /** Última prueba real ejecutada, visible aunque se borre la clave. */
   const [ultima, setUltima] = useState<{
     periodo: string;
@@ -206,6 +210,29 @@ export function RealGatewayPanel() {
   };
 
 
+
+  /** Auditoría del JSON del F29: máximo dos consultas reales, sin reintentos. */
+  const auditar = async () => {
+    if (!empresaActiva) return;
+    setAuditando(true);
+    try {
+      const r = await apiGatewayService.auditarF29({
+        companyId: empresaActiva.id,
+        periodo,
+        rutUsuario,
+        claveTributaria: clave,
+      });
+      setAuditoria(r);
+      toast.info(r.conclusionTexto);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "No pudimos completar la auditoría.",
+      );
+    } finally {
+      setClave("");
+      setAuditando(false);
+    }
+  };
 
   return (
     <SectionCard
@@ -373,6 +400,18 @@ export function RealGatewayPanel() {
           }}
         >
           Desconectar proveedor real
+        </Button>
+        <Button
+          variant="outline"
+          disabled={!acepta || !rutUsuario || !clave || auditando || ejecutando}
+          onClick={() => void auditar()}
+        >
+          {auditando ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Stethoscope className="h-4 w-4" aria-hidden />
+          )}
+          {auditando ? "Auditando" : "Auditar Formulario 29 (2 consultas)"}
         </Button>
         <Button
           variant="ghost"
@@ -563,6 +602,95 @@ export function RealGatewayPanel() {
             </div>
           );
         })()}
+
+      {auditoria && (
+        <div className="mt-4 rounded-2xl border border-primary/30 bg-info-soft p-4">
+          <h3 className="text-sm font-semibold">
+            Auditoría del Formulario 29 · {auditoria.periodo}
+          </h3>
+          <p className="mt-1 text-sm">{auditoria.conclusionTexto}</p>
+
+          <div className="mt-3">
+            <DataRow
+              label="Consultas reales ejecutadas"
+              value={`${auditoria.consultasEjecutadas} de 2`}
+            />
+            <DataRow
+              label="Créditos antes"
+              value={auditoria.creditosAntes == null ? "—" : String(auditoria.creditosAntes)}
+            />
+            <DataRow
+              label="Créditos después"
+              value={
+                auditoria.creditosDespues == null ? "—" : String(auditoria.creditosDespues)
+              }
+            />
+            <DataRow
+              label="Créditos consumidos"
+              value={String(auditoria.creditosConsumidos)}
+            />
+            <DataRow
+              label="Folio recibido"
+              value={
+                auditoria.folioPreservado
+                  ? `Preservado (${auditoria.folioEnmascarado})`
+                  : "El listado no entregó folio"
+              }
+            />
+          </div>
+
+          <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
+            {auditoria.consultas.map((c) => (
+              <li key={c.orden} className="rounded-xl bg-card px-3 py-2">
+                <p className="font-medium text-foreground">
+                  {c.orden}. {c.titulo}
+                </p>
+                <p>
+                  {c.ejecutada
+                    ? `HTTP ${c.estadoHttp ?? "—"} · ${c.contentType ?? "sin tipo"}${
+                        c.errorCodigo ? ` · ${c.errorCodigo}` : ""
+                      }`
+                    : "No ejecutada"}
+                </p>
+                <p>{c.mensaje}</p>
+                {c.analisis ? (
+                  <>
+                    <p>
+                      Envoltura: {c.analisis.envoltura ?? "sin lista"} ·{" "}
+                      {c.analisis.elementos} elemento(s)
+                    </p>
+                    <p>
+                      Propiedades del primer registro:{" "}
+                      {c.analisis.propiedadesPrimerElemento.join(", ") || "—"}
+                    </p>
+                    <p>
+                      Propiedades anidadas:{" "}
+                      {c.analisis.propiedadesAnidadas.join(", ") || "—"}
+                    </p>
+                    <p>
+                      Propiedades no conservadas:{" "}
+                      {c.propiedadesDescartadas.join(", ") || "ninguna"}
+                    </p>
+                  </>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+
+          <ul className="mt-3 space-y-1 text-xs">
+            {auditoria.conceptos.map((c) => (
+              <li key={c.concepto}>
+                <span className="font-medium">{c.concepto}:</span> {c.etiqueta}
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
+            Esta auditoría no modifica los cálculos ni sobrescribe el Formulario 29
+            confirmado por tu contador.
+          </p>
+        </div>
+      )}
 
     </SectionCard>
   );
