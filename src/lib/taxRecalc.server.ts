@@ -205,17 +205,24 @@ export async function recalculateTaxPeriod(
     .maybeSingle();
   const antecedente = interpretarAntecedenteF29(f29Periodo);
 
+  const tasaPrevia = esDemo
+    ? null
+    : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
+  const tasaResuelta = resolverTasaPpm({
+    esDemo,
+    antecedentePeriodo: antecedente,
+    tasaConfigurada: tasaPpmConfigurada,
+    configuracionConfirmada: !!settings?.ppm_rate_confirmed,
+    tasaConfirmadaPrevia: tasaPrevia,
+  });
+
   const retencionesBase = Number(resumenActual?.estimated_withholdings ?? 0);
   const parametros = aplicarAntecedenteF29(
     {
       remanenteAnterior: remanente.monto,
       fuenteRemanente: remanente.fuente,
-      tasaPpm: tasaPpmConfigurada,
-      fuentePpm: (tasaPpmConfigurada == null
-        ? "unknown"
-        : esDemo
-          ? "mock"
-          : "configured") as PpmSource,
+      tasaPpm: tasaResuelta.tasaPpm,
+      fuentePpm: tasaResuelta.fuentePpm,
       retenciones: retencionesBase,
       fuenteRetenciones: (retencionesBase > 0
         ? ((resumenActual?.withholdings_source as WithholdingsSource) ??
@@ -224,6 +231,7 @@ export async function recalculateTaxPeriod(
     },
     antecedente,
   );
+
   const tasaPpm = parametros.tasaPpm;
   const fuentePpm = parametros.fuentePpm;
   const retenciones = parametros.retenciones;
