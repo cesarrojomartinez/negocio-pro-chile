@@ -417,6 +417,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!esCloud || !companyId || soloLectura) return;
     if (!conexionSii || !["connected", "stale"].includes(conexionSii.estado)) return;
+    // Con proveedor real no existe refresco automático: requiere clave del usuario.
+    if (conexionSii.proveedor === "api_gateway") return;
     const clave = `${companyId}|${periodoId}`;
     if (refrescoInicial === clave) return;
     setRefrescoInicial(clave);
