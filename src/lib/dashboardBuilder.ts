@@ -116,6 +116,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     hayDocumentos:
       data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
     f29Confirmado: !!entrada.f29Confirmado,
+    sincronizacionReal: !!entrada.sincronizacionReal,
   });
 
   const fuenteDocumentos: ConceptSource = entrada.esDemo
