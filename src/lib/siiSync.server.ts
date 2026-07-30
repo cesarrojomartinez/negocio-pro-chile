@@ -9,6 +9,7 @@ import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.ser
 import { recalculateTaxPeriod } from "@/lib/taxRecalc.server";
 import {
   decidirSincronizacion,
+  modulosAConsultar,
   proximoReintento,
   type TipoActivacion,
 } from "@/lib/syncPolicy";
@@ -32,10 +33,23 @@ import { apiGatewaySiiProviderAdapter } from "@/integrations/sii/apiGatewaySiiPr
 const VERSION_CONSENTIMIENTO = "demo-2026-07";
 const MESES_F29 = 6;
 
+/** Errores que invalidan la sesión: no tiene sentido seguir pidiendo módulos. */
+const ERRORES_DE_SESION = ["AUTH_EXPIRED", "INVALID_CREDENTIALS", "NOT_AUTHORIZED"];
+
+/**
+ * Opciones internas del servidor. No se exponen en las server functions:
+ * existen para pruebas controladas (reloj y proveedor inyectables).
+ */
+export interface OpcionesInternas {
+  ahora?: Date;
+  proveedor?: SiiProviderAdapter;
+}
+
 /** Selecciona el proveedor activo. Hoy siempre el simulado. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
   return id === "api_gateway" ? apiGatewaySiiProviderAdapter : mockSiiProviderAdapter;
 }
+
 
 export interface ConexionSii {
   id: string;
@@ -140,25 +154,31 @@ export async function obtenerConexionSii(
   return fila ? mapConexion(fila) : null;
 }
 
+/**
+ * Activa la conexión demostrativa. Solo el dueño de la empresa puede
+ * autorizarla: es un consentimiento sobre la información de la empresa.
+ */
 export async function conectarSiiSimulado(
   userId: string,
   entrada: { companyId: string; consentimiento: boolean },
+  opciones: OpcionesInternas = {},
 ): Promise<ConexionSii> {
-  await exigirRol(userId, entrada.companyId, ["owner", "business_user"]);
+  await exigirRol(userId, entrada.companyId, ["owner"]);
   if (!entrada.consentimiento)
     throw new ErrorNegocio(
       "Necesitamos que aceptes la autorización demostrativa para continuar.",
     );
 
   const empresa = await empresaDe(entrada.companyId);
-  const proveedor = resolverProveedor("mock");
-  const ahora = new Date().toISOString();
+  const proveedor = opciones.proveedor ?? resolverProveedor("mock");
+  const ahora = (opciones.ahora ?? new Date()).toISOString();
 
   try {
     const conexion = await proveedor.connectCompany({
       rut: empresa.rut,
       authMethod: "demo",
     });
+
     const { data, error } = await supabaseAdmin
       .from("tax_sii_connections")
       .upsert(
@@ -217,15 +237,18 @@ export async function conectarSiiSimulado(
   }
 }
 
+/** Desconectar también es una decisión del dueño de la empresa. */
 export async function desconectarSii(
   userId: string,
   entrada: { companyId: string },
+  opciones: OpcionesInternas = {},
 ): Promise<ConexionSii | null> {
-  await exigirRol(userId, entrada.companyId, ["owner", "business_user"]);
+  await exigirRol(userId, entrada.companyId, ["owner"]);
   const fila = await conexionDe(entrada.companyId);
   if (!fila) return null;
 
-  const proveedor = resolverProveedor(fila.provider as SiiProviderId);
+  const proveedor = opciones.proveedor ?? resolverProveedor(fila.provider as SiiProviderId);
+
   try {
     await proveedor.disconnectCompany({
       providerConnectionRef: fila.provider_connection_ref ?? "",
@@ -273,6 +296,9 @@ export interface ResultadoSincronizacion {
   syncRunId: string | null;
   modulosCompletados: SiiModule[];
   modulosFallidos: SiiModule[];
+  /** Módulos que no se volvieron a consultar porque seguían vigentes. */
+  modulosDesdeCache: SiiModule[];
+
   documentosRecibidos: number;
   documentosCreados: number;
   documentosActualizados: number;
@@ -351,12 +377,14 @@ export async function syncSiiCompanyPeriod(
     triggerType?: TipoActivacion;
     idempotencyKey?: string | null;
   },
+  opciones: OpcionesInternas = {},
 ): Promise<ResultadoSincronizacion> {
   await exigirRol(userId, entrada.companyId, ["owner", "business_user", "accountant"]);
 
   const tipo: TipoActivacion = entrada.triggerType ?? "manual";
   const empresa = await empresaDe(entrada.companyId);
   const conexionFila = await conexionDe(entrada.companyId);
+
 
   if (!conexionFila || !["connected", "stale"].includes(String(conexionFila.status)))
     throw new ErrorNegocio(
@@ -367,7 +395,7 @@ export async function syncSiiCompanyPeriod(
   if (entrada.idempotencyKey) {
     const { data: previo } = await supabaseAdmin
       .from("tax_sync_runs")
-      .select("id, status, completed_at, modules_completed, modules_failed")
+      .select("id, status, completed_at, modules_completed, modules_failed, modules_from_cache")
       .eq("company_id", entrada.companyId)
       .eq("idempotency_key", entrada.idempotencyKey)
       .maybeSingle();
@@ -380,6 +408,7 @@ export async function syncSiiCompanyPeriod(
         syncRunId: previo.id,
         modulosCompletados: (previo.modules_completed ?? []) as SiiModule[],
         modulosFallidos: (previo.modules_failed ?? []) as SiiModule[],
+        modulosDesdeCache: (previo.modules_from_cache ?? []) as SiiModule[],
         documentosRecibidos: 0,
         documentosCreados: 0,
         documentosActualizados: 0,
@@ -394,7 +423,7 @@ export async function syncSiiCompanyPeriod(
       };
   }
 
-  const ahora = new Date();
+  const ahora = opciones.ahora ?? new Date();
   const periodoRow = await asegurarPeriodo(entrada.companyId, entrada.periodo);
   const decision = decidirSincronizacion({
     ahora,
@@ -430,6 +459,7 @@ export async function syncSiiCompanyPeriod(
       syncRunId: omitido?.id ?? null,
       modulosCompletados: [],
       modulosFallidos: [],
+      modulosDesdeCache: MODULOS_SINCRONIZACION.slice(),
       documentosRecibidos: 0,
       documentosCreados: 0,
       documentosActualizados: 0,
@@ -470,15 +500,47 @@ export async function syncSiiCompanyPeriod(
       "Ya hay una actualización en curso para este periodo. Espera a que termine.",
     );
 
-  const proveedor = resolverProveedor(conexionFila.provider as SiiProviderId);
+  const proveedor =
+    opciones.proveedor ?? resolverProveedor(conexionFila.provider as SiiProviderId);
+
+  // Cuántas veces se consultó antes este periodo con éxito: el proveedor lo usa
+  // para reflejar el avance del RCV sin cambiar los documentos ya conocidos.
+  const { count: revisionesPrevias } = await supabaseAdmin
+    .from("tax_sync_runs")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", entrada.companyId)
+    .eq("tax_period_id", periodoRow.id)
+    .in("status", ["success", "partial"]);
+
   const consulta = {
     rut: empresa.rut,
     period: entrada.periodo,
     providerConnectionRef: conexionFila.provider_connection_ref ?? "",
+    revision: revisionesPrevias ?? 0,
   };
+
+  // El historial de F29 cambia una vez al mes: se refresca como máximo una vez
+  // por semana, aunque el RCV se consulte a diario.
+  const { data: ultimoF29 } = await supabaseAdmin
+    .from("tax_sync_runs")
+    .select("completed_at")
+    .eq("company_id", entrada.companyId)
+    .contains("modules_completed", ["f29_periods"])
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const plan = modulosAConsultar<SiiModule>({
+    modulos: MODULOS_SINCRONIZACION,
+    ahora,
+    ultimaConsultaF29: ultimoF29?.completed_at ?? null,
+    forzarTodo: tipo === "manual" || tipo === "demo_connect",
+  });
+  const porConsultar = new Set(plan.consultar);
 
   const completados: SiiModule[] = [];
   const fallidos: SiiModule[] = [];
+  const desdeCache: SiiModule[] = plan.desdeCache;
   let consultas = 0;
   let recibidos = 0;
   let descartados = 0;
@@ -486,18 +548,44 @@ export async function syncSiiCompanyPeriod(
   let actualizados = 0;
   let datosHasta: string | null = null;
   let primerError: SiiProviderError | null = null;
+  let sesionInvalida = false;
 
   const ejecutar = async (modulos: SiiModule[], fn: () => Promise<void>) => {
+    // Sin sesión válida no tiene sentido seguir consultando el resto.
+    if (sesionInvalida) {
+      fallidos.push(...modulos);
+      return;
+    }
+    if (!modulos.some((m) => porConsultar.has(m))) return;
     try {
       consultas += 1;
       await fn();
       completados.push(...modulos);
     } catch (error) {
       fallidos.push(...modulos);
-      if (error instanceof SiiProviderError && !primerError) primerError = error;
-      else if (!(error instanceof SiiProviderError)) throw error;
+      if (error instanceof SiiProviderError) {
+        if (!primerError) primerError = error;
+        if (ERRORES_DE_SESION.includes(error.code)) sesionInvalida = true;
+      } else {
+        // Un problema nuestro no puede dejar la actualización trabada:
+        // se cierra el registro antes de propagar el error.
+        await supabaseAdmin
+          .from("tax_sync_runs")
+          .update({
+            status: "failed",
+            completed_at: new Date().toISOString(),
+            error_code: "INTERNAL",
+            error_message:
+              error instanceof Error ? error.message : "Error interno inesperado",
+            duration_ms: Date.now() - inicio,
+          })
+          .eq("id", run.id);
+        throw error;
+      }
     }
   };
+
+
 
   // 1. Ventas del RCV
   await ejecutar(["rcv_sales_documents"], async () => {
@@ -606,11 +694,11 @@ export async function syncSiiCompanyPeriod(
   });
 
   const hubieron = completados.length > 0;
-  const estado: ResultadoSincronizacion["estado"] = !hubieron
-    ? "failed"
-    : fallidos.length
+  const estado: ResultadoSincronizacion["estado"] = fallidos.length
+    ? hubieron
       ? "partial"
-      : "success";
+      : "failed"
+    : "success";
   const fin = new Date();
   const errorCodigo = primerError
     ? (primerError as SiiProviderError).code
@@ -638,6 +726,8 @@ export async function syncSiiCompanyPeriod(
       records_updated: actualizados,
       modules_completed: completados,
       modules_failed: fallidos,
+      modules_from_cache: desdeCache,
+      cache_hit: desdeCache.length > 0,
       provider_request_count: consultas,
       estimated_credits: consultas,
       data_through_date: datosHasta,
@@ -645,16 +735,29 @@ export async function syncSiiCompanyPeriod(
       error_code: errorCodigo,
       error_message: primerError ? (primerError as SiiProviderError).message : null,
       next_retry_at:
-        estado === "failed" && primerError && (primerError as SiiProviderError).reintentable
+        estado !== "success" && primerError && (primerError as SiiProviderError).reintentable
           ? proximoReintento(fin, 1)
           : null,
     })
     .eq("id", run.id);
 
+  /**
+   * Estado de la conexión según lo ocurrido:
+   * - sesión inválida: queda en error y exige volver a autorizar;
+   * - proveedor caído o resultado parcial: queda "stale" (hay datos, pero
+   *   pueden estar incompletos);
+   * - todo bien: conectada.
+   */
+  const estadoConexion = sesionInvalida
+    ? "error"
+    : estado === "success"
+      ? "connected"
+      : "stale";
+
   await supabaseAdmin
     .from("tax_sii_connections")
     .update({
-      status: estado === "failed" ? "error" : "connected",
+      status: estadoConexion,
       last_attempt_at: fin.toISOString(),
       last_successful_sync_at: hubieron
         ? fin.toISOString()
@@ -663,14 +766,14 @@ export async function syncSiiCompanyPeriod(
       last_error_message: primerError ? (primerError as SiiProviderError).message : null,
     })
     .eq("id", conexionFila.id);
-
   await supabaseAdmin
     .from("tax_companies")
     .update({
       last_sync_at: hubieron ? fin.toISOString() : empresa.last_sync_at,
-      connection_status: estado === "failed" ? "error" : "connected",
+      connection_status: estadoConexion,
     })
     .eq("id", entrada.companyId);
+
 
   await registrarActividad(
     entrada.companyId,
@@ -702,6 +805,7 @@ export async function syncSiiCompanyPeriod(
     syncRunId: run.id,
     modulosCompletados: completados,
     modulosFallidos: fallidos,
+    modulosDesdeCache: desdeCache,
     documentosRecibidos: recibidos,
     documentosCreados: creados,
     documentosActualizados: actualizados,

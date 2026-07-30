@@ -4,6 +4,11 @@
  * Genera información ficticia de forma determinista a partir del RUT y del
  * periodo: la misma empresa y el mismo mes siempre devuelven exactamente los
  * mismos documentos. No realiza llamadas de red ni usa credenciales reales.
+ *
+ * La única variación admitida es `revision`: representa cuántas veces se ha
+ * consultado el periodo. El RCV real cambia entre consultas (una compra
+ * pendiente pasa a registrada), y la simulación reproduce ese avance sin
+ * cambiar el identificador del documento.
  */
 import {
   SiiProviderError,
@@ -18,8 +23,8 @@ import {
   type SiiProviderAdapter,
 } from "./contracts";
 
-/** Los ocho casos deterministas que debe poder reproducir la demostración. */
-export type EscenarioProveedor =
+/** Los ocho casos de datos deterministas de la demostración. */
+export type EscenarioDatos =
   | "normal"
   | "sinMovimientos"
   | "remanente"
@@ -29,7 +34,16 @@ export type EscenarioProveedor =
   | "f29Incompleto"
   | "proveedorCaido";
 
-export const ESCENARIOS_PROVEEDOR: EscenarioProveedor[] = [
+/** Casos de falla que solo se activan explícitamente en pruebas controladas. */
+export type EscenarioFalla =
+  | "credencialesInvalidas"
+  | "sesionVencida"
+  | "mantenimiento"
+  | "datosParciales";
+
+export type EscenarioProveedor = EscenarioDatos | EscenarioFalla;
+
+export const ESCENARIOS_PROVEEDOR: EscenarioDatos[] = [
   "normal",
   "sinMovimientos",
   "remanente",
@@ -38,6 +52,13 @@ export const ESCENARIOS_PROVEEDOR: EscenarioProveedor[] = [
   "documentosIncompletos",
   "f29Incompleto",
   "proveedorCaido",
+];
+
+export const ESCENARIOS_FALLA: EscenarioFalla[] = [
+  "credencialesInvalidas",
+  "sesionVencida",
+  "mantenimiento",
+  "datosParciales",
 ];
 
 const TASA_IVA = 0.19;
@@ -63,7 +84,7 @@ function generador(semilla: number) {
 }
 
 /** El escenario queda fijado por el RUT: nunca cambia entre sincronizaciones. */
-export function escenarioDeRut(rut: string): EscenarioProveedor {
+export function escenarioDeRut(rut: string): EscenarioDatos {
   return ESCENARIOS_PROVEEDOR[hash(rut) % ESCENARIOS_PROVEEDOR.length];
 }
 
@@ -90,12 +111,11 @@ function diasDelMes(periodo: string): number {
 }
 
 /** Último día con información disponible: hoy si el periodo está en curso. */
-function fechaCorte(periodo: string): string {
+function fechaCorte(periodo: string, ahora: Date): string {
   const [anio, mes] = periodo.split("-").map(Number);
   const total = diasDelMes(periodo);
-  const hoy = new Date();
-  const esActual = hoy.getUTCFullYear() === anio && hoy.getUTCMonth() + 1 === mes;
-  const dia = esActual ? Math.min(hoy.getUTCDate(), total) : total;
+  const esActual = ahora.getUTCFullYear() === anio && ahora.getUTCMonth() + 1 === mes;
+  const dia = esActual ? Math.min(ahora.getUTCDate(), total) : total;
   return `${periodo}-${String(dia).padStart(2, "0")}`;
 }
 
@@ -112,11 +132,10 @@ function documentoVenta(
 ): ProviderDocument {
   const [cliente, rut] = CLIENTES[Math.floor(rnd() * CLIENTES.length)];
   const dia = 1 + Math.floor(rnd() * diaMax);
-  const esBoleta = rnd() < 0.55;
   const base = escenario === "ventasAltas" ? 380000 : 120000;
   const neto = redondear(base + rnd() * base * 2.2);
-  const exento = rnd() < 0.08 ? redondear(neto * 0.2) : 0;
   const iva = redondear(neto * TASA_IVA);
+  const esBoleta = rnd() < 0.55;
   const sinDesglose = escenario === "documentosIncompletos" && indice % 3 === 0;
   return {
     externalId: `mock-sale-${periodo}-${indice}`,
@@ -127,10 +146,61 @@ function documentoVenta(
     counterpartyRut: rut,
     netAmount: sinDesglose ? null : neto,
     vatAmount: sinDesglose ? null : iva,
-    exemptAmount: sinDesglose ? null : exento,
-    totalAmount: neto + iva + exento,
+    exemptAmount: sinDesglose ? null : 0,
+    totalAmount: neto + iva,
     rcvStatus: "accepted",
   };
+}
+
+/**
+ * Documentos especiales que siempre acompañan a un mes con movimiento:
+ * una nota de crédito, una nota de débito y una venta exenta.
+ * Permiten verificar que el motor ajusta el débito en ambos sentidos.
+ */
+function documentosEspeciales(periodo: string, diaMax: number): ProviderDocument[] {
+  const dia = String(Math.min(20, diaMax)).padStart(2, "0");
+  const [cliente, rut] = CLIENTES[0];
+  return [
+    {
+      externalId: `mock-sale-${periodo}-nc`,
+      documentType: "notaCredito",
+      folio: 9001,
+      issueDate: `${periodo}-${dia}`,
+      counterpartyName: cliente,
+      counterpartyRut: rut,
+      netAmount: 100000,
+      vatAmount: 19000,
+      exemptAmount: 0,
+      totalAmount: 119000,
+      rcvStatus: "accepted",
+    },
+    {
+      externalId: `mock-sale-${periodo}-nd`,
+      documentType: "notaDebito",
+      folio: 9002,
+      issueDate: `${periodo}-${dia}`,
+      counterpartyName: cliente,
+      counterpartyRut: rut,
+      netAmount: 50000,
+      vatAmount: 9500,
+      exemptAmount: 0,
+      totalAmount: 59500,
+      rcvStatus: "accepted",
+    },
+    {
+      externalId: `mock-sale-${periodo}-ex`,
+      documentType: "factura",
+      folio: 9003,
+      issueDate: `${periodo}-${dia}`,
+      counterpartyName: CLIENTES[1][0],
+      counterpartyRut: CLIENTES[1][1],
+      netAmount: 0,
+      vatAmount: 0,
+      exemptAmount: 80000,
+      totalAmount: 80000,
+      rcvStatus: "accepted",
+    },
+  ];
 }
 
 function documentoCompra(
@@ -147,7 +217,9 @@ function documentoCompra(
   const neto = redondear(base + rnd() * base * 1.8);
   const iva = redondear(neto * TASA_IVA);
   return {
-    externalId: `mock-purchase-${periodo}-${estado}-${indice}`,
+    // El identificador NO incluye el estado: una compra que pasa de pendiente
+    // a registrada sigue siendo el mismo documento.
+    externalId: `mock-purchase-${periodo}-${indice}`,
     documentType: "factura",
     folio: 5000 + indice,
     issueDate: `${periodo}-${String(dia).padStart(2, "0")}`,
@@ -197,16 +269,22 @@ function periodoPrevio(periodo: string, atras: number): string {
 export interface OpcionesMockProveedor {
   /** Fuerza un escenario. Si se omite, se deriva del RUT de la empresa. */
   escenario?: EscenarioProveedor;
+  /** Reloj inyectable para pruebas controladas. */
+  ahora?: () => Date;
 }
 
 export function crearMockSiiProviderAdapter(
   opciones: OpcionesMockProveedor = {},
 ): SiiProviderAdapter {
+  const reloj = opciones.ahora ?? (() => new Date());
   const resolverEscenario = (rut: string): EscenarioProveedor =>
     opciones.escenario ?? escenarioDeRut(rut);
 
-  const exigirDisponibilidad = (rut: string) => {
-    if (resolverEscenario(rut) === "proveedorCaido")
+  /** Fallas que impiden seguir consultando módulos: exigen reconexión. */
+  const exigirSesion = (rut: string) => {
+    const escenario = resolverEscenario(rut);
+    if (escenario === "sesionVencida") throw new SiiProviderError("AUTH_EXPIRED", null);
+    if (escenario === "proveedorCaido" || escenario === "mantenimiento")
       throw new SiiProviderError("PROVIDER_UNAVAILABLE", null);
   };
 
@@ -215,7 +293,9 @@ export function crearMockSiiProviderAdapter(
     esSimulado: true,
 
     async connectCompany({ rut, authMethod }: { rut: string; authMethod: SiiAuthMethod }) {
-      const ahora = new Date();
+      if (resolverEscenario(rut) === "credencialesInvalidas")
+        throw new SiiProviderError("INVALID_CREDENTIALS", null);
+      const ahora = reloj();
       const conexion: ProviderConnection = {
         providerConnectionRef: `mock-conn-${hash(rut).toString(16)}`,
         authorizedRut: rut,
@@ -226,9 +306,10 @@ export function crearMockSiiProviderAdapter(
       return conexion;
     },
 
-    async authenticateCompany() {
+    async authenticateCompany({ rut }: { rut: string; providerConnectionRef: string }) {
+      exigirSesion(rut);
       return {
-        sessionExpiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+        sessionExpiresAt: new Date(reloj().getTime() + 30 * 86400000).toISOString(),
       };
     },
 
@@ -237,15 +318,17 @@ export function crearMockSiiProviderAdapter(
     },
 
     async fetchSalesRcv({ rut, period }: ProviderQuery): Promise<ProviderSalesResult> {
-      exigirDisponibilidad(rut);
+      exigirSesion(rut);
       const escenario = resolverEscenario(rut);
       const rnd = generador(hash(`${rut}|${period}|sales`));
-      const corte = fechaCorte(period);
+      const corte = fechaCorte(period, reloj());
       const diaMax = Number(corte.slice(8));
       const total = cantidades(escenario).ventas;
       const documents = Array.from({ length: total }, (_, i) =>
         documentoVenta(period, i, rnd, escenario, diaMax),
-      ).sort((a, b) => a.issueDate.localeCompare(b.issueDate));
+      );
+      if (total > 0) documents.push(...documentosEspeciales(period, diaMax));
+      documents.sort((a, b) => a.issueDate.localeCompare(b.issueDate));
 
       return {
         period,
@@ -259,32 +342,55 @@ export function crearMockSiiProviderAdapter(
       };
     },
 
-    async fetchPurchasesRcv({ rut, period }: ProviderQuery): Promise<ProviderPurchasesResult> {
-      exigirDisponibilidad(rut);
+    async fetchPurchasesRcv({
+      rut,
+      period,
+      revision = 0,
+    }: ProviderQuery): Promise<ProviderPurchasesResult> {
+      exigirSesion(rut);
       const escenario = resolverEscenario(rut);
-      const corte = fechaCorte(period);
+      const corte = fechaCorte(period, reloj());
       const diaMax = Number(corte.slice(8));
       const c = cantidades(escenario);
+      const rnd = generador(hash(`${rut}|${period}|purchases`));
+
+      // Índice global: el mismo documento conserva su identificador aunque
+      // cambie de estado entre una consulta y la siguiente.
+      let indice = 0;
+      const grupos: Record<
+        "registered" | "pending" | "claimed" | "excluded",
+        ProviderDocument[]
+      > = { registered: [], pending: [], claimed: [], excluded: [] };
+
       const construir = (
         estado: "registered" | "pending" | "claimed" | "excluded",
         cantidad: number,
       ) => {
-        const rnd = generador(hash(`${rut}|${period}|${estado}`));
-        return Array.from({ length: cantidad }, (_, i) =>
-          documentoCompra(period, i, rnd, estado, escenario, diaMax),
-        ).sort((a, b) => a.issueDate.localeCompare(b.issueDate));
+        for (let i = 0; i < cantidad; i += 1) {
+          grupos[estado].push(
+            documentoCompra(period, indice++, rnd, estado, escenario, diaMax),
+          );
+        }
       };
 
-      return {
-        period,
-        dataThroughDate: corte,
-        byStatus: {
-          registered: construir("registered", c.registradas),
-          pending: construir("pending", c.pendientes),
-          claimed: construir("claimed", c.reclamadas),
-          excluded: construir("excluded", c.excluidas),
-        },
-      };
+      construir("registered", c.registradas);
+      construir("pending", c.pendientes);
+      construir("claimed", c.reclamadas);
+      construir("excluded", c.excluidas);
+
+      // Avance del RCV: en cada nueva consulta la compra pendiente más
+      // antigua queda registrada, conservando identificador, folio y montos.
+      grupos.pending.sort((a, b) => a.issueDate.localeCompare(b.issueDate));
+      const promover = Math.min(revision, grupos.pending.length);
+      for (let i = 0; i < promover; i += 1) {
+        const doc = grupos.pending.shift()!;
+        grupos.registered.push({ ...doc, rcvStatus: "registered" });
+      }
+
+      for (const lista of Object.values(grupos))
+        lista.sort((a, b) => a.issueDate.localeCompare(b.issueDate));
+
+      return { period, dataThroughDate: corte, byStatus: grupos };
     },
 
     async fetchF29History({
@@ -292,26 +398,15 @@ export function crearMockSiiProviderAdapter(
       period,
       months,
     }: ProviderQuery & { months: number }): Promise<ProviderF29Entry[]> {
-      exigirDisponibilidad(rut);
+      exigirSesion(rut);
       const escenario = resolverEscenario(rut);
+      if (escenario === "datosParciales")
+        throw new SiiProviderError("PERIOD_NOT_AVAILABLE", "f29_periods");
       const entradas: ProviderF29Entry[] = [];
       for (let i = 0; i < months; i += 1) {
         const p = periodoPrevio(period, i);
-        if (i === 0) {
-          entradas.push({
-            period: p,
-            status: "not_available",
-            declaredVat: null,
-            declaredPpm: null,
-            declaredWithholdings: null,
-            declaredTotal: null,
-            vatCarryforward: null,
-            filedAt: null,
-          });
-          continue;
-        }
-        // Escenario con historial parcial: faltan declaraciones intermedias.
-        if (escenario === "f29Incompleto" && i % 2 === 0) {
+        const sinDatos = i === 0 || (escenario === "f29Incompleto" && i % 2 === 0);
+        if (sinDatos) {
           entradas.push({
             period: p,
             status: "not_available",
@@ -325,11 +420,11 @@ export function crearMockSiiProviderAdapter(
           continue;
         }
         const rnd = generador(hash(`${rut}|${p}|f29`));
-        const iva =
-          escenario === "remanente" ? 0 : redondear(180000 + rnd() * 900000);
+        const iva = escenario === "remanente" ? 0 : redondear(180000 + rnd() * 900000);
         const ppm = redondear(40000 + rnd() * 160000);
         const ret = escenario === "sinMovimientos" ? 0 : redondear(rnd() * 90000);
-        const remanente = escenario === "remanente" ? redondear(120000 + rnd() * 400000) : 0;
+        const remanente =
+          escenario === "remanente" ? redondear(120000 + rnd() * 400000) : 0;
         entradas.push({
           period: p,
           status: "filed",
@@ -344,11 +439,13 @@ export function crearMockSiiProviderAdapter(
       return entradas;
     },
 
-    async fetchWithholdings({ rut, period }: ProviderQuery): Promise<ProviderWithholdingsResult> {
-      exigirDisponibilidad(rut);
+    async fetchWithholdings({
+      rut,
+      period,
+    }: ProviderQuery): Promise<ProviderWithholdingsResult> {
+      exigirSesion(rut);
       const escenario = resolverEscenario(rut);
-      if (escenario === "sinMovimientos")
-        return { period, totalAmount: 0, detail: [] };
+      if (escenario === "sinMovimientos") return { period, totalAmount: 0, detail: [] };
       const rnd = generador(hash(`${rut}|${period}|withholdings`));
       const honorarios = redondear(rnd() * 220000);
       const segunda = redondear(rnd() * 60000);

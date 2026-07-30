@@ -14,7 +14,7 @@ import {
 } from "@/integrations/sii/normalizeProviderData";
 import { SiiProviderError } from "@/integrations/sii/contracts";
 import { apiGatewaySiiProviderAdapter } from "@/integrations/sii/apiGatewaySiiProviderAdapter";
-import { decidirSincronizacion } from "@/lib/syncPolicy";
+import { decidirSincronizacion, modulosAConsultar } from "@/lib/syncPolicy";
 
 const RUT = "76.412.980-1";
 const PERIODO = "2026-05";
@@ -201,16 +201,17 @@ describe("política de actualización y caché", () => {
     expect(d.motivo).toBe("cache_vigente");
   });
 
-  it("actualiza los periodos cerrados solo una vez por semana", () => {
+  it("actualiza los periodos cerrados una vez por semana calendario", () => {
+    // La semana se cuenta de lunes a domingo en horario de Chile.
     const dentro = decidirSincronizacion({
       ahora,
-      ultimaSincronizacionExitosa: "2026-05-16T12:00:00Z",
+      ultimaSincronizacionExitosa: "2026-05-19T12:00:00Z", // martes, misma semana
       tipo: "scheduled",
       periodoCerrado: true,
     });
     const fuera = decidirSincronizacion({
       ahora,
-      ultimaSincronizacionExitosa: "2026-05-10T12:00:00Z",
+      ultimaSincronizacionExitosa: "2026-05-16T12:00:00Z", // sábado, semana anterior
       tipo: "scheduled",
       periodoCerrado: true,
     });
@@ -218,6 +219,7 @@ describe("política de actualización y caché", () => {
     expect(fuera.debeConsultar).toBe(true);
     expect(fuera.motivo).toBe("vencio_ventana_semanal");
   });
+
 
   it("limita las actualizaciones manuales seguidas", () => {
     const d = decidirSincronizacion({
@@ -239,5 +241,107 @@ describe("política de actualización y caché", () => {
     });
     expect(d.debeConsultar).toBe(true);
     expect(d.motivo).toBe("solicitud_manual");
+  });
+});
+
+describe("avance del RCV entre consultas", () => {
+  const proveedor = crearMockSiiProviderAdapter({ escenario: "comprasPendientes" });
+
+  it("mantiene el identificador de una compra que pasa de pendiente a registrada", async () => {
+    const primera = await proveedor.fetchPurchasesRcv({ ...consulta(), revision: 0 });
+    const segunda = await proveedor.fetchPurchasesRcv({ ...consulta(), revision: 1 });
+
+    const pendiente = primera.byStatus.pending[0];
+    expect(pendiente).toBeTruthy();
+
+    const yaNoPendiente = segunda.byStatus.pending.some(
+      (d) => d.externalId === pendiente.externalId,
+    );
+    const ahoraRegistrada = segunda.byStatus.registered.find(
+      (d) => d.externalId === pendiente.externalId,
+    );
+
+    expect(yaNoPendiente).toBe(false);
+    expect(ahoraRegistrada).toBeTruthy();
+    expect(ahoraRegistrada?.folio).toBe(pendiente.folio);
+    expect(ahoraRegistrada?.totalAmount).toBe(pendiente.totalAmount);
+    expect(segunda.byStatus.pending.length).toBe(primera.byStatus.pending.length - 1);
+  });
+
+  it("no duplica documentos: el total de compras no cambia", async () => {
+    const contar = (r: Awaited<ReturnType<typeof proveedor.fetchPurchasesRcv>>) =>
+      Object.values(r.byStatus).reduce((s, d) => s + d.length, 0);
+    const primera = await proveedor.fetchPurchasesRcv({ ...consulta(), revision: 0 });
+    const tercera = await proveedor.fetchPurchasesRcv({ ...consulta(), revision: 2 });
+    expect(contar(tercera)).toBe(contar(primera));
+
+    const ids = tercera.byStatus.registered.concat(
+      tercera.byStatus.pending,
+      tercera.byStatus.claimed,
+      tercera.byStatus.excluded,
+    ).map((d) => d.externalId);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("escenarios de falla del proveedor", () => {
+  const casos: Array<[EscenarioProveedor, string]> = [
+    ["sesionVencida", "AUTH_EXPIRED"],
+    ["mantenimiento", "PROVIDER_UNAVAILABLE"],
+    ["proveedorCaido", "PROVIDER_UNAVAILABLE"],
+  ];
+
+  it.each(casos)("%s corta la consulta con el código esperado", async (escenario, codigo) => {
+    const proveedor = crearMockSiiProviderAdapter({ escenario });
+    await expect(proveedor.fetchSalesRcv(consulta())).rejects.toMatchObject({ code: codigo });
+  });
+
+  it("rechaza la conexión con credenciales inválidas", async () => {
+    const proveedor = crearMockSiiProviderAdapter({ escenario: "credencialesInvalidas" });
+    await expect(
+      proveedor.connectCompany({ rut: RUT, authMethod: "demo" }),
+    ).rejects.toBeInstanceOf(SiiProviderError);
+  });
+
+  it("entrega datos parciales cuando solo falla el historial de F29", async () => {
+    const proveedor = crearMockSiiProviderAdapter({ escenario: "datosParciales" });
+    const ventas = await proveedor.fetchSalesRcv(consulta());
+    expect(ventas.documents.length).toBeGreaterThan(0);
+    await expect(
+      proveedor.fetchF29History({ ...consulta(), months: 3 }),
+    ).rejects.toMatchObject({ code: "PERIOD_NOT_AVAILABLE" });
+  });
+});
+
+describe("cadencia por módulo", () => {
+  const modulos = ["rcv_sales_documents", "f29_periods"] as const;
+
+  it("reutiliza el F29 dentro de la misma semana", () => {
+    const r = modulosAConsultar({
+      modulos,
+      ahora: new Date("2026-05-20T12:00:00Z"),
+      ultimaConsultaF29: "2026-05-19T12:00:00Z",
+    });
+    expect(r.desdeCache).toEqual(["f29_periods"]);
+    expect(r.consultar).toEqual(["rcv_sales_documents"]);
+  });
+
+  it("vuelve a pedir el F29 en una semana nueva", () => {
+    const r = modulosAConsultar({
+      modulos,
+      ahora: new Date("2026-05-20T12:00:00Z"),
+      ultimaConsultaF29: "2026-05-12T12:00:00Z",
+    });
+    expect(r.consultar).toEqual([...modulos]);
+  });
+
+  it("la actualización manual fuerza todos los módulos", () => {
+    const r = modulosAConsultar({
+      modulos,
+      ahora: new Date("2026-05-20T12:00:00Z"),
+      ultimaConsultaF29: "2026-05-19T12:00:00Z",
+      forzarTodo: true,
+    });
+    expect(r.desdeCache).toEqual([]);
   });
 });

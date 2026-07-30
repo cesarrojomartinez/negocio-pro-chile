@@ -47,7 +47,8 @@ const ETIQUETA_ESTADO: Record<string, string> = {
  * e historial de uso. Toda la operación ocurre en el servidor.
  */
 export function SiiConnectionPanel() {
-  const { empresaActiva, refrescarEmpresas } = useCompany();
+  const { empresaActiva, refrescarEmpresas, modo } = useCompany();
+
   const {
     estadoConexion,
     ultimaSincronizacion,
@@ -87,6 +88,9 @@ export function SiiConnectionPanel() {
   }, [companyId, ultimaSincronizacion, resumenSincronizacion]);
 
   const conectado = estadoConexion === "connected" || estadoConexion === "stale";
+  // Autorizar o cortar la conexión es una decisión del dueño de la empresa.
+  const puedeAutorizar = modo === "demo" || empresaActiva?.rol === "owner";
+
 
   return (
     <div className="space-y-5">
@@ -140,7 +144,7 @@ export function SiiConnectionPanel() {
               setAcepta(false);
               setAbierto(true);
             }}
-            disabled={soloLectura}
+            disabled={soloLectura || !puedeAutorizar}
           >
             <Link2 className="h-4 w-4" aria-hidden />
             {conectado ? "Revisar autorización" : "Conectar SII (demostrativo)"}
@@ -160,13 +164,22 @@ export function SiiConnectionPanel() {
           <Button
             variant="outline"
             onClick={desconectar}
-            disabled={!conectado || soloLectura}
+            disabled={!conectado || soloLectura || !puedeAutorizar}
           >
             <Unlink className="h-4 w-4" aria-hidden />
             Desconectar
           </Button>
         </div>
+
+        {!puedeAutorizar && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Solo quien figura como dueño de la empresa puede autorizar o cortar
+            la conexión. Tú sí puedes actualizar la información cuando esté
+            conectada.
+          </p>
+        )}
       </SectionCard>
+
 
       <SectionCard
         titulo="Historial de sincronizaciones"
