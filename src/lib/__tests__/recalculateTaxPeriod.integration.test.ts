@@ -30,6 +30,7 @@ let usuarios: Usuarios;
 let companyA = "";
 let companyB = "";
 const periodosCreados = new Map<string, string>();
+let folioSeq = 1000;
 
 async function crearUsuario(nombre: string) {
   const { data, error } = await admin.auth.admin.createUser({
@@ -100,13 +101,14 @@ async function insertarDocs(
 ): Promise<{ venta: DocumentoTributario[]; compra: DocumentoTributario[] }> {
   const periodId = await crearPeriodo(companyId, periodo);
   const filas = docs.map((d, i) => {
+    folioSeq += 1;
     const iva = d.tipo === "exenta" ? 0 : Math.round(d.neto * 0.19);
     return {
       company_id: companyId,
       tax_period_id: periodId,
       document_direction: d.direccion,
       document_type: d.tipo === "exenta" ? "factura" : (d.tipo ?? "factura"),
-      folio: 1000 + i,
+      folio: folioSeq,
       document_date: `${periodo}-10`,
       counterparty_name: d.direccion === "sale" ? "Cliente QA" : "Proveedor QA",
       counterparty_rut: `77.${100 + i}.200-K`,
