@@ -698,7 +698,9 @@ export async function syncSiiCompanyPeriod(
           companyId: entrada.companyId,
           periodId: periodoRow.id,
           syncRunId: run.id,
+          proveedor: proveedorId,
           modulo,
+
           payload: { period: compras.period, documents: docs },
         });
       }
