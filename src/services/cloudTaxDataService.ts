@@ -159,7 +159,7 @@ async function hayInformacionRealDe(companyId: string, periodo: string) {
     .select("id", { count: "exact", head: true })
     .eq("company_id", companyId)
     .eq("provider", "api_gateway")
-    .eq("period", periodo);
+    .eq("tax_period_id", periodRow.id);
   return (count ?? 0) > 0;
 }
 
