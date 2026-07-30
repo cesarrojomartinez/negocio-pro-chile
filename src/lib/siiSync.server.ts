@@ -561,7 +561,7 @@ export async function syncSiiCompanyPeriod(
       sync_type: tipo === "manual" ? "manual" : "scheduled",
       trigger_type: tipo,
       status: "running",
-      source: "mock_gateway",
+      source: fuente,
       modules_requested: MODULOS_SINCRONIZACION,
       idempotency_key: entrada.idempotencyKey ?? null,
       triggered_by: userId,
@@ -669,13 +669,14 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "rcv_sales_documents",
       payload: ventas,
     });
     const n = normalizarVentas(ventas);
     recibidos += ventas.documents.length;
     descartados += n.descartados.length;
-    const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos);
+    const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
     creados += r.creados;
     actualizados += r.actualizados;
     datosHasta = ventas.dataThroughDate;
@@ -704,7 +705,7 @@ export async function syncSiiCompanyPeriod(
       const n = normalizarCompras(compras);
       recibidos += Object.values(compras.byStatus).reduce((s, d) => s + d.length, 0);
       descartados += n.descartados.length;
-      const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos);
+      const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
       creados += r.creados;
       actualizados += r.actualizados;
       datosHasta = datosHasta ?? compras.dataThroughDate;
@@ -718,6 +719,7 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "f29_periods",
       payload: historial,
     });
@@ -752,6 +754,7 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "withholdings",
       payload: ret,
     });
