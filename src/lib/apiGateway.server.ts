@@ -144,13 +144,60 @@ export function empresaAutorizadaParaPruebaReal(companyId: string): boolean {
   return lista.includes(companyId);
 }
 
+/** Traduce el código interno de un sondeo a un estado de producto. */
+export function estadoProductoDesdeCodigo(codigo: string): EstadoProducto {
+  switch (codigo) {
+    case "PRODUCT_NOT_ENABLED":
+      return "no_contratado";
+    case "RESOURCE_NOT_DOCUMENTED":
+      return "recurso_no_disponible";
+    case "PERIOD_NOT_AVAILABLE":
+      return "sin_informacion_periodo";
+    case "INVALID_CREDENTIALS":
+    case "SESSION_EXPIRED":
+    case "AUTH_EXPIRED":
+    case "ACCOUNT_BLOCKED":
+      return "error_autenticacion";
+    case "INSUFFICIENT_CREDITS":
+      return "saldo_insuficiente";
+    case "PROXY_REQUIRED":
+    case "PROXY_UNAVAILABLE":
+      return "proxy_requerido";
+    case "SII_MAINTENANCE":
+    case "PROVIDER_MAINTENANCE":
+    case "PROVIDER_UNAVAILABLE":
+    case "TIMEOUT":
+      return "mantenimiento";
+    default:
+      return "no_verificado";
+  }
+}
+
+/**
+ * Un sondeo que llega a la autenticación del SII demuestra que el producto está
+ * contratado: el proveedor solo intenta la lectura cuando el producto existe.
+ */
+const ESTADOS_QUE_PRUEBAN_CONTRATO: EstadoProducto[] = [
+  "habilitado",
+  "sin_informacion_periodo",
+  "error_autenticacion",
+  "mantenimiento",
+];
+
 /**
  * Comprueba la configuración antes de cualquier consulta real.
  * Usa un recurso documentado que NO requiere credenciales del SII.
+ *
+ * `probarProductos` agrega un sondeo por producto (RCV y F29) con un RUT de
+ * prueba y sin clave válida: sirve para distinguir "producto no contratado" de
+ * "producto contratado que pide credenciales". Consume unos pocos créditos.
  */
-export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiGateway> {
+export async function diagnoseApiGatewayConfiguration(opciones?: {
+  probarProductos?: boolean;
+}): Promise<DiagnosticoApiGateway> {
   const verificadoEn = new Date().toISOString();
   const comprobaciones: ComprobacionDiagnostico[] = [];
+  const productos: ProductoDiagnostico[] = [];
   const { config, baseUrl, tieneToken, baseUrlValida, https } = leerConfiguracion();
   const modoPrueba = modoPruebaRealHabilitado();
 
@@ -159,12 +206,16 @@ export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiG
     motivo: r.nota ?? (r.documented ? "Recurso desactivado." : "Recurso no documentado."),
   }));
 
-  const base = (resultado: ResultadoDiagnostico, extra?: Partial<DiagnosticoApiGateway>) => ({
+  const base = (
+    resultado: ResultadoDiagnostico,
+    extra?: Partial<DiagnosticoApiGateway>,
+  ): DiagnosticoApiGateway => ({
     resultado,
     etiqueta: ETIQUETA_DIAGNOSTICO[resultado],
     puedeConsultar: resultado === "configuracion_valida",
     modoPruebaHabilitado: modoPrueba,
     comprobaciones,
+    productos,
     creditosDisponibles: null,
     proxyUsado: null,
     modulosHabilitados: MODULOS_REALES_HABILITADOS,
@@ -172,6 +223,7 @@ export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiG
     verificadoEn,
     ...extra,
   });
+
 
   comprobaciones.push({
     clave: "token",
