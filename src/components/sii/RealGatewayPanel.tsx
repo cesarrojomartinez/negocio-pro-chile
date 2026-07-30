@@ -437,9 +437,52 @@ export function RealGatewayPanel() {
                 <DataRow label="Periodo" value={ultima.periodo} />
                 <DataRow label="Fecha y hora" value={formatFechaHora(ultima.ejecutadaEn)} />
                 <DataRow
-                  label="Documentos recibidos"
+                  label="Documentos informados por el SII"
+                  value={String(s?.documentosInformadosResumen ?? 0)}
+                />
+                <DataRow
+                  label="Documentos recibidos en el detalle"
                   value={String(s?.documentosRecibidos ?? 0)}
                 />
+                <DataRow
+                  label="Documentos guardados"
+                  value={String(s?.documentosPersistidos ?? 0)}
+                />
+                <DataRow
+                  label="Documentos descartados"
+                  value={
+                    s?.motivosRechazo?.length
+                      ? s.motivosRechazo
+                          .map((x) => `${x.cantidad} · ${x.motivo}`)
+                          .join(" | ")
+                      : String(s?.documentosDescartados ?? 0)
+                  }
+                />
+                {s?.totalesResumen ? (
+                  <>
+                    <DataRow
+                      label="Ventas según el SII"
+                      value={`${formatCLP(s.totalesResumen.ventas.totalAmount)} · IVA ${formatCLP(
+                        s.totalesResumen.ventas.vatAmount,
+                      )}`}
+                    />
+                    <DataRow
+                      label="Compras según el SII"
+                      value={`${formatCLP(s.totalesResumen.compras.totalAmount)} · IVA ${formatCLP(
+                        s.totalesResumen.compras.vatAmount,
+                      )}`}
+                    />
+                    <DataRow
+                      label="Origen de las cifras"
+                      value={
+                        s.fuenteTotales === "rcv_summary"
+                          ? "Resumen oficial del SII (sin detalle de documentos)"
+                          : "Detalle de documentos importados"
+                      }
+                    />
+                  </>
+                ) : null}
+
                 <DataRow label="Ventas importadas" value={String(cat?.ventas ?? 0)} />
                 <DataRow
                   label="Compras registradas"
