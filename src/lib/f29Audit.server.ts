@@ -74,7 +74,7 @@ export interface ConsultaAuditada {
   /** Propiedades presentes en el crudo que el modelo normalizado no conserva. */
   propiedadesDescartadas: string[];
   /** Campos del contrato interno tras normalizar. */
-  normalizado: Record<string, unknown> | null;
+  normalizado: Record<string, string | number | boolean | null> | null;
 }
 
 export interface ResultadoAuditoriaF29 {
