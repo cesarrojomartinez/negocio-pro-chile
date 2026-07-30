@@ -28,7 +28,25 @@ import {
   type SiiProviderId,
 } from "@/integrations/sii/contracts";
 import { mockSiiProviderAdapter } from "@/integrations/sii/mockSiiProviderAdapter";
-import { apiGatewaySiiProviderAdapter } from "@/integrations/sii/apiGatewaySiiProviderAdapter";
+import {
+  apiGatewaySiiProviderAdapter,
+  crearAdaptadorApiGateway,
+  type CredencialesTemporales,
+} from "@/integrations/sii/apiGatewaySiiProviderAdapter";
+import {
+  RegistroConsumo,
+  MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
+} from "@/integrations/sii/apiGatewayClient";
+import { sanitizarProfundo } from "@/integrations/sii/sanitize";
+import {
+  diagnoseApiGatewayConfiguration,
+  empresaAutorizadaParaPruebaReal,
+  leerConfiguracion,
+  modoPruebaRealHabilitado,
+} from "@/lib/apiGateway.server";
+import { diaCivil } from "@/lib/syncPolicy";
+import { normalizarRut } from "@/lib/rut";
+
 
 const VERSION_CONSENTIMIENTO = "demo-2026-07";
 const MESES_F29 = 6;
