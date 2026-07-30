@@ -110,10 +110,10 @@ function Impuestos() {
               resumen={data.resumen}
               margenPorcentaje={margenPorcentaje}
               onCambiarMargen={setMargenPorcentaje}
-              esDemo={modo === "demo"}
+              fuentePeriodo={data.fuentePeriodo}
             />
 
-            <AuditoriaMontos data={data} esDemo={modo === "demo"} />
+            <AuditoriaMontos data={data} />
 
 
             <SectionCard
