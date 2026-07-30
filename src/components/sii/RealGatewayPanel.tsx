@@ -35,12 +35,35 @@ export function RealGatewayPanel() {
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
   const [comprobandoProductos, setComprobandoProductos] = useState(false);
+  /** Último sondeo de productos, guardado solo para esta sesión del navegador. */
+  const [sondeo, setSondeo] = useState<{
+    productos: DiagnosticoApiGateway["productos"];
+    verificadoEn: string;
+  } | null>(null);
+
+  // Se recupera el último sondeo guardado: nunca se vuelve a ejecutar solo.
+  useEffect(() => {
+    try {
+      const crudo = sessionStorage.getItem(CLAVE_SONDEO);
+      if (crudo) setSondeo(JSON.parse(crudo));
+    } catch {
+      setSondeo(null);
+    }
+  }, []);
 
   /** Sondeo opcional: verifica productos contratados y consume pocos créditos. */
   const comprobarProductos = async () => {
     setComprobandoProductos(true);
     try {
-      setDiagnostico(await apiGatewayService.diagnosticar(true));
+      const d = await apiGatewayService.diagnosticar(true);
+      setDiagnostico(d);
+      const guardado = { productos: d.productos, verificadoEn: d.verificadoEn };
+      setSondeo(guardado);
+      try {
+        sessionStorage.setItem(CLAVE_SONDEO, JSON.stringify(guardado));
+      } catch {
+        /* almacenamiento no disponible: el sondeo solo vive en memoria */
+      }
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -75,10 +98,13 @@ export function RealGatewayPanel() {
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
+  // Se prefiere el último sondeo real por sobre el estado "no verificado".
+  const productos = sondeo?.productos ?? diagnostico.productos;
+
   // Los productos se consideran verificados solo tras un sondeo real.
   const productosVerificados =
-    diagnostico.productos.length > 0 &&
-    diagnostico.productos.every((p) => p.estado !== "no_verificado");
+    productos.length > 0 && productos.every((p) => p.estado !== "no_verificado");
+
 
   const ejecutar = async () => {
     if (!empresaActiva) return;
