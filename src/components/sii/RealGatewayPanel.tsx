@@ -31,6 +31,24 @@ export function RealGatewayPanel() {
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
+  const [comprobandoProductos, setComprobandoProductos] = useState(false);
+
+  /** Sondeo opcional: verifica productos contratados y consume pocos créditos. */
+  const comprobarProductos = async () => {
+    setComprobandoProductos(true);
+    try {
+      setDiagnostico(await apiGatewayService.diagnosticar(true));
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No pudimos comprobar los productos contratados.",
+      );
+    } finally {
+      setComprobandoProductos(false);
+    }
+  };
+
 
   const esDueno = empresaActiva?.rol === "owner";
 
