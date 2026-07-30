@@ -8,6 +8,7 @@ import { DataRow } from "@/components/shared/SectionCard";
 import { formatCLP } from "@/utils/currency";
 import { evaluarReserva, MENSAJE_SEMAFORO } from "@/utils/taxCalculations";
 import type { ResumenMensual } from "@/types/tax";
+import type { ContextoTributario } from "@/lib/taxContext";
 import { cn } from "@/lib/utils";
 
 const ESTILOS = {
@@ -26,11 +27,15 @@ const TEXTO_ESTADO = {
 
 export function ReservaCard({
   resumen,
+  contexto,
   onGuardarReservado,
 }: {
   resumen: ResumenMensual;
+  /** Contexto tributario del periodo, para advertir cálculos incompletos. */
+  contexto?: ContextoTributario;
   onGuardarReservado: (valor: number) => void;
 }) {
+  const incompleto = contexto?.calculation_status === "incomplete";
   const [abierto, setAbierto] = useState(false);
   const { estado, faltante, cobertura } = evaluarReserva(
     resumen.reservaRecomendada,
@@ -42,7 +47,9 @@ export function ReservaCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <PiggyBank className="h-5 w-5 text-primary" aria-hidden />
-          <h2 className="text-base font-semibold sm:text-lg">Reserva recomendada</h2>
+          <h2 className="text-base font-semibold sm:text-lg">
+            {incompleto ? "Reserva mínima conocida" : "Reserva recomendada"}
+          </h2>
         </div>
         <span
           className={cn(
@@ -58,9 +65,20 @@ export function ReservaCard({
         {formatCLP(resumen.reservaRecomendada)}
       </p>
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-        Procura mantener este monto separado para cubrir tus impuestos estimados del
-        mes.
+        {incompleto
+          ? "Faltan antecedentes por confirmar, así que este monto es el mínimo conocido y podría aumentar."
+          : "Procura mantener este monto separado para cubrir tus impuestos estimados del mes."}
       </p>
+
+      {incompleto && contexto && (
+        <ul className="mt-3 space-y-1">
+          {contexto.missing_components.map((c) => (
+            <li key={c.clave} className="text-xs text-muted-foreground">
+              • {c.detalle}
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="mt-4">
         <Progress value={cobertura} aria-label="Cobertura de la reserva" />

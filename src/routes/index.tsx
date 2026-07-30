@@ -87,7 +87,11 @@ function Inicio() {
           </>
         ) : (
           <>
-            <ReservaCard resumen={data.resumen} onGuardarReservado={setDineroReservado} />
+            <ReservaCard
+              resumen={data.resumen}
+              contexto={data.contexto}
+              onGuardarReservado={setDineroReservado}
+            />
 
             <IndicadoresGrid
               resumen={data.resumen}
