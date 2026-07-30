@@ -12,6 +12,9 @@ import type { FuentePeriodo } from "@/types/tax";
 /** Marca usada en `tax_f29_history.raw_data` para el F29 confirmado. */
 export const ORIGEN_F29_CONTADOR = "accountant_confirmed_f29";
 
+/** Marca del F29 oficial descargado del SII y leído desde el PDF compacto. */
+export const ORIGEN_F29_PDF = "f29_pdf_extracted";
+
 export interface FilaF29Persistida {
   declaration_status: string | null;
   declared_vat: number | null;
