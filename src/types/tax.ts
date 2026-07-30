@@ -109,6 +109,8 @@ export interface ResumenVentas {
   ventasExentas: number;
   notasCredito: number;
   cantidadDocumentos: number;
+  cantidadFacturas: number;
+  cantidadBoletas: number;
   ticketPromedio: number;
   serieDiaria: { fecha: string; monto: number }[];
 }

@@ -110,6 +110,8 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
     ventasExentas,
     notasCredito,
     cantidadDocumentos,
+    cantidadFacturas: facturas.length,
+    cantidadBoletas: boletas.length,
     ticketPromedio: cantidadDocumentos
       ? Math.round((ventasFacturas + ventasBoletas) / cantidadDocumentos)
       : 0,
@@ -315,9 +317,6 @@ export function construirComparacion(
     (a, b) => b.monto - a.monto,
   )[0];
 
-  const facturas = actual.ventas.ventasFacturas;
-  void facturas;
-
   return {
     periodoActual,
     periodoAnterior,
@@ -341,10 +340,8 @@ export function construirComparacion(
     ),
     ticketPromedio: actual.ventas.ticketPromedio,
     ticketPromedioAnterior: anterior?.ventas.ticketPromedio ?? 0,
-    cantidadFacturas: actual.ventas.cantidadDocumentos
-      ? actual.ventas.serieDiaria.length && 0
-      : 0,
-    cantidadBoletas: 0,
+    cantidadFacturas: actual.ventas.cantidadFacturas,
+    cantidadBoletas: actual.ventas.cantidadBoletas,
     mejorDia: mejorDiaEntry ?? null,
     mejorSemana: mejorSemanaEntry
       ? { etiqueta: mejorSemanaEntry[0], monto: mejorSemanaEntry[1] }
