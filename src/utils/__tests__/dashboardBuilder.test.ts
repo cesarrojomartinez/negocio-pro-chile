@@ -139,7 +139,8 @@ describe("dashboardBuilder — casos deterministas", () => {
       }),
     );
     expect(d.resumen.ivaCredito).toBe(57_000);
-    expect(d.resumen.ivaCreditoPotencial).toBe(57_000 + 38_000 + 19_000 + 19_000);
+    // el potencial cuenta solo el IVA de las compras pendientes
+    expect(d.resumen.ivaCreditoPotencial).toBe(38_000 + 19_000 + 19_000);
     expect(d.compras.documentosPendientes).toBe(3);
     expect(d.confiabilidad).not.toBe("alta");
   });
