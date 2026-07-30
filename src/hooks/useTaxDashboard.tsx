@@ -469,6 +469,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       ultimaSincronizacion,
       conexionSii,
       resumenSincronizacion,
+      conexionReal,
+      solicitudActualizacionReal,
       // Depende del periodo mostrado, no del estado de conexión de la empresa.
       datosSimulados: data?.fuentePeriodo === "mock",
       setPeriodo: cambiarPeriodo,
@@ -477,6 +479,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       setDineroReservado: cambiarReservado,
       setMetaMensual: cambiarMeta,
       actualizar,
+      refrescarDatos,
       conectarDemo,
       desconectar,
     }),
