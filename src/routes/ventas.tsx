@@ -18,7 +18,7 @@ export const Route = createFileRoute("/ventas")({
       {
         name: "description",
         content:
-          "Revisa tus facturas, boletas, notas de crédito y ticket promedio del periodo con datos demostrativos.",
+          "Revisa tus facturas, boletas, notas de crédito y ticket promedio del periodo.",
       },
       { property: "og:title", content: "Ventas del mes | Mi Negocio al Día" },
       {
@@ -56,7 +56,7 @@ function Ventas() {
         ) : data.ventas.cantidadDocumentos === 0 ? (
           <EmptyState
             titulo="Sin ventas registradas"
-            mensaje="Todavía no hay documentos de venta en este periodo demostrativo."
+            mensaje="Todavía no hay documentos de venta registrados en este periodo."
           />
         ) : (
           <>
@@ -114,7 +114,7 @@ function Ventas() {
 
             <SectionCard
               titulo="Documentos de venta"
-              descripcion="Listado demostrativo. No es posible modificar los documentos."
+              descripcion="Listado informativo. No es posible modificar los documentos."
             >
               <DocumentList
                 documentos={data.documentosVenta}

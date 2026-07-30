@@ -33,7 +33,7 @@ export const Route = createFileRoute("/impuestos")({
 const CONFIABILIDAD = {
   alta: {
     titulo: "Confiabilidad alta",
-    texto: "Los antecedentes demostrativos se encuentran actualizados.",
+    texto: "Los antecedentes del periodo se encuentran actualizados.",
     clase: "border-success/30 bg-success-soft text-success",
   },
   media: {
