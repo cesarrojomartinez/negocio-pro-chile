@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Calculator,
@@ -10,7 +10,7 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,8 +28,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EMPRESA_DEMO, PERIODOS } from "@/data/mockTaxData";
+import { EMPRESA_DEMO } from "@/data/mockTaxData";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
 import { formatFechaHora } from "@/utils/currency";
 import { cn } from "@/lib/utils";
 import { ConnectionBadge, DemoBadge } from "./Badges";
@@ -58,8 +60,28 @@ export function AppShell({ children }: { children: ReactNode }) {
     actualizando,
     estadoConexion,
     ultimaSincronizacion,
+    periodosDisponibles,
+    modo,
   } = useTaxDashboard();
+  const { empresas, empresaActiva, seleccionarEmpresa, necesitaOnboarding } =
+    useCompany();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (necesitaOnboarding) void navigate({ to: "/onboarding" });
+  }, [necesitaOnboarding, navigate]);
+  const { perfil, user, cerrarSesion } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const esCloud = modo === "cloud";
+  const empresaId = esCloud ? (empresaActiva?.id ?? "") : EMPRESA_DEMO.id;
+  const rutVisible = esCloud ? (empresaActiva?.rut ?? "—") : EMPRESA_DEMO.rut;
+  const nombreUsuario = esCloud
+    ? (perfil?.display_name ?? user?.email ?? "Mi cuenta")
+    : "Camila Rojas";
+  const detalleUsuario = esCloud
+    ? (user?.email ?? "Sesión activa")
+    : "Usuaria demostrativa";
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-background">
@@ -114,7 +136,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <Calculator className="h-4.5 w-4.5" aria-hidden />
                 </span>
                 <div className="min-w-0">
-                  <Select value={EMPRESA_DEMO.id} onValueChange={() => undefined}>
+                  <Select
+                    value={empresaId}
+                    onValueChange={(v) => esCloud && seleccionarEmpresa(v)}
+                  >
                     <SelectTrigger
                       aria-label="Seleccionar empresa"
                       className="h-9 w-full max-w-[260px] border-0 bg-transparent px-1 font-semibold shadow-none focus-visible:ring-2"
@@ -122,13 +147,21 @@ export function AppShell({ children }: { children: ReactNode }) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={EMPRESA_DEMO.id}>
-                        {EMPRESA_DEMO.razonSocial}
-                      </SelectItem>
+                      {esCloud ? (
+                        empresas.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.razonSocial}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value={EMPRESA_DEMO.id}>
+                          {EMPRESA_DEMO.razonSocial}
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   <p className="truncate px-1 text-xs text-muted-foreground">
-                    RUT {EMPRESA_DEMO.rut}
+                    RUT {rutVisible}
                   </p>
                 </div>
               </div>
@@ -141,7 +174,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PERIODOS.map((p) => (
+                  {periodosDisponibles.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
                       {p.etiqueta}
                     </SelectItem>
@@ -174,9 +207,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>
-                    Camila Rojas
+                    {nombreUsuario}
                     <span className="block text-xs font-normal text-muted-foreground">
-                      Usuaria demostrativa
+                      {detalleUsuario}
                     </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
@@ -186,6 +219,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <DropdownMenuItem asChild>
                     <Link to="/impuestos">Estimación tributaria</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {esCloud ? (
+                    <DropdownMenuItem onSelect={() => void cerrarSesion()}>
+                      Cerrar sesión
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem asChild>
+                      <Link to="/auth">Iniciar sesión</Link>
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

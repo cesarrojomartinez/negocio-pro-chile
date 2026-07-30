@@ -7,15 +7,17 @@ export interface ConsultaDashboard {
   margenPorcentaje: number;
   dineroReservado: number | null;
   metaMensual: number | null;
+  /** Solo en modo autenticado (Lovable Cloud). */
+  companyId?: string | null;
 }
 
 /**
  * Contrato de datos de la aplicación.
- * Hoy lo implementa `mockTaxDataService`; más adelante podrá implementarlo
- * `cloudTaxDataService` (Lovable Cloud + API Gateway) sin cambiar la interfaz.
+ * Lo implementan `mockTaxDataService` (modo demostración) y
+ * `cloudTaxDataService` (modo autenticado sobre Lovable Cloud).
  */
 export interface TaxDataService {
   readonly esDemo: boolean;
   obtenerDashboard(consulta: ConsultaDashboard): Promise<DashboardData>;
-  sincronizar(): Promise<string>;
+  sincronizar(companyId?: string | null, periodoId?: string | null): Promise<string>;
 }

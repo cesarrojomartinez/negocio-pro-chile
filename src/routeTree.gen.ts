@@ -10,15 +10,29 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ActualizarClaveRouteImport } from './routes/actualizar-clave'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as MetasRouteImport } from './routes/metas'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as VentasRouteImport } from './routes/ventas'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ActualizarClaveRoute = ActualizarClaveRouteImport.update({
+  id: '/actualizar-clave',
+  path: '/actualizar-clave',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComprasRoute = ComprasRouteImport.update({
@@ -41,6 +55,16 @@ const MetasRoute = MetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
+  id: '/recuperar-clave',
+  path: '/recuperar-clave',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VentasRoute = VentasRouteImport.update({
   id: '/ventas',
   path: '/ventas',
@@ -49,51 +73,90 @@ const VentasRoute = VentasRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/actualizar-clave': typeof ActualizarClaveRoute
+  '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
+  '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/actualizar-clave': typeof ActualizarClaveRoute
+  '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
+  '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/actualizar-clave': typeof ActualizarClaveRoute
+  '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
+  '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/compras' | '/configuracion' | '/impuestos' | '/metas' | '/ventas'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/compras' | '/configuracion' | '/impuestos' | '/metas' | '/ventas'
-  id:
-    | '__root__'
     | '/'
+    | '/actualizar-clave'
+    | '/auth'
     | '/compras'
     | '/configuracion'
     | '/impuestos'
     | '/metas'
+    | '/onboarding'
+    | '/recuperar-clave'
+    | '/ventas'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/actualizar-clave'
+    | '/auth'
+    | '/compras'
+    | '/configuracion'
+    | '/impuestos'
+    | '/metas'
+    | '/onboarding'
+    | '/recuperar-clave'
+    | '/ventas'
+  id:
+    | '__root__'
+    | '/'
+    | '/actualizar-clave'
+    | '/auth'
+    | '/compras'
+    | '/configuracion'
+    | '/impuestos'
+    | '/metas'
+    | '/onboarding'
+    | '/recuperar-clave'
     | '/ventas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ActualizarClaveRoute: typeof ActualizarClaveRoute
+  AuthRoute: typeof AuthRoute
   ComprasRoute: typeof ComprasRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
   ImpuestosRoute: typeof ImpuestosRoute
   MetasRoute: typeof MetasRoute
+  OnboardingRoute: typeof OnboardingRoute
+  RecuperarClaveRoute: typeof RecuperarClaveRoute
   VentasRoute: typeof VentasRoute
 }
 
@@ -104,6 +167,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/actualizar-clave': {
+      id: '/actualizar-clave'
+      path: '/actualizar-clave'
+      fullPath: '/actualizar-clave'
+      preLoaderRoute: typeof ActualizarClaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compras': {
@@ -134,6 +211,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recuperar-clave': {
+      id: '/recuperar-clave'
+      path: '/recuperar-clave'
+      fullPath: '/recuperar-clave'
+      preLoaderRoute: typeof RecuperarClaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ventas': {
       id: '/ventas'
       path: '/ventas'
@@ -146,10 +237,14 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ActualizarClaveRoute: ActualizarClaveRoute,
+  AuthRoute: AuthRoute,
   ComprasRoute: ComprasRoute,
   ConfiguracionRoute: ConfiguracionRoute,
   ImpuestosRoute: ImpuestosRoute,
   MetasRoute: MetasRoute,
+  OnboardingRoute: OnboardingRoute,
+  RecuperarClaveRoute: RecuperarClaveRoute,
   VentasRoute: VentasRoute,
 }
 export const routeTree = rootRouteImport
