@@ -584,6 +584,7 @@ export async function syncSiiCompanyPeriod(
       .maybeSingle();
     if (previo)
       return {
+        ...SIN_RESUMEN,
         ejecutada: false,
         motivo: "solicitud_repetida",
         estado: previo.status === "success" ? "success" : "skipped",
@@ -647,6 +648,7 @@ export async function syncSiiCompanyPeriod(
       .single();
 
     return {
+      ...SIN_RESUMEN,
       ejecutada: false,
       motivo: decision.motivo,
       estado: "skipped",
