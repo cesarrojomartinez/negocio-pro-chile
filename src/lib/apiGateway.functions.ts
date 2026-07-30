@@ -9,14 +9,18 @@ import { envolver } from "@/lib/serverResult";
  */
 export const diagnosticarApiGatewayFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () =>
+  .inputValidator((data?: { probarProductos?: boolean }) => data ?? {})
+  .handler(async ({ data }) =>
     envolver(async () => {
       const { diagnoseApiGatewayConfiguration } = await import(
         "@/lib/apiGateway.server"
       );
-      return diagnoseApiGatewayConfiguration();
+      return diagnoseApiGatewayConfiguration({
+        probarProductos: data?.probarProductos === true,
+      });
     }),
   );
+
 
 export const pruebaRealApiGatewayFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
