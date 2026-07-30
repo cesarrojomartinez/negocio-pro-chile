@@ -74,7 +74,8 @@ const ESTILO_PRODUCTO: Record<string, string> = {
  */
 export function RealGatewayPanel() {
   const { empresaActiva } = useCompany();
-  const { periodoId } = useTaxDashboard();
+  const { periodoId, refrescarDatos, solicitudActualizacionReal } = useTaxDashboard();
+  const contenedorRef = useRef<HTMLDivElement | null>(null);
 
   const [diagnostico, setDiagnostico] = useState<DiagnosticoApiGateway | null>(null);
   const [cargando, setCargando] = useState(true);
