@@ -12,7 +12,9 @@ import { MetaCard } from "@/components/goals/MetaCard";
 import { ProyeccionCard } from "@/components/projections/ProyeccionCard";
 import { SimuladorVentas } from "@/components/projections/SimuladorVentas";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
-import { PERIODOS } from "@/data/mockTaxData";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
+import { EMPRESA_DEMO, PERIODOS } from "@/data/mockTaxData";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -47,21 +49,33 @@ function Inicio() {
     periodoId,
     actualizar,
   } = useTaxDashboard();
+  const { perfil } = useAuth();
+  const { modo, empresaActiva } = useCompany();
 
   const etiquetaPeriodo =
     PERIODOS.find((p) => p.id === periodoId)?.etiqueta ?? periodoId;
+
+  const nombreSaludo =
+    modo === "cloud"
+      ? (perfil?.first_name ?? perfil?.display_name ?? "").trim()
+      : "Camila";
+  const nombreEmpresa =
+    modo === "cloud"
+      ? (empresaActiva?.nombreFantasia ?? empresaActiva?.razonSocial ?? "tu empresa")
+      : EMPRESA_DEMO.razonSocial;
 
   return (
     <AppShell>
       <div className="space-y-5">
         <header>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Hola, Camila
+            {nombreSaludo ? `Hola, ${nombreSaludo}` : "Hola"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Así va Comercial Los Vilos SpA en {etiquetaPeriodo}.
+            Así va {nombreEmpresa} en {etiquetaPeriodo}.
           </p>
         </header>
+
 
         {error && <ErrorState mensaje={error} onReintentar={() => void actualizar()} />}
 

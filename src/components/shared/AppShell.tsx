@@ -33,6 +33,7 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { formatFechaHora } from "@/utils/currency";
+import { formatearRut } from "@/lib/rut";
 import { cn } from "@/lib/utils";
 import { ConnectionBadge, DemoBadge } from "./Badges";
 
@@ -75,7 +76,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const esCloud = modo === "cloud";
   const empresaId = esCloud ? (empresaActiva?.id ?? "") : EMPRESA_DEMO.id;
-  const rutVisible = esCloud ? (empresaActiva?.rut ?? "—") : EMPRESA_DEMO.rut;
+  const rutVisible = esCloud
+    ? empresaActiva
+      ? formatearRut(empresaActiva.rut)
+      : "—"
+    : EMPRESA_DEMO.rut;
   const nombreUsuario = esCloud
     ? (perfil?.display_name ?? user?.email ?? "Mi cuenta")
     : "Camila Rojas";

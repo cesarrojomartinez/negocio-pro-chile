@@ -157,7 +157,7 @@ export type Database = {
           commune: string | null
           connection_status: Database["public"]["Enums"]["sii_connection_status"]
           created_at: string
-          created_by: string
+          created_by: string | null
           fantasy_name: string | null
           id: string
           is_demo: boolean
@@ -174,7 +174,7 @@ export type Database = {
           commune?: string | null
           connection_status?: Database["public"]["Enums"]["sii_connection_status"]
           created_at?: string
-          created_by: string
+          created_by?: string | null
           fantasy_name?: string | null
           id?: string
           is_demo?: boolean
@@ -191,7 +191,7 @@ export type Database = {
           commune?: string | null
           connection_status?: Database["public"]["Enums"]["sii_connection_status"]
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           fantasy_name?: string | null
           id?: string
           is_demo?: boolean
