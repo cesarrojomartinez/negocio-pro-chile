@@ -93,6 +93,8 @@ export type Database = {
       }
       tax_alerts: {
         Row: {
+          action_label: string | null
+          action_route: string | null
           alert_type: Database["public"]["Enums"]["tax_alert_type"]
           company_id: string
           created_at: string
@@ -101,11 +103,15 @@ export type Database = {
           is_read: boolean
           message: string
           read_at: string | null
+          resolved_at: string | null
           severity: Database["public"]["Enums"]["tax_alert_severity"]
+          status: string
           tax_period_id: string | null
           title: string
         }
         Insert: {
+          action_label?: string | null
+          action_route?: string | null
           alert_type: Database["public"]["Enums"]["tax_alert_type"]
           company_id: string
           created_at?: string
@@ -114,11 +120,15 @@ export type Database = {
           is_read?: boolean
           message: string
           read_at?: string | null
+          resolved_at?: string | null
           severity?: Database["public"]["Enums"]["tax_alert_severity"]
+          status?: string
           tax_period_id?: string | null
           title: string
         }
         Update: {
+          action_label?: string | null
+          action_route?: string | null
           alert_type?: Database["public"]["Enums"]["tax_alert_type"]
           company_id?: string
           created_at?: string
@@ -127,7 +137,9 @@ export type Database = {
           is_read?: boolean
           message?: string
           read_at?: string | null
+          resolved_at?: string | null
           severity?: Database["public"]["Enums"]["tax_alert_severity"]
+          status?: string
           tax_period_id?: string | null
           title?: string
         }
@@ -319,6 +331,7 @@ export type Database = {
           timezone: string
           updated_at: string
           weekly_summary_enabled: boolean
+          weekly_sync_reminder_enabled: boolean
         }
         Insert: {
           alerts_enabled?: boolean
@@ -335,6 +348,7 @@ export type Database = {
           timezone?: string
           updated_at?: string
           weekly_summary_enabled?: boolean
+          weekly_sync_reminder_enabled?: boolean
         }
         Update: {
           alerts_enabled?: boolean
@@ -351,6 +365,7 @@ export type Database = {
           timezone?: string
           updated_at?: string
           weekly_summary_enabled?: boolean
+          weekly_sync_reminder_enabled?: boolean
         }
         Relationships: [
           {
@@ -502,14 +517,22 @@ export type Database = {
       tax_f29_history: {
         Row: {
           company_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           declaration_status: Database["public"]["Enums"]["tax_f29_status"]
           declared_ppm: number | null
+          declared_ppm_base: number | null
+          declared_ppm_rate: number | null
           declared_total: number | null
           declared_vat: number | null
           declared_withholdings: number | null
           filed_at: string | null
+          folio: string | null
           id: string
+          new_vat_carryforward: number | null
+          notes: string | null
+          previous_vat_carryforward: number | null
           raw_data: Json
           source: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id: string
@@ -518,14 +541,22 @@ export type Database = {
         }
         Insert: {
           company_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           declaration_status?: Database["public"]["Enums"]["tax_f29_status"]
           declared_ppm?: number | null
+          declared_ppm_base?: number | null
+          declared_ppm_rate?: number | null
           declared_total?: number | null
           declared_vat?: number | null
           declared_withholdings?: number | null
           filed_at?: string | null
+          folio?: string | null
           id?: string
+          new_vat_carryforward?: number | null
+          notes?: string | null
+          previous_vat_carryforward?: number | null
           raw_data?: Json
           source?: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id: string
@@ -534,14 +565,22 @@ export type Database = {
         }
         Update: {
           company_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           declaration_status?: Database["public"]["Enums"]["tax_f29_status"]
           declared_ppm?: number | null
+          declared_ppm_base?: number | null
+          declared_ppm_rate?: number | null
           declared_total?: number | null
           declared_vat?: number | null
           declared_withholdings?: number | null
           filed_at?: string | null
+          folio?: string | null
           id?: string
+          new_vat_carryforward?: number | null
+          notes?: string | null
+          previous_vat_carryforward?: number | null
           raw_data?: Json
           source?: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id?: string
@@ -754,11 +793,161 @@ export type Database = {
           },
         ]
       }
+      tax_period_comparisons: {
+        Row: {
+          company_id: string
+          created_at: string
+          declared_ppm: number
+          declared_total: number
+          declared_vat: number
+          declared_withholdings: number
+          difference_percent: number | null
+          difference_total: number
+          estimated_ppm: number
+          estimated_total: number
+          estimated_vat: number
+          estimated_withholdings: number
+          explanation: string | null
+          id: string
+          tax_period_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          declared_ppm?: number
+          declared_total?: number
+          declared_vat?: number
+          declared_withholdings?: number
+          difference_percent?: number | null
+          difference_total?: number
+          estimated_ppm?: number
+          estimated_total?: number
+          estimated_vat?: number
+          estimated_withholdings?: number
+          explanation?: string | null
+          id?: string
+          tax_period_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          declared_ppm?: number
+          declared_total?: number
+          declared_vat?: number
+          declared_withholdings?: number
+          difference_percent?: number | null
+          difference_total?: number
+          estimated_ppm?: number
+          estimated_total?: number
+          estimated_vat?: number
+          estimated_withholdings?: number
+          explanation?: string | null
+          id?: string
+          tax_period_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_period_comparisons_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_period_comparisons_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_period_sync_state: {
+        Row: {
+          cache_hit_count: number
+          company_id: string
+          created_at: string
+          data_through_date: string | null
+          freshness_status: string
+          id: string
+          last_attempt_at: string | null
+          last_cache_hit_at: string | null
+          last_provider_request_at: string | null
+          last_successful_sync_at: string | null
+          last_sync_run_id: string | null
+          last_trigger_type: string | null
+          next_recommended_sync_at: string | null
+          provider: string
+          provider_request_count: number
+          tax_period_id: string
+          updated_at: string
+        }
+        Insert: {
+          cache_hit_count?: number
+          company_id: string
+          created_at?: string
+          data_through_date?: string | null
+          freshness_status?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_cache_hit_at?: string | null
+          last_provider_request_at?: string | null
+          last_successful_sync_at?: string | null
+          last_sync_run_id?: string | null
+          last_trigger_type?: string | null
+          next_recommended_sync_at?: string | null
+          provider?: string
+          provider_request_count?: number
+          tax_period_id: string
+          updated_at?: string
+        }
+        Update: {
+          cache_hit_count?: number
+          company_id?: string
+          created_at?: string
+          data_through_date?: string | null
+          freshness_status?: string
+          id?: string
+          last_attempt_at?: string | null
+          last_cache_hit_at?: string | null
+          last_provider_request_at?: string | null
+          last_successful_sync_at?: string | null
+          last_sync_run_id?: string | null
+          last_trigger_type?: string | null
+          next_recommended_sync_at?: string | null
+          provider?: string
+          provider_request_count?: number
+          tax_period_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_period_sync_state_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_period_sync_state_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_periods: {
         Row: {
           closed_at: string | null
+          closed_by: string | null
           company_id: string
           confidence_level: Database["public"]["Enums"]["tax_confidence_level"]
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           data_source: Database["public"]["Enums"]["tax_data_source"]
           id: string
@@ -767,14 +956,22 @@ export type Database = {
           period: string
           rcv_summary: Json | null
           rcv_summary_updated_at: string | null
+          reopen_reason: string | null
+          reopened_at: string | null
+          reopened_by: string | null
+          review_requested_at: string | null
+          review_requested_by: string | null
           status: Database["public"]["Enums"]["tax_period_status"]
           updated_at: string
           year: number
         }
         Insert: {
           closed_at?: string | null
+          closed_by?: string | null
           company_id: string
           confidence_level?: Database["public"]["Enums"]["tax_confidence_level"]
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           data_source?: Database["public"]["Enums"]["tax_data_source"]
           id?: string
@@ -783,14 +980,22 @@ export type Database = {
           period: string
           rcv_summary?: Json | null
           rcv_summary_updated_at?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          review_requested_at?: string | null
+          review_requested_by?: string | null
           status?: Database["public"]["Enums"]["tax_period_status"]
           updated_at?: string
           year: number
         }
         Update: {
           closed_at?: string | null
+          closed_by?: string | null
           company_id?: string
           confidence_level?: Database["public"]["Enums"]["tax_confidence_level"]
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           data_source?: Database["public"]["Enums"]["tax_data_source"]
           id?: string
@@ -799,6 +1004,11 @@ export type Database = {
           period?: string
           rcv_summary?: Json | null
           rcv_summary_updated_at?: string | null
+          reopen_reason?: string | null
+          reopened_at?: string | null
+          reopened_by?: string | null
+          review_requested_at?: string | null
+          review_requested_by?: string | null
           status?: Database["public"]["Enums"]["tax_period_status"]
           updated_at?: string
           year?: number
@@ -928,7 +1138,10 @@ export type Database = {
       tax_sii_connections: {
         Row: {
           auth_method: Database["public"]["Enums"]["sii_auth_method"]
+          authorization_method: string
           authorized_rut: string | null
+          automation_reason: string | null
+          automation_status: string
           company_id: string
           connected_at: string | null
           consent_accepted_at: string | null
@@ -945,11 +1158,16 @@ export type Database = {
           provider_connection_ref: string | null
           session_expires_at: string | null
           status: Database["public"]["Enums"]["sii_connection_status"]
+          sync_mode: string
+          sync_mode_updated_at: string | null
           updated_at: string
         }
         Insert: {
           auth_method?: Database["public"]["Enums"]["sii_auth_method"]
+          authorization_method?: string
           authorized_rut?: string | null
+          automation_reason?: string | null
+          automation_status?: string
           company_id: string
           connected_at?: string | null
           consent_accepted_at?: string | null
@@ -966,11 +1184,16 @@ export type Database = {
           provider_connection_ref?: string | null
           session_expires_at?: string | null
           status?: Database["public"]["Enums"]["sii_connection_status"]
+          sync_mode?: string
+          sync_mode_updated_at?: string | null
           updated_at?: string
         }
         Update: {
           auth_method?: Database["public"]["Enums"]["sii_auth_method"]
+          authorization_method?: string
           authorized_rut?: string | null
+          automation_reason?: string | null
+          automation_status?: string
           company_id?: string
           connected_at?: string | null
           consent_accepted_at?: string | null
@@ -987,6 +1210,8 @@ export type Database = {
           provider_connection_ref?: string | null
           session_expires_at?: string | null
           status?: Database["public"]["Enums"]["sii_connection_status"]
+          sync_mode?: string
+          sync_mode_updated_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1174,6 +1399,10 @@ export type Database = {
         | "stale_data"
         | "high_tax_projection"
         | "positive_carryforward"
+        | "period_ready_to_close"
+        | "f29_confirmation_pending"
+        | "weekly_update_due"
+        | "declared_vs_estimated_difference"
       tax_confidence_level: "high" | "medium" | "low" | "unknown"
       tax_data_source:
         | "mock"
@@ -1190,7 +1419,14 @@ export type Database = {
         | "filed"
         | "rectified"
         | "observed"
-      tax_period_status: "open" | "estimated" | "reviewed" | "closed"
+      tax_period_status:
+        | "open"
+        | "estimated"
+        | "reviewed"
+        | "closed"
+        | "pending_review"
+        | "confirmed"
+        | "reopened"
       tax_rcv_status:
         | "registered"
         | "pending"
@@ -1372,6 +1608,10 @@ export const Constants = {
         "stale_data",
         "high_tax_projection",
         "positive_carryforward",
+        "period_ready_to_close",
+        "f29_confirmation_pending",
+        "weekly_update_due",
+        "declared_vs_estimated_difference",
       ],
       tax_confidence_level: ["high", "medium", "low", "unknown"],
       tax_data_source: [
@@ -1391,7 +1631,15 @@ export const Constants = {
         "rectified",
         "observed",
       ],
-      tax_period_status: ["open", "estimated", "reviewed", "closed"],
+      tax_period_status: [
+        "open",
+        "estimated",
+        "reviewed",
+        "closed",
+        "pending_review",
+        "confirmed",
+        "reopened",
+      ],
       tax_rcv_status: [
         "registered",
         "pending",
