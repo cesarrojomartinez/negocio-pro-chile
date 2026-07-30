@@ -283,6 +283,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       metodo: input.metodo,
       recurso: input.ruta,
       estadoHttp: null,
+      contentType: null,
       duracionMs: 0,
       creditosUsados: null,
       creditosDisponibles: null,
@@ -291,6 +292,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       codigoError: null,
       referenciaTecnica: null,
     };
+
 
     try {
       const respuesta = await fetch(url, {
