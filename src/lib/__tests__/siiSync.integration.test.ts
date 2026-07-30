@@ -349,7 +349,7 @@ describe("fallas del proveedor", () => {
     expect(r.modulosCompletados).toEqual([]);
   }, 180_000);
 
-  it("un fallo parcial deja el periodo como estimación parcial", async () => {
+  it("un módulo sin información del periodo no se cuenta como falla", async () => {
     // La prueba anterior dejó la conexión advertida: el dueño la reactiva.
     await conectarSiiSimulado(usuarios.owner, {
       companyId: empresaA,
@@ -361,8 +361,12 @@ describe("fallas del proveedor", () => {
       { companyId: empresaA, periodo: PERIODO, triggerType: "manual" },
       { proveedor: parcial, ahora: new Date(Date.now() + 7 * 86400000) },
     );
-    expect(r.estado).toBe("partial");
-    expect(r.modulosFallidos).toContain("f29_periods");
+    // El SII simplemente no publica F29 del periodo: eso no rompe la consulta.
+    expect(r.estado).toBe("success");
+    expect(r.modulosFallidos).not.toContain("f29_periods");
+    expect(
+      r.detalleModulos.find((d) => d.modulo === "f29_periods")?.estado,
+    ).toBe("sin_informacion");
     expect(r.modulosCompletados.length).toBeGreaterThan(0);
   }, 180_000);
 });

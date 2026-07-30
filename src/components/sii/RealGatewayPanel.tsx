@@ -17,6 +17,35 @@ import { mensajeProveedor } from "@/utils/mensajesProveedor";
 
 /** Clave del sondeo guardado para esta sesión del navegador. */
 const CLAVE_SONDEO = "mnd.diagnostico-productos";
+/** Última prueba real, guardada solo para esta sesión del navegador. */
+const CLAVE_ULTIMA_PRUEBA = "mnd.ultima-prueba-real";
+
+/** Nombre visible de cada módulo consultado. */
+const NOMBRE_MODULO: Record<string, string> = {
+  rcv_sales_summary: "Ventas (resumen)",
+  rcv_sales_documents: "Ventas (detalle)",
+  rcv_purchases_registered: "Compras REGISTRO",
+  rcv_purchases_pending: "Compras PENDIENTE",
+  rcv_purchases_claimed: "Compras RECLAMADO",
+  rcv_purchases_excluded: "Compras NO INCLUIR",
+  f29_periods: "Formulario 29 (listado)",
+  f29_detail: "Formulario 29 (detalle)",
+  withholdings: "Retenciones",
+};
+
+/** Texto visible de cada clasificación de módulo. */
+const ETIQUETA_ESTADO_MODULO: Record<string, string> = {
+  completado: "Completado",
+  sin_informacion: "Sin información en el periodo",
+  no_disponible: "Omitido: recurso no disponible",
+  no_contratado: "Producto no contratado",
+  error_autenticacion: "Error de autenticación ante el SII",
+  error_proveedor: "Error del proveedor",
+  timeout: "Tiempo de espera agotado",
+  respuesta_invalida: "Respuesta inválida del proveedor",
+  desde_cache: "Vigente desde la última consulta",
+  omitido: "No solicitado en esta ejecución",
+};
 
 /** Estilo visual por estado de producto (solo presentación). */
 const ESTILO_PRODUCTO: Record<string, string> = {
@@ -49,8 +78,13 @@ export function RealGatewayPanel() {
   const [periodo, setPeriodo] = useState(periodoId);
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
-  const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
   const [comprobandoProductos, setComprobandoProductos] = useState(false);
+  /** Última prueba real ejecutada, visible aunque se borre la clave. */
+  const [ultima, setUltima] = useState<{
+    periodo: string;
+    ejecutadaEn: string;
+    resultado: ResultadoPruebaReal;
+  } | null>(null);
   /** Último sondeo de productos, guardado solo para esta sesión del navegador. */
   const [sondeo, setSondeo] = useState<{
     productos: DiagnosticoApiGateway["productos"];
@@ -64,6 +98,12 @@ export function RealGatewayPanel() {
       if (crudo) setSondeo(JSON.parse(crudo));
     } catch {
       setSondeo(null);
+    }
+    try {
+      const previo = sessionStorage.getItem(CLAVE_ULTIMA_PRUEBA);
+      if (previo) setUltima(JSON.parse(previo));
+    } catch {
+      setUltima(null);
     }
   }, []);
 
@@ -132,7 +172,17 @@ export function RealGatewayPanel() {
         rutUsuario,
         claveTributaria: clave,
       });
-      setResultado(r);
+      const guardado = {
+        periodo,
+        ejecutadaEn: new Date().toISOString(),
+        resultado: r,
+      };
+      setUltima(guardado);
+      try {
+        sessionStorage.setItem(CLAVE_ULTIMA_PRUEBA, JSON.stringify(guardado));
+      } catch {
+        /* almacenamiento no disponible: el resultado solo vive en memoria */
+      }
       // La prueba controlada siempre usa API Gateway: nunca textos del mock.
       const m = mensajeProveedor({
         proveedor: "api_gateway",
@@ -310,7 +360,12 @@ export function RealGatewayPanel() {
             if (!empresaActiva) return;
             try {
               await apiGatewayService.desconectar(empresaActiva.id);
-              setResultado(null);
+              setUltima(null);
+              try {
+                sessionStorage.removeItem(CLAVE_ULTIMA_PRUEBA);
+              } catch {
+                /* almacenamiento no disponible */
+              }
               toast.success("Cortamos la conexión con el proveedor real.");
             } catch {
               toast.error("No pudimos cortar la conexión.");
@@ -335,12 +390,14 @@ export function RealGatewayPanel() {
         </Button>
       </div>
 
-      {resultado &&
+      {ultima &&
         (() => {
+          const r = ultima.resultado;
+          const s = r.sincronizacion;
           const m = mensajeProveedor({
             proveedor: "api_gateway",
-            codigo: resultado.errorCodigo,
-            mensaje: resultado.mensaje,
+            codigo: r.errorCodigo,
+            mensaje: r.mensaje,
             productosVerificados,
           });
           const estilo =
@@ -350,45 +407,109 @@ export function RealGatewayPanel() {
                 ? "border-warning/40 bg-warning-soft"
                 : m.tono === "info"
                   ? "border-primary/30 bg-info-soft"
-                  : "border-border";
-          return (
-        <div className={`mt-4 rounded-2xl border p-4 ${estilo}`}>
-          <p className="text-sm font-semibold">{m.texto}</p>
+                  : "border-success/40 bg-success-soft";
+          const detalle = s?.detalleModulos ?? [];
+          const nombres = (estados: string[]) =>
+            detalle
+              .filter((d) => estados.includes(d.estado))
+              .map((d) => NOMBRE_MODULO[d.modulo] ?? d.modulo)
+              .join(", ") || "—";
+          const cat = s?.documentosPorCategoria;
+          const estadoGeneral = s
+            ? s.estado === "success"
+              ? "Completada"
+              : s.estado === "partial"
+                ? "Parcial"
+                : s.estado === "skipped"
+                  ? "Omitida"
+                  : "Con error"
+            : "No se alcanzó a consultar el periodo";
 
-          <div className="mt-2">
-            <DataRow label="Consultas al proveedor" value={String(resultado.consultas)} />
-            <DataRow label="Créditos consumidos" value={String(resultado.creditosConsumidos)} />
-            <DataRow
-              label="Créditos disponibles"
-              value={
-                resultado.creditosDisponibles == null
-                  ? "—"
-                  : String(resultado.creditosDisponibles)
-              }
-            />
-            <DataRow
-              label="Documentos recibidos"
-              value={String(resultado.sincronizacion?.documentosRecibidos ?? 0)}
-            />
-            <DataRow
-              label="Documentos nuevos"
-              value={String(resultado.sincronizacion?.documentosCreados ?? 0)}
-            />
-            {resultado.sincronizacion?.modulosNoDisponibles.length ? (
-              <DataRow
-                label="Sin recurso disponible"
-                value={resultado.sincronizacion.modulosNoDisponibles.join(", ")}
-              />
-            ) : null}
-          </div>
-          <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
-            El Formulario 29 está disponible, pero API Gateway no entrega de forma
-            estructurada todos sus conceptos tributarios. Remanente, PPM,
-            retenciones y total pagado quedan como desconocidos cuando no llegan
-            en la respuesta. Estimación informativa: el resultado definitivo debe
-            ser confirmado por tu contador.
-          </p>
-        </div>
+          return (
+            <div className={`mt-4 rounded-2xl border p-4 ${estilo}`}>
+              <h3 className="text-sm font-semibold">
+                Resultado de la última consulta real
+              </h3>
+              <p className="mt-1 text-sm">{m.texto}</p>
+
+              <div className="mt-3">
+                <DataRow label="Estado general" value={estadoGeneral} />
+                <DataRow label="Periodo" value={ultima.periodo} />
+                <DataRow label="Fecha y hora" value={formatFechaHora(ultima.ejecutadaEn)} />
+                <DataRow
+                  label="Documentos recibidos"
+                  value={String(s?.documentosRecibidos ?? 0)}
+                />
+                <DataRow label="Ventas importadas" value={String(cat?.ventas ?? 0)} />
+                <DataRow
+                  label="Compras registradas"
+                  value={String(cat?.comprasRegistro ?? 0)}
+                />
+                <DataRow
+                  label="Compras pendientes"
+                  value={String(cat?.comprasPendiente ?? 0)}
+                />
+                <DataRow
+                  label="Compras reclamadas"
+                  value={String(cat?.comprasReclamado ?? 0)}
+                />
+                <DataRow
+                  label="Compras no incluidas"
+                  value={String(cat?.comprasNoIncluir ?? 0)}
+                />
+                <DataRow label="Consultas al proveedor" value={String(r.consultas)} />
+                <DataRow label="Créditos consumidos" value={String(r.creditosConsumidos)} />
+                <DataRow
+                  label="Saldo disponible"
+                  value={
+                    r.creditosDisponibles == null ? "—" : String(r.creditosDisponibles)
+                  }
+                />
+                <DataRow label="Módulos completados" value={nombres(["completado"])} />
+                <DataRow
+                  label="Módulos omitidos"
+                  value={nombres(["no_disponible", "sin_informacion", "omitido", "desde_cache"])}
+                />
+                <DataRow
+                  label="Módulos fallidos"
+                  value={nombres([
+                    "error_autenticacion",
+                    "error_proveedor",
+                    "timeout",
+                    "respuesta_invalida",
+                    "no_contratado",
+                  ])}
+                />
+                {r.errorCodigo ? (
+                  <DataRow
+                    label="Código de error"
+                    value={`${r.errorCodigo} — ${ETIQUETA_ESTADO_MODULO[
+                      detalle.find((d) => d.motivo === r.errorCodigo)?.estado ?? ""
+                    ] ?? "Revisa el detalle de los módulos"}`}
+                  />
+                ) : null}
+              </div>
+
+              {detalle.length > 0 && (
+                <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
+                  {detalle.map((d) => (
+                    <li key={d.modulo}>
+                      {NOMBRE_MODULO[d.modulo] ?? d.modulo}:{" "}
+                      {ETIQUETA_ESTADO_MODULO[d.estado] ?? d.estado}
+                      {d.motivo ? ` (${d.motivo})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
+                El Formulario 29 está disponible, pero API Gateway no entrega de forma
+                estructurada todos sus conceptos tributarios. Remanente, PPM,
+                retenciones y total pagado quedan como desconocidos cuando no llegan
+                en la respuesta. Estimación informativa: el resultado definitivo debe
+                ser confirmado por tu contador.
+              </p>
+            </div>
           );
         })()}
 

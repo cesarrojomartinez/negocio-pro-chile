@@ -38,6 +38,7 @@ import {
   MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
 } from "@/integrations/sii/apiGatewayClient";
 import { sanitizarProfundo } from "@/integrations/sii/sanitize";
+import { MODULOS_REALES_HABILITADOS } from "@/integrations/sii/apiGatewayResourceMap";
 import {
   diagnoseApiGatewayConfiguration,
   empresaAutorizadaParaPruebaReal,
@@ -328,6 +329,81 @@ export async function desconectarSii(
 // Sincronización
 // ---------------------------------------------------------------------------
 
+/**
+ * Clasificación exacta de un módulo en una sincronización.
+ * "no_disponible" y "sin_informacion" no son fallas: no bloquean el resto.
+ */
+export type EstadoModulo =
+  | "completado"
+  | "sin_informacion"
+  | "no_disponible"
+  | "no_contratado"
+  | "error_autenticacion"
+  | "error_proveedor"
+  | "timeout"
+  | "respuesta_invalida"
+  | "desde_cache"
+  | "omitido";
+
+export interface DetalleModulo {
+  modulo: SiiModule;
+  estado: EstadoModulo;
+  /** Código interno que originó la clasificación, si existe. */
+  motivo: string | null;
+}
+
+export interface DocumentosPorCategoria {
+  ventas: number;
+  comprasRegistro: number;
+  comprasPendiente: number;
+  comprasReclamado: number;
+  comprasNoIncluir: number;
+}
+
+const CATEGORIAS_VACIAS: DocumentosPorCategoria = {
+  ventas: 0,
+  comprasRegistro: 0,
+  comprasPendiente: 0,
+  comprasReclamado: 0,
+  comprasNoIncluir: 0,
+};
+
+/** Traduce un código del proveedor a la clasificación visible del módulo. */
+function clasificarModulo(codigo: string | null): EstadoModulo {
+  switch (codigo) {
+    case null:
+      return "completado";
+    case "PERIOD_NOT_AVAILABLE":
+      return "sin_informacion";
+    case "RESOURCE_NOT_DOCUMENTED":
+      return "no_disponible";
+    case "PRODUCT_NOT_ENABLED":
+      return "no_contratado";
+    case "INVALID_CREDENTIALS":
+    case "SESSION_EXPIRED":
+    case "AUTH_EXPIRED":
+    case "NOT_AUTHORIZED":
+    case "ACCOUNT_BLOCKED":
+      return "error_autenticacion";
+    case "TIMEOUT":
+      return "timeout";
+    case "MALFORMED_RESPONSE":
+    case "INVALID_PROVIDER_RESPONSE":
+      return "respuesta_invalida";
+    default:
+      return "error_proveedor";
+  }
+}
+
+/** Estados que NO cuentan como falla real de la sincronización. */
+const ESTADOS_SIN_FALLA: EstadoModulo[] = [
+  "completado",
+  "sin_informacion",
+  "no_disponible",
+  "desde_cache",
+  "omitido",
+];
+
 export interface ResultadoSincronizacion {
   ejecutada: boolean;
   motivo: string;
@@ -340,6 +416,10 @@ export interface ResultadoSincronizacion {
   modulosDesdeCache: SiiModule[];
   /** Módulos sin recurso oficial disponible en esta etapa. */
   modulosNoDisponibles: SiiModule[];
+  /** Clasificación exacta de cada módulo solicitado. */
+  detalleModulos: DetalleModulo[];
+  /** Documentos importados por categoría del RCV. */
+  documentosPorCategoria: DocumentosPorCategoria;
 
   documentosRecibidos: number;
   documentosCreados: number;
@@ -471,6 +551,8 @@ export async function syncSiiCompanyPeriod(
         modulosFallidos: (previo.modules_failed ?? []) as SiiModule[],
         modulosDesdeCache: (previo.modules_from_cache ?? []) as SiiModule[],
         modulosNoDisponibles: [],
+        detalleModulos: [],
+        documentosPorCategoria: { ...CATEGORIAS_VACIAS },
         documentosRecibidos: 0,
         documentosCreados: 0,
         documentosActualizados: 0,
@@ -532,6 +614,12 @@ export async function syncSiiCompanyPeriod(
       modulosFallidos: [],
       modulosDesdeCache: MODULOS_SINCRONIZACION.slice(),
       modulosNoDisponibles: [],
+      detalleModulos: MODULOS_SINCRONIZACION.map((m) => ({
+        modulo: m,
+        estado: "desde_cache" as EstadoModulo,
+        motivo: null,
+      })),
+      documentosPorCategoria: { ...CATEGORIAS_VACIAS },
       documentosRecibidos: 0,
       documentosCreados: 0,
       documentosActualizados: 0,
@@ -615,7 +703,10 @@ export async function syncSiiCompanyPeriod(
 
   const completados: SiiModule[] = [];
   const fallidos: SiiModule[] = [];
+  const noDisponibles: SiiModule[] = [];
   const desdeCache: SiiModule[] = plan.desdeCache;
+  const detalle = new Map<SiiModule, DetalleModulo>();
+  const categorias: DocumentosPorCategoria = { ...CATEGORIAS_VACIAS };
   let consultas = 0;
   let recibidos = 0;
   let descartados = 0;
@@ -625,23 +716,52 @@ export async function syncSiiCompanyPeriod(
   let primerError: SiiProviderError | null = null;
   let sesionInvalida = false;
 
+  const marcar = (modulos: SiiModule[], estado: EstadoModulo, motivo: string | null) => {
+    for (const m of modulos) detalle.set(m, { modulo: m, estado, motivo });
+  };
+  for (const m of desdeCache) marcar([m], "desde_cache", null);
+
   const ejecutar = async (modulos: SiiModule[], fn: () => Promise<void>) => {
+    // Módulos sin recurso oficial: no se consultan, no consumen créditos y no
+    // se cuentan como falla. Solo bajan la confiabilidad de lo que dependa de
+    // esa información.
+    if (esReal && modulos.every((m) => !MODULOS_REALES_HABILITADOS.includes(m))) {
+      noDisponibles.push(...modulos);
+      marcar(modulos, "no_disponible", "RESOURCE_NOT_AVAILABLE");
+      return;
+    }
     // Sin sesión válida no tiene sentido seguir consultando el resto.
     if (sesionInvalida) {
       fallidos.push(...modulos);
+      marcar(modulos, "error_autenticacion", "SESSION_INVALID");
       return;
     }
-    if (!modulos.some((m) => porConsultar.has(m))) return;
+    if (!modulos.some((m) => porConsultar.has(m))) {
+      if (!modulos.some((m) => detalle.has(m))) marcar(modulos, "omitido", null);
+      return;
+    }
     try {
       consultas += 1;
       await fn();
       completados.push(...modulos);
+      marcar(modulos, "completado", null);
     } catch (error) {
-      fallidos.push(...modulos);
       if (error instanceof SiiProviderError) {
+        const estadoModulo = clasificarModulo(error.code);
+        marcar(modulos, estadoModulo, error.code);
+        if (estadoModulo === "no_disponible") {
+          noDisponibles.push(...modulos);
+          return;
+        }
+        // "sin información" no es una falla: el periodo simplemente no tiene
+        // movimientos publicados por el SII.
+        if (estadoModulo === "sin_informacion") return;
+        fallidos.push(...modulos);
         if (!primerError) primerError = error;
         if (ERRORES_DE_SESION.includes(error.code)) sesionInvalida = true;
       } else {
+        fallidos.push(...modulos);
+        marcar(modulos, "error_proveedor", "INTERNAL");
         // Un problema nuestro no puede dejar la actualización trabada:
         // se cierra el registro antes de propagar el error.
         await supabaseAdmin
@@ -675,6 +795,7 @@ export async function syncSiiCompanyPeriod(
     });
     const n = normalizarVentas(ventas);
     recibidos += ventas.documents.length;
+    categorias.ventas += n.documentos.length;
     descartados += n.descartados.length;
     const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
     creados += r.creados;
@@ -706,6 +827,10 @@ export async function syncSiiCompanyPeriod(
       }
       const n = normalizarCompras(compras);
       recibidos += Object.values(compras.byStatus).reduce((s, d) => s + d.length, 0);
+      categorias.comprasRegistro += compras.byStatus.registered.length;
+      categorias.comprasPendiente += compras.byStatus.pending.length;
+      categorias.comprasReclamado += compras.byStatus.claimed.length;
+      categorias.comprasNoIncluir += compras.byStatus.excluded.length;
       descartados += n.descartados.length;
       const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
       creados += r.creados;
@@ -874,16 +999,29 @@ export async function syncSiiCompanyPeriod(
     },
   );
 
-  const noDisponibles: SiiModule[] =
-    errorCodigo === "RESOURCE_NOT_DOCUMENTED" ? fallidos.slice() : [];
+  const detalleModulos = MODULOS_SINCRONIZACION.map(
+    (m): DetalleModulo => detalle.get(m) ?? { modulo: m, estado: "omitido", motivo: null },
+  );
+  const sinInformacion = detalleModulos.filter((d) => d.estado === "sin_informacion");
+  const soloAutenticacion =
+    !completados.length &&
+    fallidos.length > 0 &&
+    detalleModulos
+      .filter((d) => fallidos.includes(d.modulo))
+      .every((d) => d.estado === "error_autenticacion");
 
-  const mensaje =
-    estado === "success"
-      ? esReal
-        ? "Actualizamos la información de este periodo con el proveedor real."
-        : "Actualizamos la información demostrativa de este periodo."
+  const mensaje = soloAutenticacion
+    ? "No fue posible autenticar la consulta en el SII. Revisa el RUT autorizado y la Clave Tributaria."
+    : estado === "success"
+      ? !completados.length && sinInformacion.length
+        ? "El SII no registra movimientos para el periodo seleccionado."
+        : noDisponibles.length
+          ? "Consulta completada. Obtuvimos las ventas y compras disponibles. Algunos antecedentes complementarios del F29 no están disponibles de forma estructurada."
+          : esReal
+            ? "Actualizamos la información de este periodo con el proveedor real."
+            : "Actualizamos la información demostrativa de este periodo."
       : estado === "partial"
-        ? "Trajimos solo una parte de la información. Los cálculos quedan como estimación parcial."
+        ? "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes."
         : primerError
           ? (primerError as SiiProviderError).message
           : "No pudimos completar la actualización.";
@@ -898,6 +1036,8 @@ export async function syncSiiCompanyPeriod(
     modulosFallidos: fallidos,
     modulosDesdeCache: desdeCache,
     modulosNoDisponibles: noDisponibles,
+    detalleModulos,
+    documentosPorCategoria: categorias,
     documentosRecibidos: recibidos,
     documentosCreados: creados,
     documentosActualizados: actualizados,

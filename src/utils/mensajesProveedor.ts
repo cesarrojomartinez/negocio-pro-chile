@@ -18,12 +18,13 @@ const CODIGOS_AUTENTICACION = [
   "NOT_AUTHORIZED",
 ];
 
-const CODIGOS_PARCIALES = [
-  "MALFORMED_RESPONSE",
-  "INVALID_PROVIDER_RESPONSE",
-  "PARTIAL_DATA",
-  "REQUEST_BUDGET_REACHED",
-];
+const CODIGOS_PARCIALES = ["PARTIAL_DATA", "REQUEST_BUDGET_REACHED"];
+
+/** El proveedor respondió, pero la respuesta no se pudo interpretar. */
+const CODIGOS_RESPUESTA_INVALIDA = ["MALFORMED_RESPONSE", "INVALID_PROVIDER_RESPONSE"];
+
+/** Recursos sin equivalente oficial: no son fallas de la consulta. */
+const CODIGOS_NO_DISPONIBLES = ["RESOURCE_NOT_AVAILABLE", "RESOURCE_NOT_DOCUMENTED"];
 
 export interface EntradaMensajeProveedor {
   proveedor: ProveedorSii;
@@ -65,6 +66,29 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
     };
   }
 
+  if (codigo && CODIGOS_NO_DISPONIBLES.includes(codigo)) {
+    return {
+      texto:
+        "Consulta completada. Obtuvimos las ventas y compras disponibles. Algunos antecedentes complementarios del F29 no están disponibles de forma estructurada.",
+      tono: "info",
+    };
+  }
+
+  if (codigo && CODIGOS_RESPUESTA_INVALIDA.includes(codigo)) {
+    if (proveedor === "mock") {
+      return {
+        texto:
+          "Recibimos información incompleta del proveedor demostrativo y no la usamos.",
+        tono: "warning",
+      };
+    }
+    return {
+      texto:
+        "API Gateway rechazó la validación de la conexión y respondió de forma inválida. No se consultó información del periodo. Revisa el RUT autorizado y vuelve a intentar.",
+      tono: "error",
+    };
+  }
+
   if (codigo && CODIGOS_PARCIALES.includes(codigo)) {
     if (proveedor === "mock") {
       return {
@@ -81,7 +105,7 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
     }
     return {
       texto:
-        "API Gateway entregó información parcial. Conservamos los datos válidos y omitimos los campos incompletos.",
+        "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes.",
       tono: "warning",
     };
   }
