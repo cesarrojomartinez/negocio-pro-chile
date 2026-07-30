@@ -270,35 +270,64 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     [companyId, periodoId, refrescarEmpresas],
   );
 
-  const actualizar = useCallback(async () => {
+  /** Empresa con proveedor real autorizado: nunca debe caer en el mock. */
+  const conexionReal = esCloud && conexionSii?.proveedor === "api_gateway";
+
+  /** Relectura de lo ya guardado: no consulta a ningún proveedor. */
+  const refrescarDatos = useCallback(async () => {
     setActualizando(true);
     try {
-      if (esCloud && companyId) {
-        const r = await sincronizarCloud("manual");
-        await cargar();
-        if (r && r.estado === "failed") {
-          toast.error("No pudimos actualizar la información", {
-            description: r.mensaje,
-          });
-        } else if (r && r.estado === "partial") {
-          toast.warning("Actualización parcial", { description: r.mensaje });
-        } else if (r && !r.ejecutada) {
-          toast("Sin cambios", { description: r.mensaje });
-        } else {
-          toast.success("Información actualizada", {
-            description:
-              "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
-          });
-        }
-        return;
-      }
-      const fecha = await mockTaxDataService.sincronizar();
-      setUltimaSincronizacionDemo(fecha);
-      setEstadoConexionDemo((prev) => (prev === "disconnected" ? prev : "connected"));
+      await refrescarEmpresas();
       await cargar();
-      toast.success("Información actualizada", {
-        description: "Los datos mostrados son una estimación informativa.",
+    } finally {
+      setActualizando(false);
+    }
+  }, [cargar, refrescarEmpresas]);
+
+  /** Actualización con el proveedor demostrativo. */
+  const actualizarMock = useCallback(async () => {
+    if (esCloud && companyId) {
+      const r = await sincronizarCloud("manual");
+      await cargar();
+      if (r && r.estado === "failed") {
+        toast.error("No pudimos actualizar la información", {
+          description: r.mensaje,
+        });
+      } else if (r && r.estado === "partial") {
+        toast.warning("Actualización parcial", { description: r.mensaje });
+      } else if (r && !r.ejecutada) {
+        toast("Sin cambios", { description: r.mensaje });
+      } else {
+        toast.success("Información actualizada", {
+          description:
+            "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
+        });
+      }
+      return;
+    }
+    const fecha = await mockTaxDataService.sincronizar();
+    setUltimaSincronizacionDemo(fecha);
+    setEstadoConexionDemo((prev) => (prev === "disconnected" ? prev : "connected"));
+    await cargar();
+    toast.success("Información actualizada", {
+      description: "Los datos mostrados son una estimación informativa.",
+    });
+  }, [cargar, esCloud, companyId, sincronizarCloud]);
+
+  const actualizar = useCallback(async () => {
+    // Conexión real: la clave tributaria solo se pide en el formulario seguro.
+    if (conexionReal) {
+      setSolicitudActualizacionReal((n) => n + 1);
+      await refrescarDatos();
+      toast.info("Mostrando la última información guardada", {
+        description:
+          "Para traer datos nuevos del SII, completa el formulario de actualización segura en Configuración.",
       });
+      return;
+    }
+    setActualizando(true);
+    try {
+      await actualizarMock();
     } catch (error) {
       toast.error("No pudimos actualizar la información", {
         description:
@@ -309,7 +338,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     } finally {
       setActualizando(false);
     }
-  }, [cargar, esCloud, companyId, sincronizarCloud]);
+  }, [conexionReal, refrescarDatos, actualizarMock]);
 
   const conectarDemo = useCallback(async () => {
     if (esCloud && companyId) {
