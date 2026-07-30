@@ -115,6 +115,19 @@ export const RECURSOS_API_GATEWAY: ApiGatewayResourceDefinition[] = [
     nota: "Listado de declaraciones por período (YYYY o YYYY-MM): periodo, folio, fecha y estado.",
   },
   {
+    module: "f29_compact_pdf",
+    method: "POST",
+    path: "sii/f29/formulario_compacto/pdf/{folio}",
+    documented: true,
+    // Se ejecuta solo desde la descarga controlada del F29, no en la
+    // sincronización general: por eso no entra en los módulos habilitados.
+    enabled: false,
+    estimatedCredits: 0.2,
+    nota:
+      "PDF compacto del F29. Se descarga una sola vez por folio y su contenido " +
+      "se lee en el servidor con un lector determinístico (sin IA ni OCR).",
+  },
+  {
     module: "f29_detail",
     method: "POST",
     path: "sii/f29/detalles_declaracion/{folio}",
