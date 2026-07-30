@@ -236,7 +236,10 @@ export interface ApiGatewayRequestInput<TRequest extends object> {
   query?: Record<string, string>;
   body?: TRequest;
   registro?: RegistroConsumo;
+  /** Auditorías controladas: una sola solicitud, sin reintentos automáticos. */
+  sinReintentos?: boolean;
 }
+
 
 export interface ApiGatewayRespuesta<TResponse> {
   datos: TResponse;
