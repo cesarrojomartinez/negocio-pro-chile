@@ -256,7 +256,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <span className="text-xs text-muted-foreground">
                   Fuente del periodo:
                 </span>
-                <FuentePeriodoBadge fuente={fuentePeriodo} />
+                {fuentePeriodo ? (
+                  <FuentePeriodoBadge fuente={fuentePeriodo} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Cargando…</span>
+                )}
               </span>
               <span className="text-xs text-muted-foreground">
                 {fuentePeriodo === "accountant_confirmed"
