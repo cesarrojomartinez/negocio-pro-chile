@@ -260,7 +260,7 @@ export async function recalculateTaxPeriod(
     dineroReservado: reservado,
     metaMensual,
     diasDesdeSincronizacion: diasDesdeSync,
-    errorSincronizacion: syncRow?.status === "error",
+    errorSincronizacion: syncRow?.status === "failed",
     configuradoManualmente: !esDemo,
   });
 

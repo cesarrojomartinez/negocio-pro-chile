@@ -45,6 +45,11 @@ const CONFIABILIDAD = {
     texto: "Faltan antecedentes importantes para realizar una estimación confiable.",
     clase: "border-destructive/30 bg-danger-soft text-destructive",
   },
+  desconocida: {
+    titulo: "Sin información suficiente",
+    texto: "Todavía no hay datos suficientes en este periodo para estimar.",
+    clase: "border-border bg-secondary/60 text-muted-foreground",
+  },
 } as const;
 
 const FACTORES = [
@@ -89,6 +94,13 @@ function Impuestos() {
                   {CONFIABILIDAD[data.confiabilidad].titulo}
                 </p>
                 <p className="text-sm">{CONFIABILIDAD[data.confiabilidad].texto}</p>
+                {data.razonesConfiabilidad.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
+                    {data.razonesConfiabilidad.map((razon) => (
+                      <li key={razon}>{razon}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
