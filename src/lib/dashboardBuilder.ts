@@ -128,7 +128,9 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
         : "unknown",
     previousVatCarryforward:
       data.remanenteConocido === false ? null : resumen.remanenteAnterior,
-    carryforwardSource: fuenteConceptoRemanente(resumen.fuenteRemanente),
+    carryforwardSource: entrada.esDemo
+      ? "mock"
+      : fuenteConceptoRemanente(resumen.fuenteRemanente),
     otherVatDebits: data.otrosDebitosIva ?? 0,
     otherVatCredits: data.otrosCreditosIva ?? 0,
     specialDebits: data.debitosEspeciales ?? 0,
