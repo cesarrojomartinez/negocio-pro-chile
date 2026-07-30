@@ -20,13 +20,17 @@ import {
   normalizarVentas,
   type FilaDocumentoNormalizada,
 } from "@/integrations/sii/normalizeProviderData";
+import { totalesFirmados } from "@/integrations/sii/normalizeProviderData";
 import {
   MODULOS_SINCRONIZACION,
   SiiProviderError,
+  type ProviderRcvSummary,
   type SiiModule,
   type SiiProviderAdapter,
   type SiiProviderId,
 } from "@/integrations/sii/contracts";
+import { RESUMEN_VACIO, sumarResumenes } from "@/integrations/sii/rcvSummary";
+
 import { mockSiiProviderAdapter } from "@/integrations/sii/mockSiiProviderAdapter";
 import {
   apiGatewaySiiProviderAdapter,
