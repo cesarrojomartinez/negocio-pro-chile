@@ -42,6 +42,24 @@ export const pruebaRealApiGatewayFn = createServerFn({ method: "POST" })
     }),
   );
 
+export const auditarF29RealFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      companyId: string;
+      periodo: string;
+      rutUsuario: string;
+      claveTributaria: string;
+      consentimiento: boolean;
+    }) => data,
+  )
+  .handler(async ({ data, context }) =>
+    envolver(async () => {
+      const { auditarF29Real } = await import("@/lib/f29Audit.server");
+      return auditarF29Real(context.userId, data);
+    }),
+  );
+
 export const desconectarApiGatewayFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { companyId: string }) => data)
@@ -52,3 +70,4 @@ export const desconectarApiGatewayFn = createServerFn({ method: "POST" })
       return true;
     }),
   );
+

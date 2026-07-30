@@ -236,7 +236,10 @@ export interface ApiGatewayRequestInput<TRequest extends object> {
   query?: Record<string, string>;
   body?: TRequest;
   registro?: RegistroConsumo;
+  /** Auditorías controladas: una sola solicitud, sin reintentos automáticos. */
+  sinReintentos?: boolean;
 }
+
 
 export interface ApiGatewayRespuesta<TResponse> {
   datos: TResponse;
@@ -270,9 +273,10 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
   input.registro?.exigirPresupuesto(moduloError);
 
   const url = construirUrl(input.config.baseUrl, input.ruta, input.query);
+  const maxIntentos = input.sinReintentos ? 0 : MAX_REINTENTOS;
   let ultimoError: SiiProviderError | null = null;
 
-  for (let intento = 0; intento <= MAX_REINTENTOS; intento += 1) {
+  for (let intento = 0; intento <= maxIntentos; intento += 1) {
     const inicio = Date.now();
     const controlador = new AbortController();
     const temporizador = setTimeout(() => controlador.abort(), input.config.timeoutMs);
@@ -354,7 +358,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
         };
         input.registro?.agregar(log);
         const error = new SiiProviderError(codigo, moduloError);
-        if (!esReintentable(codigo, respuesta.status) || intento === MAX_REINTENTOS)
+        if (!esReintentable(codigo, respuesta.status) || intento === maxIntentos)
           throw error;
         ultimoError = error;
         await new Promise((r) =>
@@ -380,7 +384,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       };
       input.registro?.agregar(log);
       const normalizado = new SiiProviderError(codigo, moduloError);
-      if (intento === MAX_REINTENTOS) throw normalizado;
+      if (intento === maxIntentos) throw normalizado;
       ultimoError = normalizado;
       await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
     } finally {
