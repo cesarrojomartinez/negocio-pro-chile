@@ -66,6 +66,31 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
     };
   }
 
+  if (codigo === "INVALID_REQUEST") {
+    return {
+      texto:
+        "La consulta se envió con datos incompletos y el servicio la rechazó. Revisa el RUT autorizado y el periodo, y vuelve a intentar.",
+      tono: "warning",
+    };
+  }
+
+  if (codigo === "COMPANY_ACCESS_DENIED") {
+    return {
+      texto:
+        "El usuario autorizado no tiene acceso a esta empresa en el SII. Verifica el RUT autorizado.",
+      tono: "error",
+    };
+  }
+
+  if (codigo === "SII_MAINTENANCE" || codigo === "PROVIDER_MAINTENANCE") {
+    return {
+      texto:
+        "El servicio está en mantención en este momento. Vuelve a intentar más tarde.",
+      tono: "info",
+    };
+  }
+
+
   if (codigo && CODIGOS_NO_DISPONIBLES.includes(codigo)) {
     return {
       texto:
