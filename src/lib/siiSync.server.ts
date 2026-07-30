@@ -57,7 +57,13 @@ export const VERSION_CONSENTIMIENTO = "demo-2026-07";
 const MESES_F29 = 6;
 
 /** Errores que invalidan la sesión: no tiene sentido seguir pidiendo módulos. */
-const ERRORES_DE_SESION = ["AUTH_EXPIRED", "INVALID_CREDENTIALS", "NOT_AUTHORIZED"];
+const ERRORES_DE_SESION = [
+  "AUTH_EXPIRED",
+  "SESSION_EXPIRED",
+  "SESSION_INVALID",
+  "INVALID_CREDENTIALS",
+  "NOT_AUTHORIZED",
+];
 
 /**
  * Opciones internas del servidor. No se exponen en las server functions:
@@ -384,6 +390,7 @@ function clasificarModulo(codigo: string | null): EstadoModulo {
     case "PRODUCT_NOT_ENABLED":
       return "no_contratado";
     case "INVALID_CREDENTIALS":
+    case "SESSION_INVALID":
     case "SESSION_EXPIRED":
     case "AUTH_EXPIRED":
     case "NOT_AUTHORIZED":

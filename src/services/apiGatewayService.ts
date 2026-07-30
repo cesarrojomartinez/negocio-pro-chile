@@ -33,6 +33,8 @@ export const apiGatewayService = {
     periodo: string;
     rutUsuario: string;
     claveTributaria: string;
+    /** Solo tras un error de sesión: fuerza `auth_cache=0` una vez. */
+    sesionNueva?: boolean;
   }): Promise<ResultadoPruebaReal> {
     const r = await pruebaRealApiGatewayFn({
       data: { ...entrada, consentimiento: true },
