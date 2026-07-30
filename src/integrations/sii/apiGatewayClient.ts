@@ -96,6 +96,9 @@ export function mapearError(
   const texto = detalle.toLowerCase();
 
   if (!esJson && estado >= 200 && estado < 300) return "INVALID_PROVIDER_RESPONSE";
+  // Una respuesta no JSON con 404 es la página web del proveedor: la ruta
+  // solicitada no existe en la versión V2 del servicio.
+  if (!esJson && estado === 404) return "RESOURCE_NOT_DOCUMENTED";
 
   if (texto.includes("productos asociados") || texto.includes("no tiene producto"))
     return "PRODUCT_NOT_ENABLED";
@@ -104,6 +107,29 @@ export function mapearError(
   if (texto.includes("proxy") && texto.includes("no disponible")) return "PROXY_UNAVAILABLE";
   if (texto.includes("proxy")) return "PROXY_REQUIRED";
   if (texto.includes("bloquead")) return "ACCOUNT_BLOCKED";
+  // Periodo contratado pero sin información publicada por el SII.
+  if (
+    texto.includes("sin movimiento") ||
+    texto.includes("sin informacion") ||
+    texto.includes("sin información") ||
+    texto.includes("no hay datos") ||
+    texto.includes("no existen documentos") ||
+    texto.includes("no registra información") ||
+    texto.includes("no registra informacion")
+  )
+    return "PERIOD_NOT_AVAILABLE";
+  // El proveedor no logró completar la lectura en el portal del SII.
+  if (
+    texto.includes("no se pudo cargar la página") ||
+    texto.includes("no se pudo cargar la pagina") ||
+    texto.includes("wait_for_selector") ||
+    texto.includes("timeout")
+  )
+    return "TIMEOUT";
+  // El SII devolvió un código de error oficial durante la autenticación.
+  if (/c[óo]digo de error #\d+/.test(texto) || /error #\d+/.test(texto))
+    return "INVALID_CREDENTIALS";
+
   if (
     texto.includes("clave") ||
     texto.includes("contraseña") ||
