@@ -125,7 +125,7 @@ describe("auth_cache=0", () => {
       registro: new RegistroConsumo(),
       sesionNueva: true,
     });
-    await adaptador.fetchSalesRcv({ rut: "779762289", periodo: "2026-03" });
+    await adaptador.fetchSalesRcv({ rut: "779762289", period: "2026-03" });
 
     expect(urls.length).toBeGreaterThan(1);
     const conCache0 = urls.filter((u) => u.includes("auth_cache=0"));
@@ -149,7 +149,7 @@ describe("auth_cache=0", () => {
       },
       registro: new RegistroConsumo(),
     });
-    await adaptador.fetchSalesRcv({ rut: "779762289", periodo: "2026-03" });
+    await adaptador.fetchSalesRcv({ rut: "779762289", period: "2026-03" });
     expect(urls.some((u) => u.includes("auth_cache=0"))).toBe(false);
     vi.unstubAllGlobals();
   });
