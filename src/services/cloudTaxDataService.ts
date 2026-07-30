@@ -191,6 +191,29 @@ async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
   return null;
 }
 
+/** Parámetro tributario vigente de la empresa para el periodo indicado. */
+async function parametroVigenteDe(
+  companyId: string,
+  tipo: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime",
+  periodo: string,
+): Promise<number | null> {
+  const primerDia = `${periodo}-01`;
+  const { data } = await supabase
+    .from("tax_company_tax_parameters")
+    .select("value, effective_from, effective_to")
+    .eq("company_id", companyId)
+    .eq("parameter_type", tipo)
+    .eq("confirmed", true)
+    .lte("effective_from", primerDia)
+    .order("effective_from", { ascending: false })
+    .limit(5);
+
+  const vigente = (data ?? []).find(
+    (p) => p.effective_to == null || String(p.effective_to) >= primerDia,
+  );
+  return vigente == null ? null : Number(vigente.value);
+}
+
 
 
 
