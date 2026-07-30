@@ -38,6 +38,8 @@ export interface ApiGatewayCallLog {
   metodo: string;
   recurso: string;
   estadoHttp: number | null;
+  /** Tipo de contenido devuelto, sin parámetros. Nunca sensible. */
+  contentType: string | null;
   duracionMs: number;
   creditosUsados: number | null;
   creditosDisponibles: number | null;
@@ -46,6 +48,7 @@ export interface ApiGatewayCallLog {
   codigoError: SiiErrorCode | null;
   referenciaTecnica: string | null;
 }
+
 
 /** Acumulador de consumo de una sincronización. Nunca contiene credenciales. */
 export class RegistroConsumo {
@@ -280,6 +283,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       metodo: input.metodo,
       recurso: input.ruta,
       estadoHttp: null,
+      contentType: null,
       duracionMs: 0,
       creditosUsados: null,
       creditosDisponibles: null,
@@ -288,6 +292,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       codigoError: null,
       referenciaTecnica: null,
     };
+
 
     try {
       const respuesta = await fetch(url, {
@@ -307,6 +312,8 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       log = {
         ...log,
         estadoHttp,
+        contentType: respuesta.headers.get("content-type")?.split(";")[0] ?? null,
+
         duracionMs: Date.now() - inicio,
         creditosUsados: numeroCabecera(respuesta.headers, "x-stats-credits-used"),
         creditosDisponibles: numeroCabecera(

@@ -20,8 +20,10 @@ import {
   type ProviderDocument,
   type ProviderDocumentType,
   type ProviderF29Entry,
+  type ProviderModuleDiagnostics,
   type ProviderPurchasesResult,
   type ProviderQuery,
+  type ProviderRcvSummary,
   type ProviderSalesResult,
   type ProviderWithholdingsResult,
   type SiiModule,
@@ -35,8 +37,18 @@ import {
 import {
   requestApiGateway,
   RegistroConsumo,
+  type ApiGatewayCallLog,
   type ApiGatewayConfig,
 } from "./apiGatewayClient";
+import { unwrapProviderCollection } from "./unwrapProviderCollection";
+import {
+  aNumero,
+  construirResumenRcv,
+  DTE_EFECTO_NEGATIVO,
+  RESUMEN_VACIO,
+  tiposConDocumentos,
+  type FilaResumenRcv,
+} from "./rcvSummary";
 import { rutConGuion } from "@/lib/rut";
 
 
@@ -69,22 +81,17 @@ export function construirCuerpoAuth(
 }
 
 
-interface FilaResumen {
-  rsmnTipoDocInteger?: number;
-  rsmnTotDoc?: number;
-}
-
 interface FilaDetalle {
-  detTipoDoc?: number;
-  detNroDoc?: number;
+  detTipoDoc?: number | string;
+  detNroDoc?: number | string;
   detFchDoc?: string;
-  detRutDoc?: number;
+  detRutDoc?: number | string;
   detDvDoc?: string;
   detRznSoc?: string;
-  detMntNeto?: number;
-  detMntIVA?: number;
-  detMntExe?: number;
-  detMntTotal?: number;
+  detMntNeto?: number | string;
+  detMntIVA?: number | string;
+  detMntExe?: number | string;
+  detMntTotal?: number | string;
 }
 
 interface FilaF29 {
@@ -132,48 +139,47 @@ function fechaIso(valor: string | undefined): string | null {
 }
 
 function rutContraparte(fila: FilaDetalle): string {
-  if (!fila.detRutDoc) return "";
+  if (fila.detRutDoc == null || fila.detRutDoc === "") return "";
   return `${fila.detRutDoc}-${(fila.detDvDoc ?? "").toString().trim().toUpperCase()}`;
 }
 
-function numero(valor: unknown): number | null {
-  return typeof valor === "number" && Number.isFinite(valor) ? valor : null;
+function montoOpcional(valor: unknown): number | null {
+  if (valor == null || valor === "") return null;
+  return aNumero(valor);
 }
 
-function aDocumento(
+/**
+ * Convierte una fila del DETALLE en un documento del contrato interno.
+ * Devuelve `null` solo cuando la fila no trae los tres datos mínimos: tipo de
+ * DTE reconocido, fecha y folio.
+ */
+export function aDocumento(
   fila: FilaDetalle,
   direccion: "sale" | "purchase",
   estado: ProviderDocument["rcvStatus"],
 ): ProviderDocument | null {
-  const tipo = fila.detTipoDoc ? TIPOS_DTE[fila.detTipoDoc] : undefined;
+  const codigo = fila.detTipoDoc == null ? 0 : Math.round(aNumero(fila.detTipoDoc));
+  const tipo = TIPOS_DTE[codigo];
   const fecha = fechaIso(fila.detFchDoc);
-  if (!tipo || !fecha || !fila.detNroDoc) return null;
+  const folio = fila.detNroDoc == null ? 0 : Math.round(aNumero(fila.detNroDoc));
+  if (!tipo || !fecha || !folio) return null;
 
   const rut = rutContraparte(fila);
   return {
-    externalId: `apigw:${direccion}:${fila.detTipoDoc}:${fila.detNroDoc}:${rut || "sn"}`,
+    externalId: `apigw:${direccion}:${codigo}:${folio}:${rut || "sn"}`,
     documentType: tipo,
-    folio: fila.detNroDoc,
+    folio,
     issueDate: fecha,
     counterpartyName: (fila.detRznSoc ?? "").trim() || "Sin identificar",
     counterpartyRut: rut,
-    netAmount: numero(fila.detMntNeto),
-    vatAmount: numero(fila.detMntIVA),
-    exemptAmount: numero(fila.detMntExe),
-    totalAmount: numero(fila.detMntTotal) ?? 0,
+    netAmount: montoOpcional(fila.detMntNeto),
+    vatAmount: montoOpcional(fila.detMntIVA),
+    exemptAmount: montoOpcional(fila.detMntExe),
+    totalAmount: aNumero(fila.detMntTotal),
     rcvStatus: estado,
+    // Los montos del SII llegan positivos: el signo es un efecto, no un dato.
+    taxEffect: DTE_EFECTO_NEGATIVO.has(codigo) ? -1 : 1,
   };
-}
-
-function listaDatos<T>(cuerpo: unknown): T[] {
-  if (!cuerpo || typeof cuerpo !== "object") return [];
-  const raiz = (cuerpo as { data?: unknown }).data;
-  if (Array.isArray(raiz)) return raiz as T[];
-  if (raiz && typeof raiz === "object") {
-    const anidado = (raiz as { data?: unknown }).data;
-    if (Array.isArray(anidado)) return anidado as T[];
-  }
-  return [];
 }
 
 export interface OpcionesAdaptadorReal {
@@ -207,8 +213,8 @@ export function crearAdaptadorApiGateway(
     modulo: SiiModule | "autenticacion",
     ruta: string,
     query?: Record<string, string>,
-  ): Promise<T> {
-    const { datos } = await requestApiGateway<CuerpoAuth, T>({
+  ): Promise<{ datos: T; log: ApiGatewayCallLog }> {
+    return requestApiGateway<CuerpoAuth, T>({
       config,
       modulo,
       metodo: "POST",
@@ -217,24 +223,89 @@ export function crearAdaptadorApiGateway(
       body: cuerpo,
       registro,
     });
-    return datos;
   }
 
+  /**
+   * Lee un RESUMEN del RCV. Alimenta los totales oficiales y decide qué tipos
+   * de DTE vale la pena pedir en el detalle.
+   */
+  async function leerResumen(
+    modulo: SiiModule,
+    ruta: string,
+    diagnostics: ProviderModuleDiagnostics[],
+  ): Promise<ProviderRcvSummary> {
+    const { datos, log } = await pedir<unknown>(modulo, ruta, { formato: "json" });
+    const coleccion = unwrapProviderCollection<FilaResumenRcv>(datos, modulo);
+    const resumen = construirResumenRcv(coleccion.items);
+    diagnostics.push({
+      modulo,
+      recurso: `${ruta.split("/").slice(0, 4).join("/")}/resumen`,
+      estadoHttp: log.estadoHttp,
+      contentType: log.contentType,
+      forma: coleccion.forma,
+      clavesSuperiores: coleccion.clavesSuperiores,
+      largoArreglo: coleccion.items.length,
+      propiedadesPrimerElemento: coleccion.propiedadesPrimerElemento,
+      filasNoInterpretadas: coleccion.items.length - resumen.lines.length,
+    });
+    return resumen;
+  }
+
+  /**
+   * Lee el DETALLE de un tipo de DTE.
+   *
+   * `tipo=rcv` se envía siempre de forma explícita: el valor por omisión del
+   * proveedor (`rcv_csv`) devuelve las columnas del archivo CSV del SII, que no
+   * tienen los campos `det*` y hacían que todas las filas se descartaran.
+   *
+   * Si la respuesta trae filas y NINGUNA se puede interpretar, se informa
+   * `INVALID_PROVIDER_RESPONSE`: nunca se devuelve una lista vacía en silencio.
+   */
   async function detallesPorTipo(
     modulo: SiiModule,
     tipos: number[],
     ruta: (dte: number) => string,
     direccion: "sale" | "purchase",
     estado: ProviderDocument["rcvStatus"],
+    diagnostics: ProviderModuleDiagnostics[],
   ): Promise<ProviderDocument[]> {
     const documentos: ProviderDocument[] = [];
+    let filasTotales = 0;
+    let filasNoInterpretadas = 0;
+
     for (const dte of tipos.slice(0, maxTipos)) {
-      const respuesta = await pedir<unknown>(modulo, ruta(dte), { formato: "json" });
-      for (const fila of listaDatos<FilaDetalle>(respuesta)) {
+      const recurso = ruta(dte);
+      const { datos, log } = await pedir<unknown>(modulo, recurso, {
+        formato: "json",
+        tipo: "rcv",
+      });
+      const coleccion = unwrapProviderCollection<FilaDetalle>(datos, modulo);
+      let interpretadas = 0;
+      for (const fila of coleccion.items) {
         const doc = aDocumento(fila, direccion, estado);
-        if (doc) documentos.push(doc);
+        if (doc) {
+          documentos.push(doc);
+          interpretadas += 1;
+        }
       }
+      filasTotales += coleccion.items.length;
+      filasNoInterpretadas += coleccion.items.length - interpretadas;
+      diagnostics.push({
+        modulo,
+        recurso: `detalle/dte-${dte}`,
+        estadoHttp: log.estadoHttp,
+        contentType: log.contentType,
+        forma: coleccion.forma,
+        clavesSuperiores: coleccion.clavesSuperiores,
+        largoArreglo: coleccion.items.length,
+        propiedadesPrimerElemento: coleccion.propiedadesPrimerElemento,
+        filasNoInterpretadas: coleccion.items.length - interpretadas,
+      });
     }
+
+    if (filasTotales > 0 && filasNoInterpretadas === filasTotales)
+      throw new SiiProviderError("INVALID_PROVIDER_RESPONSE", modulo);
+
     return documentos;
   }
 
@@ -278,23 +349,22 @@ export function crearAdaptadorApiGateway(
     async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
       const periodo = periodoCompacto(query.period);
       const emisor = rutConGuion(query.rut);
+      const diagnostics: ProviderModuleDiagnostics[] = [];
 
       const resumenRecurso = recursoDe("rcv_sales_summary");
       const detalleRecurso = recursoDe("rcv_sales_documents");
 
-      const resumen = await pedir<unknown>(
+      const resumen = await leerResumen(
         "rcv_sales_summary",
         resumenRecurso.path.replace("{emisor}", emisor).replace("{periodo}", periodo),
-        { formato: "json" },
+        diagnostics,
       );
-      const filas = listaDatos<FilaResumen>(resumen);
-      const tipos = filas
-        .filter((f) => (f.rsmnTotDoc ?? 0) > 0 && f.rsmnTipoDocInteger)
-        .map((f) => f.rsmnTipoDocInteger as number);
 
+      // El detalle se pide SOLO por los tipos que el resumen declara con
+      // documentos: no se depende de una consulta genérica DTE 0.
       const documentos = await detallesPorTipo(
         "rcv_sales_documents",
-        tipos,
+        tiposConDocumentos(resumen),
         (dte) =>
           detalleRecurso.path
             .replace("{emisor}", emisor)
@@ -302,28 +372,41 @@ export function crearAdaptadorApiGateway(
             .replace("{dte}", String(dte)),
         "sale",
         "registered",
+        diagnostics,
       );
 
       return {
         period: query.period,
         dataThroughDate: new Date().toISOString().slice(0, 10),
         documents: documentos,
+        // Los totales provienen del resumen oficial, no de sumar el detalle.
         summary: {
-          documentCount: documentos.length,
-          totalAmount: documentos.reduce((s, d) => s + (d.totalAmount || 0), 0),
-          exemptAmount: documentos.reduce((s, d) => s + (d.exemptAmount ?? 0), 0),
+          documentCount: resumen.documentCount,
+          totalAmount: resumen.totalAmount,
+          exemptAmount: resumen.exemptAmount,
         },
+        rcvSummary: resumen,
+        diagnostics,
       };
     },
 
     async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
       const periodo = periodoCompacto(query.period);
       const receptor = rutConGuion(query.rut);
+      const diagnostics: ProviderModuleDiagnostics[] = [];
       const byStatus: ProviderPurchasesResult["byStatus"] = {
         registered: [],
         pending: [],
         claimed: [],
         excluded: [],
+      };
+      const rcvSummaryByStatus: NonNullable<
+        ProviderPurchasesResult["rcvSummaryByStatus"]
+      > = {
+        registered: RESUMEN_VACIO,
+        pending: RESUMEN_VACIO,
+        claimed: RESUMEN_VACIO,
+        excluded: RESUMEN_VACIO,
       };
 
       const equivalencias: Array<{
@@ -339,22 +422,22 @@ export function crearAdaptadorApiGateway(
 
       for (const eq of equivalencias) {
         const estado = ESTADOS_RCV_COMPRAS[eq.modulo];
-        const resumen = await pedir<unknown>(
+        const resumen = await leerResumen(
           eq.modulo,
           RECURSO_RESUMEN_COMPRAS.path
             .replace("{receptor}", receptor)
             .replace("{periodo}", periodo)
             .replace("{estado}", estado),
-          { formato: "json" },
+          diagnostics,
         );
-        const tipos = listaDatos<FilaResumen>(resumen)
-          .filter((f) => (f.rsmnTotDoc ?? 0) > 0 && f.rsmnTipoDocInteger)
-          .map((f) => f.rsmnTipoDocInteger as number);
+        rcvSummaryByStatus[eq.clave] = resumen;
 
         const detalleRecurso = recursoDe(eq.modulo);
+        // Sin documentos informados no se consulta el detalle: no se gastan
+        // créditos en una respuesta que ya sabemos vacía.
         byStatus[eq.clave] = await detallesPorTipo(
           eq.modulo,
-          tipos,
+          tiposConDocumentos(resumen),
           (dte) =>
             detalleRecurso.path
               .replace("{receptor}", receptor)
@@ -363,6 +446,7 @@ export function crearAdaptadorApiGateway(
               .replace("{estado}", estado),
           "purchase",
           eq.estadoDoc,
+          diagnostics,
         );
       }
 
@@ -370,6 +454,8 @@ export function crearAdaptadorApiGateway(
         period: query.period,
         dataThroughDate: new Date().toISOString().slice(0, 10),
         byStatus,
+        rcvSummaryByStatus,
+        diagnostics,
       };
     },
 
@@ -383,12 +469,12 @@ export function crearAdaptadorApiGateway(
     ): Promise<ProviderF29Entry[]> {
       const recurso = recursoDe("f29_periods");
       const anio = query.period.slice(0, 4);
-      const respuesta = await pedir<unknown>(
+      const { datos } = await pedir<unknown>(
         "f29_periods",
         recurso.path.replace("{periodo}", anio),
       );
 
-      const filas = listaDatos<FilaF29>(respuesta);
+      const filas = unwrapProviderCollection<FilaF29>(datos, "f29_periods").items;
       const entradas: ProviderF29Entry[] = [];
       for (const fila of filas) {
         const crudo = String(fila.periodo ?? "");

@@ -182,6 +182,55 @@ export interface ProviderDocument {
   exemptAmount: number | null;
   totalAmount: number;
   rcvStatus: ProviderRcvStatus;
+  /**
+   * Efecto tributario del documento: 1 suma, -1 resta (notas de crédito).
+   * Los montos llegan siempre positivos desde el SII.
+   */
+  taxEffect?: 1 | -1;
+}
+
+/** Una línea del resumen del RCV, por tipo de documento. */
+export interface ProviderRcvSummaryLine {
+  documentTypeCode: number;
+  documentTypeLabel: string | null;
+  documentCount: number;
+  netAmount: number;
+  vatAmount: number;
+  exemptAmount: number;
+  vatCommonUse: number;
+  vatNonRecoverable: number;
+  /** Total informado por el SII. Se conserva exactamente como llega. */
+  totalAmount: number;
+  taxEffect: 1 | -1;
+}
+
+/** Totales del resumen del RCV, ya con el signo tributario aplicado. */
+export interface ProviderRcvSummary {
+  lines: ProviderRcvSummaryLine[];
+  documentCount: number;
+  netAmount: number;
+  vatAmount: number;
+  exemptAmount: number;
+  totalAmount: number;
+  /** Diferencia de conciliación. Nunca invalida el registro. */
+  unclassifiedAmount: number;
+}
+
+/**
+ * Traza no sensible de la respuesta de un recurso: sirve para diagnosticar sin
+ * volver a consultar. Nunca contiene montos de contrapartes, RUT ni folios.
+ */
+export interface ProviderModuleDiagnostics {
+  modulo: SiiModule;
+  recurso: string;
+  estadoHttp: number | null;
+  contentType: string | null;
+  forma: string;
+  clavesSuperiores: string[];
+  largoArreglo: number;
+  propiedadesPrimerElemento: string[];
+  /** Filas que el parser no pudo interpretar. */
+  filasNoInterpretadas: number;
 }
 
 export interface ProviderSalesResult {
@@ -193,6 +242,9 @@ export interface ProviderSalesResult {
     totalAmount: number;
     exemptAmount: number;
   };
+  /** Totales oficiales del resumen del RCV, independientes del detalle. */
+  rcvSummary?: ProviderRcvSummary;
+  diagnostics?: ProviderModuleDiagnostics[];
 }
 
 export interface ProviderPurchasesResult {
@@ -203,7 +255,14 @@ export interface ProviderPurchasesResult {
     "registered" | "pending" | "claimed" | "excluded",
     ProviderDocument[]
   >;
+  /** Resumen oficial por estado del RCV. */
+  rcvSummaryByStatus?: Record<
+    "registered" | "pending" | "claimed" | "excluded",
+    ProviderRcvSummary
+  >;
+  diagnostics?: ProviderModuleDiagnostics[];
 }
+
 
 export type ProviderF29Status = "filed" | "pending" | "not_available";
 

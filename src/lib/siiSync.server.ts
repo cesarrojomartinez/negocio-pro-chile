@@ -20,13 +20,17 @@ import {
   normalizarVentas,
   type FilaDocumentoNormalizada,
 } from "@/integrations/sii/normalizeProviderData";
+import { totalesFirmados } from "@/integrations/sii/normalizeProviderData";
 import {
   MODULOS_SINCRONIZACION,
   SiiProviderError,
+  type ProviderRcvSummary,
   type SiiModule,
   type SiiProviderAdapter,
   type SiiProviderId,
 } from "@/integrations/sii/contracts";
+import { RESUMEN_VACIO, sumarResumenes } from "@/integrations/sii/rcvSummary";
+
 import { mockSiiProviderAdapter } from "@/integrations/sii/mockSiiProviderAdapter";
 import {
   apiGatewaySiiProviderAdapter,
@@ -404,6 +408,23 @@ const ESTADOS_SIN_FALLA: EstadoModulo[] = [
   "omitido",
 ];
 
+/** Totales oficiales tal como los informa el resumen del RCV, sin recalcular. */
+export interface TotalesResumenRcv {
+  ventas: ProviderRcvSummary;
+  compras: ProviderRcvSummary;
+}
+
+/** Valores neutros para las salidas que no llegan a consultar al proveedor. */
+const SIN_RESUMEN = {
+  documentosInformadosResumen: 0,
+  documentosPersistidos: 0,
+  motivosRechazo: [] as { motivo: string; cantidad: number }[],
+  totalesResumen: null as TotalesResumenRcv | null,
+  inconsistencias: [] as string[],
+  fuenteTotales: "documents" as "documents" | "rcv_summary",
+};
+
+
 export interface ResultadoSincronizacion {
   ejecutada: boolean;
   motivo: string;
@@ -425,6 +446,19 @@ export interface ResultadoSincronizacion {
   documentosCreados: number;
   documentosActualizados: number;
   documentosDescartados: number;
+  /** Documentos que el RESUMEN oficial del RCV declara para el periodo. */
+  documentosInformadosResumen: number;
+  /** Documentos efectivamente guardados en la base tras normalizar. */
+  documentosPersistidos: number;
+  /** Motivos agrupados por los que se descartó una fila del detalle. */
+  motivosRechazo: { motivo: string; cantidad: number }[];
+  /** Totales del resumen oficial (ventas y compras) tal como los informa el SII. */
+  totalesResumen: TotalesResumenRcv | null;
+  /** Diferencias detectadas entre el resumen oficial y el detalle importado. */
+  inconsistencias: string[];
+  /** De dónde salen las cifras que ve el usuario en el panel. */
+  fuenteTotales: "documents" | "rcv_summary";
+
   consultasProveedor: number;
   datosHasta: string | null;
   ultimaSincronizacion: string | null;
@@ -550,6 +584,7 @@ export async function syncSiiCompanyPeriod(
       .maybeSingle();
     if (previo)
       return {
+        ...SIN_RESUMEN,
         ejecutada: false,
         motivo: "solicitud_repetida",
         estado: previo.status === "success" ? "success" : "skipped",
@@ -613,6 +648,7 @@ export async function syncSiiCompanyPeriod(
       .single();
 
     return {
+      ...SIN_RESUMEN,
       ejecutada: false,
       motivo: decision.motivo,
       estado: "skipped",
@@ -723,6 +759,17 @@ export async function syncSiiCompanyPeriod(
   let datosHasta: string | null = null;
   let primerError: SiiProviderError | null = null;
   let sesionInvalida = false;
+  // Trazabilidad resumen → detalle → persistencia.
+  let resumenVentas: ProviderRcvSummary = RESUMEN_VACIO;
+  let resumenCompras: ProviderRcvSummary = RESUMEN_VACIO;
+  let hayResumen = false;
+  let persistidos = 0;
+  const motivos = new Map<string, number>();
+  const anotarDescartes = (lista: { motivo: string }[]) => {
+    for (const d of lista) motivos.set(d.motivo, (motivos.get(d.motivo) ?? 0) + 1);
+  };
+  const totalesDetalle = { ventas: 0, compras: 0 };
+
 
   const marcar = (modulos: SiiModule[], estado: EstadoModulo, motivo: string | null) => {
     for (const m of modulos) detalle.set(m, { modulo: m, estado, motivo });
@@ -790,7 +837,7 @@ export async function syncSiiCompanyPeriod(
 
 
 
-  // 1. Ventas del RCV
+  // 1. Ventas del RCV: primero el resumen oficial, después el detalle.
   await ejecutar(["rcv_sales_documents"], async () => {
     const ventas = await proveedor.fetchSalesRcv(consulta);
     await guardarSnapshot({
@@ -799,12 +846,21 @@ export async function syncSiiCompanyPeriod(
       syncRunId: run.id,
       proveedor: proveedorId,
       modulo: "rcv_sales_documents",
+      // El respaldo guarda el resumen, el detalle y el diagnóstico de la forma
+      // de la respuesta: así se puede revisar sin volver a consultar.
       payload: ventas,
     });
+    if (ventas.rcvSummary) {
+      resumenVentas = ventas.rcvSummary;
+      hayResumen = true;
+    }
     const n = normalizarVentas(ventas);
     recibidos += ventas.documents.length;
+    totalesDetalle.ventas += ventas.documents.length;
     categorias.ventas += n.documentos.length;
     descartados += n.descartados.length;
+    anotarDescartes(n.descartados);
+    persistidos += n.documentos.length;
     const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
     creados += r.creados;
     actualizados += r.actualizados;
@@ -829,23 +885,42 @@ export async function syncSiiCompanyPeriod(
           syncRunId: run.id,
           proveedor: proveedorId,
           modulo,
-
-          payload: { period: compras.period, documents: docs },
+          payload: {
+            period: compras.period,
+            documents: docs,
+            summary:
+              compras.rcvSummaryByStatus?.[
+                estado as keyof NonNullable<typeof compras.rcvSummaryByStatus>
+              ] ?? null,
+            diagnostics: compras.diagnostics?.filter((d) => d.modulo === modulo) ?? [],
+          },
         });
       }
+      if (compras.rcvSummaryByStatus) {
+        resumenCompras = sumarResumenes(Object.values(compras.rcvSummaryByStatus));
+        hayResumen = true;
+      }
       const n = normalizarCompras(compras);
-      recibidos += Object.values(compras.byStatus).reduce((s, d) => s + d.length, 0);
+      const recibidosCompras = Object.values(compras.byStatus).reduce(
+        (s, d) => s + d.length,
+        0,
+      );
+      recibidos += recibidosCompras;
+      totalesDetalle.compras += recibidosCompras;
       categorias.comprasRegistro += compras.byStatus.registered.length;
       categorias.comprasPendiente += compras.byStatus.pending.length;
       categorias.comprasReclamado += compras.byStatus.claimed.length;
       categorias.comprasNoIncluir += compras.byStatus.excluded.length;
       descartados += n.descartados.length;
+      anotarDescartes(n.descartados);
+      persistidos += n.documentos.length;
       const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
       creados += r.creados;
       actualizados += r.actualizados;
       datosHasta = datosHasta ?? compras.dataThroughDate;
     },
   );
+
 
   // 3. Historial de F29
   await ejecutar(["f29_periods"], async () => {
@@ -907,11 +982,36 @@ export async function syncSiiCompanyPeriod(
   });
 
   const hubieron = completados.length > 0;
-  const estado: ResultadoSincronizacion["estado"] = fallidos.length
+
+  /**
+   * Consistencia obligatoria resumen ↔ detalle.
+   * Si el SII informa documentos y no logramos guardar ninguno, el resultado NO
+   * puede presentarse como exitoso: se marca como parcial y se explica.
+   */
+  const informadosResumen = resumenVentas.documentCount + resumenCompras.documentCount;
+  const inconsistencias: string[] = [];
+  if (hayResumen) {
+    if (resumenVentas.documentCount > 0 && totalesDetalle.ventas === 0)
+      inconsistencias.push(
+        `El SII informa ${resumenVentas.documentCount} documentos de venta y el detalle llegó vacío.`,
+      );
+    if (resumenCompras.documentCount > 0 && totalesDetalle.compras === 0)
+      inconsistencias.push(
+        `El SII informa ${resumenCompras.documentCount} documentos de compra y el detalle llegó vacío.`,
+      );
+    if (informadosResumen > 0 && persistidos > 0 && persistidos < informadosResumen)
+      inconsistencias.push(
+        `El resumen informa ${informadosResumen} documentos y guardamos ${persistidos}.`,
+      );
+  }
+
+  const estadoBase: ResultadoSincronizacion["estado"] = fallidos.length
     ? hubieron
       ? "partial"
       : "failed"
     : "success";
+  const estado: ResultadoSincronizacion["estado"] =
+    estadoBase === "success" && inconsistencias.length ? "partial" : estadoBase;
   const fin = new Date();
   const errorCodigo = primerError
     ? (primerError as SiiProviderError).code
@@ -921,13 +1021,51 @@ export async function syncSiiCompanyPeriod(
   if (hubieron) {
     await supabaseAdmin
       .from("tax_periods")
-      .update({ data_source: fuente })
+      .update({
+        data_source: fuente,
+        rcv_summary: hayResumen
+          ? ({ ventas: resumenVentas, compras: resumenCompras } as never)
+          : null,
+        rcv_summary_updated_at: hayResumen ? fin.toISOString() : null,
+      })
       .eq("id", periodoRow.id);
     await recalculateTaxPeriod(userId, {
       companyId: entrada.companyId,
       periodo: entrada.periodo,
     });
   }
+
+  /**
+   * Respaldo del panel: si el resumen oficial trae movimientos pero el detalle
+   * no pudo importarse, se muestran igualmente los totales del SII marcados
+   * como provenientes del resumen. Nunca se inventan documentos.
+   */
+  const usarResumenComoRespaldo =
+    hubieron && hayResumen && informadosResumen > 0 && persistidos === 0;
+  if (hubieron) {
+    await supabaseAdmin.from("tax_monthly_summaries").upsert(
+      usarResumenComoRespaldo
+        ? {
+            company_id: entrada.companyId,
+            tax_period_id: periodoRow.id,
+            totals_source: "rcv_summary",
+            sales_total: Math.round(resumenVentas.totalAmount),
+            exempt_sales: Math.round(resumenVentas.exemptAmount),
+            vat_debit: Math.round(resumenVentas.vatAmount),
+            purchases_total: Math.round(resumenCompras.totalAmount),
+            net_purchases: Math.round(resumenCompras.netAmount),
+            exempt_purchases: Math.round(resumenCompras.exemptAmount),
+            vat_credit: Math.round(resumenCompras.vatAmount),
+          }
+        : {
+            company_id: entrada.companyId,
+            tax_period_id: periodoRow.id,
+            totals_source: "documents",
+          },
+      { onConflict: "company_id,tax_period_id" },
+    );
+  }
+
 
   await supabaseAdmin
     .from("tax_sync_runs")
@@ -947,8 +1085,19 @@ export async function syncSiiCompanyPeriod(
       credits_balance: registro?.creditosDisponibles ?? null,
       proxy_used: registro?.proxyUsado ?? null,
       pages_requested: registro?.consultas ?? undefined,
-
+      summary_documents_reported: informadosResumen,
+      detail_documents_received: recibidos,
+      documents_persisted: persistidos,
+      documents_rejected: descartados,
+      rejection_reasons: [...motivos.entries()].map(([motivo, cantidad]) => ({
+        motivo,
+        cantidad,
+      })) as never,
+      summary_totals: hayResumen
+        ? ({ ventas: resumenVentas, compras: resumenCompras } as never)
+        : null,
       data_through_date: datosHasta,
+
       duration_ms: Date.now() - inicio,
       error_code: errorCodigo,
       error_message: primerError ? (primerError as SiiProviderError).message : null,
@@ -1023,15 +1172,18 @@ export async function syncSiiCompanyPeriod(
   const mensaje = soloAutenticacion
     ? "No fue posible autenticar la consulta en el SII. Revisa el RUT autorizado y la Clave Tributaria."
     : estado === "success"
-      ? !completados.length && sinInformacion.length
+      ? // "Sin movimientos" solo cuando el resumen oficial también viene vacío.
+        informadosResumen === 0 && persistidos === 0
         ? "El SII no registra movimientos para el periodo seleccionado."
         : noDisponibles.length
           ? "Consulta completada. Obtuvimos las ventas y compras disponibles. Algunos antecedentes complementarios del F29 no están disponibles de forma estructurada."
           : esReal
-            ? "Actualizamos la información de este periodo con el proveedor real."
+            ? `Actualizamos la información de este periodo con el proveedor real. Guardamos ${persistidos} documentos.`
             : "Actualizamos la información demostrativa de este periodo."
       : estado === "partial"
-        ? "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes."
+        ? inconsistencias.length
+          ? `Recibimos los totales oficiales del SII, pero no pudimos importar todo el detalle. ${inconsistencias[0]}`
+          : "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes."
         : primerError
           ? (primerError as SiiProviderError).message
           : "No pudimos completar la actualización.";
@@ -1042,6 +1194,18 @@ export async function syncSiiCompanyPeriod(
     estado,
     periodo: entrada.periodo,
     syncRunId: run.id,
+    documentosInformadosResumen: informadosResumen,
+    documentosPersistidos: persistidos,
+    motivosRechazo: [...motivos.entries()].map(([motivo, cantidad]) => ({
+      motivo,
+      cantidad,
+    })),
+    totalesResumen: hayResumen
+      ? { ventas: resumenVentas, compras: resumenCompras }
+      : null,
+    inconsistencias,
+    fuenteTotales: usarResumenComoRespaldo ? "rcv_summary" : "documents",
+
     modulosCompletados: completados,
     modulosFallidos: fallidos,
     modulosDesdeCache: desdeCache,
