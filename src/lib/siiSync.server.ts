@@ -813,7 +813,7 @@ export async function syncSiiCompanyPeriod(
       actual_credits: registro ? Number(registro.creditosUsados.toFixed(4)) : null,
       credits_balance: registro?.creditosDisponibles ?? null,
       proxy_used: registro?.proxyUsado ?? null,
-      pages_requested: registro?.paginas ?? null,
+      pages_requested: registro?.consultas ?? null,
 
       data_through_date: datosHasta,
       duration_ms: Date.now() - inicio,
