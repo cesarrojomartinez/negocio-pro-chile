@@ -10,7 +10,6 @@ import { ConnectionBadge } from "@/components/shared/Badges";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
 import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
-import { ValidacionOficialPanel } from "@/components/sii/ValidacionOficialPanel";
 import { ModoActualizacionPanel } from "@/components/sii/ModoActualizacionPanel";
 
 
@@ -184,7 +183,6 @@ function Configuracion() {
             <ModoActualizacionPanel companyId={empresaActiva?.id ?? null} />
             <SiiConnectionPanel />
             <RealGatewayPanel />
-            <ValidacionOficialPanel />
           </>
 
 
