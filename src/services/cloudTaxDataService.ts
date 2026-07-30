@@ -15,6 +15,7 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
+  resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
 
