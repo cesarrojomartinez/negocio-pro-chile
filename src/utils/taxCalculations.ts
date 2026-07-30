@@ -1,7 +1,38 @@
 import type {
+  AdditionalSaleInput,
+  AdditionalSaleResult,
+  CarryforwardSource,
+  ClosingProjectionInput,
+  ClosingProjectionResult,
+  ComparisonMetric,
+  ConfidenceInput,
+  ConfidenceLevel,
+  ConfidenceResult,
+  PeriodState,
+  PpmInput,
+  PpmResult,
+  PpmSource,
+  PreventiveReserveInput,
+  PreventiveReserveResult,
+  ReserveCoverageInput,
+  ReserveCoverageResult,
+  ReserveStatus,
+  SalesGoalInput,
+  SalesGoalResult,
+  TaxEstimateInput,
+  TaxProjectionInput,
+  TaxProjectionResult,
+  VatCreditResult,
+  VatDebitResult,
+  VatPositionInput,
+  VatPositionResult,
+  WithholdingsSource,
+} from "@/types/engine";
+import type {
   ComparacionMensual,
   DocumentoTributario,
   MetaComercial,
+  NivelConfiabilidad,
   PeriodoData,
   Proyeccion,
   ResumenCompras,
@@ -9,93 +40,708 @@ import type {
   ResumenVentas,
 } from "@/types/tax";
 
-export const TASA_IVA = 0.19;
+/* ------------------------------------------------------------------ */
+/* Constantes centrales                                                */
+/* ------------------------------------------------------------------ */
 
-/** IVA estimado = IVA débito − IVA crédito utilizable − remanente anterior */
+export const TASA_IVA = 0.19;
+export const VAT_RATE = TASA_IVA;
+
+/** Factores del rango de proyección. Centralizados para no repetirlos. */
+export const PROJECTION_FACTORS = {
+  conservative: 0.95,
+  probable: 1,
+  high: 1.06,
+} as const;
+
+/** Límites permitidos para el margen preventivo. */
+export const MARGIN_LIMITS = { min: 0, max: 50 } as const;
+
+/** Cantidad de compras pendientes a partir de la cual la confiabilidad baja. */
+export const PENDING_PURCHASES_THRESHOLD = 3;
+export const MANY_PENDING_PURCHASES_THRESHOLD = 8;
+/** Antigüedad de datos, en días, que reduce la confiabilidad. */
+export const STALE_DATA_DAYS = 7;
+
+const seguro = (n: number): number => (Number.isFinite(n) ? n : 0);
+const redondear = (n: number): number => Math.round(seguro(n));
+
+/* ------------------------------------------------------------------ */
+/* IVA débito                                                          */
+/* ------------------------------------------------------------------ */
+
+const VENTA_RESTA_DEBITO = new Set(["notaCredito"]);
+const VENTA_SUMA_DEBITO = new Set(["factura", "boleta", "notaDebito"]);
+
+function ventaVigente(d: DocumentoTributario): boolean {
+  return d.estado !== "anulado";
+}
+
+/**
+ * IVA débito a partir de los documentos de venta válidos.
+ * Prioriza el IVA informado en el documento; solo lo infiere desde el neto
+ * cuando el documento no lo trae (datos demostrativos antiguos).
+ * Los montos exentos nunca generan IVA y las notas de crédito lo reducen.
+ */
+export function calculateVatDebit(documents: DocumentoTributario[]): VatDebitResult {
+  let vatDebit = 0;
+  let inferredDocuments = 0;
+  let exemptSales = 0;
+
+  for (const d of documents) {
+    if (!ventaVigente(d)) continue;
+    const tipo = d.tipoDocumento as string;
+    const suma = VENTA_SUMA_DEBITO.has(tipo);
+    const resta = VENTA_RESTA_DEBITO.has(tipo);
+    if (!suma && !resta) continue;
+
+    let iva = seguro(d.iva);
+    if (iva === 0) {
+      const afecto = Math.max(0, seguro(d.neto));
+      if (afecto > 0) {
+        iva = Math.round(afecto * VAT_RATE);
+        inferredDocuments += 1;
+      }
+    }
+    vatDebit += resta ? -iva : iva;
+    if (!resta) exemptSales += Math.max(0, seguro(d.exento));
+  }
+
+  return {
+    vatDebit: Math.max(0, redondear(vatDebit)),
+    inferred: inferredDocuments > 0,
+    inferredDocuments,
+    exemptSales: redondear(exemptSales),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* IVA crédito                                                         */
+/* ------------------------------------------------------------------ */
+
+/** Estados de compra que sí se consideran crédito utilizable en esta etapa. */
+const CREDITO_UTILIZABLE = new Set(["registrada", "aceptada"]);
+/** Estados que podrían incorporarse más adelante. */
+const CREDITO_POTENCIAL = new Set(["pendiente"]);
+
+export function calculateVatCredit(documents: DocumentoTributario[]): VatCreditResult {
+  let vatCreditUsable = 0;
+  let vatCreditPotential = 0;
+  let usableDocuments = 0;
+  let pendingDocuments = 0;
+  let claimedDocuments = 0;
+  let excludedDocuments = 0;
+
+  for (const d of documents) {
+    const estado = d.estado as string;
+    const iva = Math.max(0, seguro(d.iva));
+    if (CREDITO_UTILIZABLE.has(estado)) {
+      vatCreditUsable += iva;
+      usableDocuments += 1;
+    } else if (CREDITO_POTENCIAL.has(estado)) {
+      vatCreditPotential += iva;
+      pendingDocuments += 1;
+    } else if (estado === "reclamada") {
+      claimedDocuments += 1;
+    } else {
+      excludedDocuments += 1;
+    }
+  }
+
+  return {
+    vatCreditUsable: redondear(vatCreditUsable),
+    vatCreditPotential: redondear(vatCreditPotential),
+    usableDocuments,
+    pendingDocuments,
+    claimedDocuments,
+    excludedDocuments,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Posición de IVA                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * posición IVA = IVA débito − IVA crédito utilizable − remanente anterior.
+ * Nunca devuelve un IVA por pagar negativo.
+ */
+export function calculateVatPosition(input: VatPositionInput): VatPositionResult {
+  const vatPosition = redondear(
+    seguro(input.vatDebit) -
+      seguro(input.vatCreditUsable) -
+      seguro(input.previousCarryforward),
+  );
+  if (vatPosition > 0)
+    return { vatPosition, estimatedVatPayable: vatPosition, estimatedNewCarryforward: 0 };
+  return {
+    vatPosition,
+    estimatedVatPayable: 0,
+    estimatedNewCarryforward: Math.abs(vatPosition),
+  };
+}
+
+/** Compatibilidad con la API anterior del motor. */
 export function calcularIva(
   ivaDebito: number,
   ivaCredito: number,
   remanenteAnterior: number,
 ): { ivaEstimado: number; nuevoRemanente: number } {
-  const resultado = ivaDebito - ivaCredito - remanenteAnterior;
-  if (resultado > 0) return { ivaEstimado: Math.round(resultado), nuevoRemanente: 0 };
-  return { ivaEstimado: 0, nuevoRemanente: Math.round(Math.abs(resultado)) };
+  const r = calculateVatPosition({
+    vatDebit: ivaDebito,
+    vatCreditUsable: ivaCredito,
+    previousCarryforward: remanenteAnterior,
+  });
+  return { ivaEstimado: r.estimatedVatPayable, nuevoRemanente: r.estimatedNewCarryforward };
 }
 
-/** Total tributario estimado = IVA estimado + PPM + retenciones */
+/* ------------------------------------------------------------------ */
+/* PPM                                                                 */
+/* ------------------------------------------------------------------ */
+
+/** PPM aproximado = base tributable × tasa. Nunca inventa una tasa. */
+export function calculatePpm(input: PpmInput): PpmResult {
+  const base = Math.max(0, redondear(input.ppmTaxBase));
+  const rate = input.ppmRate;
+  const sinTasa = rate == null || !Number.isFinite(rate) || rate <= 0;
+  if (sinTasa || input.ppmSource === "unknown") {
+    return {
+      ppmTaxBase: base,
+      ppmRate: sinTasa ? null : rate,
+      ppmSource: "unknown",
+      estimatedPpm: 0,
+      pending: true,
+    };
+  }
+  return {
+    ppmTaxBase: base,
+    ppmRate: rate,
+    ppmSource: input.ppmSource,
+    estimatedPpm: redondear(base * rate),
+    pending: false,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Total tributario, margen y reserva                                  */
+/* ------------------------------------------------------------------ */
+
+/** Total tributario = IVA por pagar + PPM + retenciones (nunca se restan). */
+export function calculateTaxEstimate(input: TaxEstimateInput): number {
+  return redondear(
+    Math.max(0, seguro(input.estimatedVatPayable)) +
+      Math.max(0, seguro(input.estimatedPpm)) +
+      Math.max(0, seguro(input.estimatedWithholdings)),
+  );
+}
+
 export function calcularTotalTributario(
   ivaEstimado: number,
   ppm: number,
   retenciones: number,
 ): number {
-  return Math.round(ivaEstimado + ppm + retenciones);
+  return calculateTaxEstimate({
+    estimatedVatPayable: ivaEstimado,
+    estimatedPpm: ppm,
+    estimatedWithholdings: retenciones,
+  });
 }
 
-/** Margen preventivo en pesos a partir de un porcentaje (0, 5, 10 o personalizado) */
+/** Normaliza el margen preventivo al rango permitido (0 a 50). */
+export function normalizePreventiveMargin(percent: number): number {
+  if (!Number.isFinite(percent)) return MARGIN_LIMITS.min;
+  return Math.min(MARGIN_LIMITS.max, Math.max(MARGIN_LIMITS.min, percent));
+}
+
+export function calculatePreventiveReserve(
+  input: PreventiveReserveInput,
+): PreventiveReserveResult {
+  const percent = normalizePreventiveMargin(input.preventiveMarginPercent);
+  const total = Math.max(0, redondear(input.estimatedTaxTotal));
+  const marginAmount = redondear(total * (percent / 100));
+  return {
+    preventiveMarginPercent: percent,
+    preventiveMarginAmount: marginAmount,
+    recommendedReserve: total + marginAmount,
+  };
+}
+
 export function calcularMargenPreventivo(
   totalTributario: number,
   porcentaje: number,
 ): number {
-  return Math.round(totalTributario * (porcentaje / 100));
+  return calculatePreventiveReserve({
+    estimatedTaxTotal: totalTributario,
+    preventiveMarginPercent: porcentaje,
+  }).preventiveMarginAmount;
 }
 
-/** Reserva recomendada = total tributario estimado + margen preventivo */
 export function calcularReservaRecomendada(
   totalTributario: number,
   margen: number,
 ): number {
-  return Math.round(totalTributario + margen);
+  return redondear(Math.max(0, totalTributario) + Math.max(0, margen));
 }
 
-export type SemaforoReserva = "verde" | "ambar" | "rojo";
+/* ------------------------------------------------------------------ */
+/* Cobertura y semáforo                                                */
+/* ------------------------------------------------------------------ */
 
-export function evaluarReserva(
-  reservaRecomendada: number,
-  dineroReservado: number,
-): { estado: SemaforoReserva; faltante: number; cobertura: number } {
-  const faltante = Math.max(0, Math.round(reservaRecomendada - dineroReservado));
-  const cobertura =
-    reservaRecomendada > 0
-      ? Math.min(100, (dineroReservado / reservaRecomendada) * 100)
-      : 100;
-  const estado: SemaforoReserva =
-    cobertura >= 100 ? "verde" : cobertura >= 70 ? "ambar" : "rojo";
-  return { estado, faltante, cobertura };
-}
-
-export const MENSAJE_SEMAFORO: Record<SemaforoReserva, string> = {
+export const MENSAJE_SEMAFORO: Record<ReserveStatus, string> = {
   verde: "Tu reserva cubre la estimación actual.",
   ambar: "Estás cerca, pero todavía falta una parte.",
   rojo: "Conviene reservar dinero adicional para evitar sorpresas al cierre.",
+  neutral:
+    "Por ahora no existe una obligación estimada que requiera reserva adicional.",
 };
 
-function esVentaVigente(d: DocumentoTributario) {
-  return d.estado !== "anulado";
+export type SemaforoReserva = ReserveStatus;
+
+export function calculateReserveCoverage(
+  input: ReserveCoverageInput,
+): ReserveCoverageResult {
+  const recommended = Math.max(0, redondear(input.recommendedReserve));
+  const reserved = Math.max(0, redondear(input.reservedAmount));
+
+  if (recommended === 0) {
+    return {
+      coveragePercent: 100,
+      reserveGap: 0,
+      reserveSurplus: reserved,
+      status: "neutral",
+      message: MENSAJE_SEMAFORO.neutral,
+    };
+  }
+
+  const coveragePercent =
+    Math.round(((reserved / recommended) * 100 + Number.EPSILON) * 100) / 100;
+  const status: ReserveStatus =
+    coveragePercent >= 100 ? "verde" : coveragePercent >= 70 ? "ambar" : "rojo";
+
+  return {
+    coveragePercent,
+    reserveGap: Math.max(0, recommended - reserved),
+    reserveSurplus: Math.max(0, reserved - recommended),
+    status,
+    message: MENSAJE_SEMAFORO[status],
+  };
 }
 
-function creditoUtilizable(d: DocumentoTributario) {
-  return d.estado === "registrada";
+/** Compatibilidad con la API anterior. */
+export function evaluarReserva(
+  reservaRecomendada: number,
+  dineroReservado: number,
+): { estado: ReserveStatus; faltante: number; cobertura: number } {
+  const r = calculateReserveCoverage({
+    recommendedReserve: reservaRecomendada,
+    reservedAmount: dineroReservado,
+  });
+  return {
+    estado: r.status,
+    faltante: r.reserveGap,
+    cobertura: Math.min(100, r.coveragePercent),
+  };
 }
+
+/* ------------------------------------------------------------------ */
+/* Meta de ventas                                                      */
+/* ------------------------------------------------------------------ */
+
+export function calculateSalesGoal(input: SalesGoalInput): SalesGoalResult {
+  const totalDays = Math.max(1, Math.round(seguro(input.totalDays)));
+  const elapsedDays =
+    input.periodState === "future"
+      ? 0
+      : Math.min(totalDays, Math.max(0, Math.round(seguro(input.elapsedDays))));
+  const remainingDays =
+    input.periodState === "closed" ? 0 : Math.max(0, totalDays - elapsedDays);
+
+  const salesTotal = Math.max(0, redondear(input.salesTotal));
+  const goal = Math.max(0, redondear(input.monthlySalesGoal));
+
+  const goalRemaining = Math.max(0, goal - salesTotal);
+  const goalExceededAmount = goal > 0 ? Math.max(0, salesTotal - goal) : 0;
+
+  return {
+    monthlySalesGoal: goal,
+    salesTotal,
+    goalProgressPercent:
+      goal > 0 ? Math.round((salesTotal / goal) * 1000) / 10 : 0,
+    goalRemaining,
+    goalExceededAmount,
+    goalExceeded: goal > 0 && salesTotal >= goal,
+    averageDailySales: elapsedDays > 0 ? Math.round(salesTotal / elapsedDays) : 0,
+    requiredDailySales:
+      remainingDays > 0 && goalRemaining > 0
+        ? Math.round(goalRemaining / remainingDays)
+        : 0,
+    elapsedDays,
+    remainingDays,
+    totalDays,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Proyección al cierre                                                */
+/* ------------------------------------------------------------------ */
+
+export function calculateClosingProjection(
+  input: ClosingProjectionInput,
+): ClosingProjectionResult {
+  const totalDays = Math.max(1, Math.round(seguro(input.totalDays)));
+  const salesTotal = Math.max(0, redondear(input.salesTotal));
+
+  if (input.periodState === "future" || (input.periodState === "open" && salesTotal === 0)) {
+    return {
+      available: false,
+      averageDailySales: 0,
+      conservativeProjection: 0,
+      probableProjection: 0,
+      highProjection: 0,
+    };
+  }
+
+  if (input.periodState === "closed") {
+    return {
+      available: true,
+      averageDailySales: Math.round(salesTotal / totalDays),
+      conservativeProjection: salesTotal,
+      probableProjection: salesTotal,
+      highProjection: salesTotal,
+    };
+  }
+
+  const elapsedDays = Math.min(totalDays, Math.max(1, Math.round(seguro(input.elapsedDays))));
+  const averageDailySales = Math.round(salesTotal / elapsedDays);
+  const probable = Math.round(averageDailySales * totalDays);
+
+  return {
+    available: true,
+    averageDailySales,
+    conservativeProjection: Math.round(probable * PROJECTION_FACTORS.conservative),
+    probableProjection: probable,
+    highProjection: Math.round(probable * PROJECTION_FACTORS.high),
+  };
+}
+
+/**
+ * Proyección tributaria prudente: proyecta el débito según el ritmo de ventas,
+ * mantiene el crédito y el remanente conocidos y no inventa compras futuras.
+ */
+export function calculateTaxProjection(input: TaxProjectionInput): TaxProjectionResult {
+  const vacio: TaxProjectionResult = {
+    available: false,
+    projectedVatDebit: 0,
+    projectedNetSales: 0,
+    projectedPpm: 0,
+    knownVatCredit: Math.max(0, redondear(input.vatCreditUsable)),
+    knownWithholdings: Math.max(0, redondear(input.estimatedWithholdings)),
+    projectedTaxMin: 0,
+    projectedTaxMax: 0,
+  };
+  if (!input.projection.available || input.salesTotal <= 0) return vacio;
+
+  const factorMin =
+    input.projection.conservativeProjection / Math.max(1, input.salesTotal);
+  const factorMax = input.projection.highProjection / Math.max(1, input.salesTotal);
+
+  const construir = (factor: number) => {
+    const vatDebit = redondear(input.vatDebit * factor);
+    const netSales = redondear(input.netSales * factor);
+    const posicion = calculateVatPosition({
+      vatDebit,
+      vatCreditUsable: input.vatCreditUsable,
+      previousCarryforward: input.previousCarryforward,
+    });
+    const ppm = calculatePpm({
+      ppmTaxBase: netSales,
+      ppmRate: input.ppmRate,
+      ppmSource: input.ppmRate ? "configured" : "unknown",
+    });
+    const total = calculateTaxEstimate({
+      estimatedVatPayable: posicion.estimatedVatPayable,
+      estimatedPpm: ppm.estimatedPpm,
+      estimatedWithholdings: input.estimatedWithholdings,
+    });
+    const reserva = calculatePreventiveReserve({
+      estimatedTaxTotal: total,
+      preventiveMarginPercent: input.preventiveMarginPercent,
+    });
+    return { vatDebit, netSales, ppm: ppm.estimatedPpm, total: reserva.recommendedReserve };
+  };
+
+  const min = construir(factorMin);
+  const max = construir(factorMax);
+  const probable = construir(
+    input.projection.probableProjection / Math.max(1, input.salesTotal),
+  );
+
+  return {
+    available: true,
+    projectedVatDebit: probable.vatDebit,
+    projectedNetSales: probable.netSales,
+    projectedPpm: probable.ppm,
+    knownVatCredit: vacio.knownVatCredit,
+    knownWithholdings: vacio.knownWithholdings,
+    projectedTaxMin: Math.min(min.total, max.total),
+    projectedTaxMax: Math.max(min.total, max.total),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Simulador de venta adicional                                        */
+/* ------------------------------------------------------------------ */
+
+export function simulateAdditionalSale(input: AdditionalSaleInput): AdditionalSaleResult {
+  const gross = Math.max(0, redondear(input.grossSaleAmount));
+  const vatRate = Number.isFinite(input.vatRate) ? input.vatRate : VAT_RATE;
+  const netAmount = redondear(gross / (1 + vatRate));
+  const vatAmount = gross - netAmount;
+  const ppmRate = input.ppmRate && input.ppmRate > 0 ? input.ppmRate : 0;
+  const additionalPpm = redondear(netAmount * ppmRate);
+  const additionalTaxReserve = vatAmount + additionalPpm;
+
+  const costRate =
+    input.estimatedCostRate != null && input.estimatedCostRate > 0
+      ? Math.min(1, input.estimatedCostRate)
+      : null;
+  const estimatedCost = costRate == null ? null : redondear(netAmount * costRate);
+
+  return {
+    grossSaleAmount: gross,
+    netAmount,
+    vatAmount,
+    additionalPpm,
+    additionalTaxReserve,
+    amountBeforeCosts: gross - additionalTaxReserve,
+    estimatedCost,
+    estimatedResultBeforeFixedExpenses:
+      estimatedCost == null ? null : netAmount - estimatedCost - additionalPpm,
+  };
+}
+
+export interface ResultadoSimulacion {
+  ventaAdicional: number;
+  ivaIncluido: number;
+  neto: number;
+  ppmAdicional: number;
+  reservaAdicional: number;
+  restanteAntesDeCostos: number;
+}
+
+/** Compatibilidad: aplica además el margen preventivo sobre la reserva sugerida. */
+export function simularVentaAdicional(
+  monto: number,
+  tasaPpm: number,
+  margenPorcentaje: number,
+): ResultadoSimulacion {
+  const r = simulateAdditionalSale({
+    grossSaleAmount: monto,
+    vatRate: VAT_RATE,
+    ppmRate: tasaPpm,
+  });
+  const margen = normalizePreventiveMargin(margenPorcentaje);
+  const reservaAdicional = redondear(r.additionalTaxReserve * (1 + margen / 100));
+  return {
+    ventaAdicional: r.grossSaleAmount,
+    ivaIncluido: r.vatAmount,
+    neto: r.netAmount,
+    ppmAdicional: r.additionalPpm,
+    reservaAdicional,
+    restanteAntesDeCostos: r.grossSaleAmount - reservaAdicional,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Comparación mensual                                                 */
+/* ------------------------------------------------------------------ */
+
+export function calculateVariation(
+  current: number,
+  previous: number,
+  hasPrevious: boolean,
+): { variationPercent: number | null; noBaseline: boolean } {
+  if (!hasPrevious || !Number.isFinite(previous) || previous === 0)
+    return { variationPercent: null, noBaseline: true };
+  const variation = ((current - previous) / Math.abs(previous)) * 100;
+  if (!Number.isFinite(variation)) return { variationPercent: null, noBaseline: true };
+  return { variationPercent: Math.round(variation * 10) / 10, noBaseline: false };
+}
+
+export function calculateMonthlyComparison(
+  actual: { resumen: ResumenMensual; ventas: ResumenVentas },
+  anterior: { resumen: ResumenMensual; ventas: ResumenVentas } | null,
+): ComparisonMetric[] {
+  const hay = anterior != null;
+  const pares: [string, string, number, number][] = [
+    ["ventas", "Ventas", actual.resumen.ventasTotales, anterior?.resumen.ventasTotales ?? 0],
+    ["facturado", "Facturado", actual.resumen.ventasFacturas, anterior?.resumen.ventasFacturas ?? 0],
+    ["boletas", "Boletas", actual.resumen.ventasBoletas, anterior?.resumen.ventasBoletas ?? 0],
+    ["compras", "Compras", actual.resumen.comprasTotales, anterior?.resumen.comprasTotales ?? 0],
+    ["ivaDebito", "IVA débito", actual.resumen.ivaDebito, anterior?.resumen.ivaDebito ?? 0],
+    ["ivaCredito", "IVA crédito", actual.resumen.ivaCredito, anterior?.resumen.ivaCredito ?? 0],
+    ["ivaEstimado", "IVA estimado", actual.resumen.ivaEstimado, anterior?.resumen.ivaEstimado ?? 0],
+    [
+      "reserva",
+      "Reserva recomendada",
+      actual.resumen.reservaRecomendada,
+      anterior?.resumen.reservaRecomendada ?? 0,
+    ],
+    [
+      "documentos",
+      "Cantidad de documentos",
+      actual.ventas.cantidadDocumentos,
+      anterior?.ventas.cantidadDocumentos ?? 0,
+    ],
+    [
+      "ticket",
+      "Ticket promedio",
+      actual.ventas.ticketPromedio,
+      anterior?.ventas.ticketPromedio ?? 0,
+    ],
+  ];
+
+  return pares.map(([key, label, current, previous]) => {
+    const v = calculateVariation(current, previous, hay);
+    return { key, label, current, previous, ...v };
+  });
+}
+
+export const ETIQUETA_SIN_BASE = "Sin base comparable";
+
+/* ------------------------------------------------------------------ */
+/* Nivel de confiabilidad                                              */
+/* ------------------------------------------------------------------ */
+
+export function calculateConfidenceLevel(input: ConfidenceInput): ConfidenceResult {
+  const reasons: string[] = [];
+
+  if (!input.hasSales && !input.hasPurchases) {
+    return {
+      level: "unknown",
+      reasons: ["No hay antecedentes suficientes para estimar este periodo."],
+    };
+  }
+
+  let bajo = false;
+  let medio = false;
+
+  if (!input.hasSales) {
+    reasons.push("No hay ventas registradas en el periodo.");
+    bajo = true;
+  }
+  if (!input.hasPurchases) {
+    reasons.push("No hay compras registradas en el periodo.");
+    bajo = true;
+  }
+  if (input.syncError) {
+    reasons.push("La última actualización de datos terminó con error.");
+    bajo = true;
+  }
+  if (input.carryforwardSource === "unknown") {
+    reasons.push("El remanente anterior no está confirmado.");
+    bajo = true;
+  }
+  if (input.ppmSource === "unknown") {
+    reasons.push("La tasa de PPM todavía no está confirmada.");
+    bajo = true;
+  }
+  if (!input.hasPreviousPeriod) {
+    reasons.push("Falta información del periodo anterior.");
+    bajo = true;
+  }
+  if (input.pendingPurchaseDocuments >= MANY_PENDING_PURCHASES_THRESHOLD) {
+    reasons.push(`Existen ${input.pendingPurchaseDocuments} compras pendientes.`);
+    bajo = true;
+  } else if (input.pendingPurchaseDocuments > 0) {
+    reasons.push(
+      input.pendingPurchaseDocuments === 1
+        ? "Existe 1 compra pendiente."
+        : `Existen ${input.pendingPurchaseDocuments} compras pendientes.`,
+    );
+    medio = true;
+  }
+  if (input.daysSinceLastSync != null && input.daysSinceLastSync > STALE_DATA_DAYS) {
+    reasons.push(`La información tiene más de ${STALE_DATA_DAYS} días.`);
+    medio = true;
+  }
+  if (input.manuallyConfigured) {
+    reasons.push("Algunos valores fueron configurados manualmente.");
+    medio = true;
+  }
+  if (
+    input.withholdingsSource === "unknown" ||
+    input.withholdingsSource === "mock" ||
+    input.withholdingsSource === "configured"
+  ) {
+    reasons.push("Las retenciones no están completamente confirmadas.");
+    medio = true;
+  }
+  if (
+    input.carryforwardSource === "mock" ||
+    input.ppmSource === "mock"
+  ) {
+    reasons.push("Parte de la información proviene de datos demostrativos.");
+    medio = true;
+  }
+
+  const level: ConfidenceLevel = bajo ? "low" : medio ? "medium" : "high";
+  if (level === "high" && reasons.length === 0)
+    reasons.push("Los antecedentes del periodo están completos y actualizados.");
+  return { level, reasons };
+}
+
+export function nivelAEspanol(level: ConfidenceLevel): NivelConfiabilidad {
+  if (level === "high") return "alta";
+  if (level === "medium") return "media";
+  if (level === "low") return "baja";
+  return "desconocida";
+}
+
+export function nivelDesdeEspanol(nivel: NivelConfiabilidad): ConfidenceLevel {
+  if (nivel === "alta") return "high";
+  if (nivel === "media") return "medium";
+  if (nivel === "baja") return "low";
+  return "unknown";
+}
+
+/* ------------------------------------------------------------------ */
+/* Estado del periodo                                                  */
+/* ------------------------------------------------------------------ */
+
+export function estadoDelPeriodo(periodo: string, hoy = new Date()): PeriodState {
+  const [anio, mes] = periodo.split("-").map(Number);
+  if (!anio || !mes) return "open";
+  const actualAnio = hoy.getFullYear();
+  const actualMes = hoy.getMonth() + 1;
+  if (anio > actualAnio || (anio === actualAnio && mes > actualMes)) return "future";
+  if (anio === actualAnio && mes === actualMes) return "open";
+  return "closed";
+}
+
+/* ------------------------------------------------------------------ */
+/* Resúmenes de ventas y compras                                       */
+/* ------------------------------------------------------------------ */
 
 export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVentas {
-  const vigentes = docs.filter(esVentaVigente);
+  const vigentes = docs.filter(ventaVigente);
   const facturas = vigentes.filter((d) => d.tipoDocumento === "factura");
   const boletas = vigentes.filter((d) => d.tipoDocumento === "boleta");
   const notas = vigentes.filter((d) => d.tipoDocumento === "notaCredito");
 
-  const suma = (arr: DocumentoTributario[]) => arr.reduce((a, d) => a + d.total, 0);
+  const suma = (arr: DocumentoTributario[]) => arr.reduce((a, d) => a + seguro(d.total), 0);
   const ventasFacturas = suma(facturas);
   const ventasBoletas = suma(boletas);
   const notasCredito = suma(notas);
   const ventasExentas = vigentes.reduce(
-    (a, d) => a + (d.tipoDocumento === "notaCredito" ? 0 : d.exento),
+    (a, d) => a + (d.tipoDocumento === "notaCredito" ? 0 : seguro(d.exento)),
     0,
   );
   const ventasTotales = ventasFacturas + ventasBoletas - notasCredito;
 
   const porDia = new Map<string, number>();
   for (const d of [...facturas, ...boletas]) {
-    porDia.set(d.fecha, (porDia.get(d.fecha) ?? 0) + d.total);
+    porDia.set(d.fecha, (porDia.get(d.fecha) ?? 0) + seguro(d.total));
   }
   const serieDiaria = [...porDia.entries()]
     .map(([fecha, monto]) => ({ fecha, monto }))
@@ -120,16 +766,16 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
 }
 
 export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCompras {
-  const consideradas = docs.filter(creditoUtilizable);
-  const comprasTotales = consideradas.reduce((a, d) => a + d.total, 0);
-  const comprasNetas = consideradas.reduce((a, d) => a + d.neto, 0);
-  const ivaCredito = consideradas.reduce((a, d) => a + d.iva, 0);
+  const credito = calculateVatCredit(docs);
+  const consideradas = docs.filter((d) => CREDITO_UTILIZABLE.has(d.estado as string));
+  const comprasTotales = consideradas.reduce((a, d) => a + seguro(d.total), 0);
+  const comprasNetas = consideradas.reduce((a, d) => a + seguro(d.neto), 0);
 
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
   for (const d of consideradas) {
     const prev = porProveedor.get(d.contraparte) ?? { monto: 0, documentos: 0 };
     porProveedor.set(d.contraparte, {
-      monto: prev.monto + d.total,
+      monto: prev.monto + seguro(d.total),
       documentos: prev.documentos + 1,
     });
   }
@@ -137,17 +783,22 @@ export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCom
   return {
     comprasTotales,
     comprasNetas,
-    ivaCredito,
-    documentosRegistrados: consideradas.length,
-    documentosPendientes: docs.filter((d) => d.estado === "pendiente").length,
-    documentosReclamados: docs.filter((d) => d.estado === "reclamada").length,
-    documentosNoIncluir: docs.filter((d) => d.estado === "noIncluir").length,
+    ivaCredito: credito.vatCreditUsable,
+    ivaCreditoPotencial: credito.vatCreditPotential,
+    documentosRegistrados: credito.usableDocuments,
+    documentosPendientes: credito.pendingDocuments,
+    documentosReclamados: credito.claimedDocuments,
+    documentosNoIncluir: docs.filter((d) => (d.estado as string) === "noIncluir").length,
     proveedoresPrincipales: [...porProveedor.entries()]
       .map(([nombre, v]) => ({ nombre, ...v }))
       .sort((a, b) => b.monto - a.monto)
       .slice(0, 5),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Resumen mensual (usa exclusivamente las funciones anteriores)       */
+/* ------------------------------------------------------------------ */
 
 export function construirResumenMensual(
   data: PeriodoData,
@@ -156,38 +807,40 @@ export function construirResumenMensual(
   const ventas = construirResumenVentas(data.documentosVenta);
   const compras = construirResumenCompras(data.documentosCompra);
 
-  const vigentes = data.documentosVenta.filter(esVentaVigente);
-  const ivaVentas = vigentes.reduce(
-    (a, d) => a + (d.tipoDocumento === "notaCredito" ? -d.iva : d.iva),
+  const debito = calculateVatDebit(data.documentosVenta);
+  const posicion = calculateVatPosition({
+    vatDebit: debito.vatDebit,
+    vatCreditUsable: compras.ivaCredito,
+    previousCarryforward: data.remanenteAnterior,
+  });
+
+  const fuenteRemanente: CarryforwardSource = data.fuenteRemanente ?? "unknown";
+  const fuentePpm: PpmSource = data.fuentePpm ?? (data.tasaPpm ? "configured" : "unknown");
+  const fuenteRetenciones: WithholdingsSource = data.fuenteRetenciones ?? "unknown";
+
+  const basePpm = Math.max(
     0,
+    Math.round(
+      (ventas.ventasFacturas + ventas.ventasBoletas - ventas.notasCredito) /
+        (1 + VAT_RATE),
+    ) + ventas.ventasExentas,
   );
-  const ivaDebito = Math.max(0, Math.round(ivaVentas));
+  const ppm = calculatePpm({
+    ppmTaxBase: basePpm,
+    ppmRate: data.tasaPpm ?? null,
+    ppmSource: fuentePpm,
+  });
 
-  const { ivaEstimado, nuevoRemanente } = calcularIva(
-    ivaDebito,
-    compras.ivaCredito,
-    data.remanenteAnterior,
-  );
-
-  const ppmEstimado = Math.round(
-    (ventas.ventasFacturas + ventas.ventasBoletas - ventas.notasCredito) /
-      (1 + TASA_IVA) *
-      data.tasaPpm,
-  );
-
-  const totalTributarioEstimado = calcularTotalTributario(
-    ivaEstimado,
-    ppmEstimado,
-    data.retencionesEstimadas,
-  );
-  const margenPreventivo = calcularMargenPreventivo(
-    totalTributarioEstimado,
-    opciones.margenPorcentaje,
-  );
-  const reservaRecomendada = calcularReservaRecomendada(
-    totalTributarioEstimado,
-    margenPreventivo,
-  );
+  const retenciones = Math.max(0, redondear(data.retencionesEstimadas));
+  const totalTributarioEstimado = calculateTaxEstimate({
+    estimatedVatPayable: posicion.estimatedVatPayable,
+    estimatedPpm: ppm.estimatedPpm,
+    estimatedWithholdings: retenciones,
+  });
+  const reserva = calculatePreventiveReserve({
+    estimatedTaxTotal: totalTributarioEstimado,
+    preventiveMarginPercent: opciones.margenPorcentaje,
+  });
 
   return {
     periodo: data.periodo,
@@ -199,57 +852,107 @@ export function construirResumenMensual(
     comprasTotales: compras.comprasTotales,
     comprasNetas: compras.comprasNetas,
     comprasExentas: data.documentosCompra
-      .filter(creditoUtilizable)
-      .reduce((a, d) => a + d.exento, 0),
-    ivaDebito,
+      .filter((d) => CREDITO_UTILIZABLE.has(d.estado as string))
+      .reduce((a, d) => a + seguro(d.exento), 0),
+    ivaDebito: debito.vatDebit,
+    ivaDebitoInferido: debito.inferred,
     ivaCredito: compras.ivaCredito,
-    remanenteAnterior: data.remanenteAnterior,
-    ivaEstimado,
-    nuevoRemanente,
-    ppmEstimado,
-    retencionesEstimadas: data.retencionesEstimadas,
+    ivaCreditoPotencial: compras.ivaCreditoPotencial,
+    remanenteAnterior: Math.max(0, redondear(data.remanenteAnterior)),
+    fuenteRemanente,
+    ivaEstimado: posicion.estimatedVatPayable,
+    nuevoRemanente: posicion.estimatedNewCarryforward,
+    ivaEstimadoConPendientes: calculateVatPosition({
+      vatDebit: debito.vatDebit,
+      vatCreditUsable: compras.ivaCredito + compras.ivaCreditoPotencial,
+      previousCarryforward: data.remanenteAnterior,
+    }).estimatedVatPayable,
+    ppmEstimado: ppm.estimatedPpm,
+    basePpm: ppm.ppmTaxBase,
+    tasaPpm: ppm.ppmRate,
+    fuentePpm: ppm.ppmSource,
+    ppmPendiente: ppm.pending,
+    retencionesEstimadas: retenciones,
+    fuenteRetenciones,
     totalTributarioEstimado,
-    margenPreventivo,
-    reservaRecomendada,
-    dineroReservado: opciones.dineroReservado,
+    margenPorcentaje: reserva.preventiveMarginPercent,
+    margenPreventivo: reserva.preventiveMarginAmount,
+    reservaRecomendada: reserva.recommendedReserve,
+    dineroReservado: Math.max(0, redondear(opciones.dineroReservado)),
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Meta y proyección en el formato de la aplicación                    */
+/* ------------------------------------------------------------------ */
 
 export function construirMeta(
   data: PeriodoData,
   ventasAcumuladas: number,
   metaMensual: number,
 ): MetaComercial {
-  const diasRestantes = Math.max(0, data.diasTotales - data.diasTranscurridos);
-  const montoFaltante = Math.max(0, metaMensual - ventasAcumuladas);
-  const promedioDiarioActual = data.diasTranscurridos
-    ? Math.round(ventasAcumuladas / data.diasTranscurridos)
-    : 0;
+  const estado = data.estadoPeriodo ?? estadoDelPeriodo(data.periodo);
+  const goal = calculateSalesGoal({
+    salesTotal: ventasAcumuladas,
+    monthlySalesGoal: metaMensual,
+    elapsedDays: data.diasTranscurridos,
+    totalDays: data.diasTotales,
+    periodState: estado,
+  });
+  const proyeccion = calculateClosingProjection({
+    salesTotal: ventasAcumuladas,
+    elapsedDays: data.diasTranscurridos,
+    totalDays: data.diasTotales,
+    periodState: estado,
+  });
+
   return {
-    metaMensual,
-    ventasAcumuladas,
-    porcentajeCumplimiento: metaMensual
-      ? Math.round((ventasAcumuladas / metaMensual) * 1000) / 10
-      : 0,
-    montoFaltante,
-    diasRestantes,
-    diasTranscurridos: data.diasTranscurridos,
-    diasTotales: data.diasTotales,
-    promedioDiarioNecesario: diasRestantes
-      ? Math.round(montoFaltante / diasRestantes)
-      : 0,
-    promedioDiarioActual,
-    proyeccionCierre: Math.round(promedioDiarioActual * data.diasTotales),
+    metaMensual: goal.monthlySalesGoal,
+    ventasAcumuladas: goal.salesTotal,
+    porcentajeCumplimiento: goal.goalProgressPercent,
+    montoFaltante: goal.goalRemaining,
+    montoExcedido: goal.goalExceededAmount,
+    metaSuperada: goal.goalExceeded,
+    diasRestantes: goal.remainingDays,
+    diasTranscurridos: goal.elapsedDays,
+    diasTotales: goal.totalDays,
+    promedioDiarioNecesario: goal.requiredDailySales,
+    promedioDiarioActual: goal.averageDailySales,
+    proyeccionCierre: proyeccion.probableProjection,
   };
 }
 
-export type EstadoMeta = "buenDesempeno" | "ritmoAdecuado" | "necesitaImpulso";
+export type EstadoMeta =
+  | "buenDesempeno"
+  | "ritmoAdecuado"
+  | "necesitaImpulso"
+  | "metaSuperada"
+  | "sinDatos";
 
 export function evaluarMeta(meta: MetaComercial): {
   estado: EstadoMeta;
   titulo: string;
   mensaje: string;
 } {
+  if (meta.metaMensual <= 0)
+    return {
+      estado: "sinDatos",
+      titulo: "Sin meta definida",
+      mensaje: "Define una meta mensual para seguir tu avance.",
+    };
+  if (meta.metaSuperada) {
+    return {
+      estado: "metaSuperada",
+      titulo: "Meta superada",
+      mensaje: `Superaste tu meta en ${formatearMonto(meta.montoExcedido)}.`,
+    };
+  }
+  if (meta.ventasAcumuladas === 0)
+    return {
+      estado: "sinDatos",
+      titulo: "Todavía sin ventas",
+      mensaje: "Cuando registres ventas verás aquí tu avance del periodo.",
+    };
   if (meta.proyeccionCierre >= meta.metaMensual * 1.05) {
     return {
       estado: "buenDesempeno",
@@ -264,35 +967,68 @@ export function evaluarMeta(meta: MetaComercial): {
       mensaje: "Manteniendo tu promedio actual podrías alcanzar la meta.",
     };
   }
+  if (meta.diasRestantes === 0)
+    return {
+      estado: "necesitaImpulso",
+      titulo: "Periodo cerrado",
+      mensaje: "El periodo terminó sin alcanzar la meta definida.",
+    };
   return {
     estado: "necesitaImpulso",
     titulo: "Necesita impulso",
-    mensaje: `Necesitas vender aproximadamente ${new Intl.NumberFormat("es-CL", {
-      style: "currency",
-      currency: "CLP",
-      maximumFractionDigits: 0,
-    })
-      .format(meta.promedioDiarioNecesario)
-      .replace(/\s/g, "")} diarios durante los próximos ${meta.diasRestantes} días.`,
+    mensaje: `Necesitas vender aproximadamente ${formatearMonto(
+      meta.promedioDiarioNecesario,
+    )} diarios durante los próximos ${meta.diasRestantes} días.`,
   };
+}
+
+function formatearMonto(valor: number): string {
+  return new Intl.NumberFormat("es-CL", {
+    style: "currency",
+    currency: "CLP",
+    maximumFractionDigits: 0,
+  })
+    .format(seguro(valor))
+    .replace(/\s/g, "");
 }
 
 export function construirProyeccion(
   resumen: ResumenMensual,
   meta: MetaComercial,
-  cargaTributaria: number,
+  opciones: { estadoPeriodo: PeriodState; ventasNetas?: number },
 ): Proyeccion {
-  const probable = meta.proyeccionCierre;
-  const conservadora = Math.round(probable * 0.95);
-  const alta = Math.round(probable * 1.06);
+  const cierre = calculateClosingProjection({
+    salesTotal: resumen.ventasTotales,
+    elapsedDays: meta.diasTranscurridos,
+    totalDays: meta.diasTotales,
+    periodState: opciones.estadoPeriodo,
+  });
+
+  const impuestos = calculateTaxProjection({
+    vatDebit: resumen.ivaDebito,
+    vatCreditUsable: resumen.ivaCredito,
+    previousCarryforward: resumen.remanenteAnterior,
+    netSales: opciones.ventasNetas ?? resumen.basePpm,
+    ppmRate: resumen.tasaPpm,
+    estimatedWithholdings: resumen.retencionesEstimadas,
+    preventiveMarginPercent: resumen.margenPorcentaje,
+    projection: cierre,
+    salesTotal: resumen.ventasTotales,
+  });
+
   return {
+    disponible: cierre.available,
+    estadoPeriodo: opciones.estadoPeriodo,
     ventasActuales: resumen.ventasTotales,
-    promedioDiario: meta.promedioDiarioActual,
-    conservadora,
-    probable,
-    alta,
-    impuestosMin: Math.round(conservadora * cargaTributaria),
-    impuestosMax: Math.round(alta * cargaTributaria),
+    promedioDiario: cierre.averageDailySales,
+    conservadora: cierre.conservativeProjection,
+    probable: cierre.probableProjection,
+    alta: cierre.highProjection,
+    ivaDebitoProyectado: impuestos.projectedVatDebit,
+    ventasNetasProyectadas: impuestos.projectedNetSales,
+    ppmProyectado: impuestos.projectedPpm,
+    impuestosMin: impuestos.projectedTaxMin,
+    impuestosMax: impuestos.projectedTaxMax,
   };
 }
 
@@ -302,42 +1038,32 @@ export function construirComparacion(
   anterior: { resumen: ResumenMensual; ventas: ResumenVentas } | null,
   periodoAnterior: string | null,
 ): ComparacionMensual {
-  const variacion = (a: number, b: number): number | null =>
-    !anterior || b === 0 ? null : Math.round(((a - b) / b) * 1000) / 10;
+  const metricas = calculateMonthlyComparison(actual, anterior);
+  const buscar = (key: string) => metricas.find((m) => m.key === key) ?? null;
 
   const porSemana = new Map<string, number>();
   for (const d of actual.ventas.serieDiaria) {
-    const dia = new Date(d.fecha).getDate();
+    const dia = Number(d.fecha.slice(8, 10)) || new Date(d.fecha).getUTCDate();
     const semana = Math.ceil(dia / 7);
     const key = `Semana ${semana}`;
     porSemana.set(key, (porSemana.get(key) ?? 0) + d.monto);
   }
   const mejorSemanaEntry = [...porSemana.entries()].sort((a, b) => b[1] - a[1])[0];
-  const mejorDiaEntry = [...actual.ventas.serieDiaria].sort(
-    (a, b) => b.monto - a.monto,
-  )[0];
+  const mejorDiaEntry = [...actual.ventas.serieDiaria].sort((a, b) => b.monto - a.monto)[0];
 
   return {
     periodoActual,
     periodoAnterior,
+    metricas,
     ventasActuales: actual.resumen.ventasTotales,
     ventasAnteriores: anterior?.resumen.ventasTotales ?? 0,
-    variacionVentas: variacion(
-      actual.resumen.ventasTotales,
-      anterior?.resumen.ventasTotales ?? 0,
-    ),
+    variacionVentas: buscar("ventas")?.variationPercent ?? null,
     comprasActuales: actual.resumen.comprasTotales,
     comprasAnteriores: anterior?.resumen.comprasTotales ?? 0,
-    variacionCompras: variacion(
-      actual.resumen.comprasTotales,
-      anterior?.resumen.comprasTotales ?? 0,
-    ),
+    variacionCompras: buscar("compras")?.variationPercent ?? null,
     ivaActual: actual.resumen.ivaEstimado,
     ivaAnterior: anterior?.resumen.ivaEstimado ?? 0,
-    variacionIva: variacion(
-      actual.resumen.ivaEstimado,
-      anterior?.resumen.ivaEstimado ?? 0,
-    ),
+    variacionIva: buscar("ivaEstimado")?.variationPercent ?? null,
     ticketPromedio: actual.ventas.ticketPromedio,
     ticketPromedioAnterior: anterior?.ventas.ticketPromedio ?? 0,
     cantidadFacturas: actual.ventas.cantidadFacturas,
@@ -346,35 +1072,5 @@ export function construirComparacion(
     mejorSemana: mejorSemanaEntry
       ? { etiqueta: mejorSemanaEntry[0], monto: mejorSemanaEntry[1] }
       : null,
-  };
-}
-
-export interface ResultadoSimulacion {
-  ventaAdicional: number;
-  ivaIncluido: number;
-  neto: number;
-  ppmAdicional: number;
-  reservaAdicional: number;
-  restanteAntesDeCostos: number;
-}
-
-export function simularVentaAdicional(
-  monto: number,
-  tasaPpm: number,
-  margenPorcentaje: number,
-): ResultadoSimulacion {
-  const neto = Math.round(monto / (1 + TASA_IVA));
-  const ivaIncluido = monto - neto;
-  const ppmAdicional = Math.round(neto * tasaPpm);
-  const reservaAdicional = Math.round(
-    (ivaIncluido + ppmAdicional) * (1 + margenPorcentaje / 100),
-  );
-  return {
-    ventaAdicional: monto,
-    ivaIncluido,
-    neto,
-    ppmAdicional,
-    reservaAdicional,
-    restanteAntesDeCostos: monto - reservaAdicional,
   };
 }

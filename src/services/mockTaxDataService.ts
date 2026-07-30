@@ -3,16 +3,11 @@ import {
   obtenerPeriodoData,
   periodoAnteriorDe,
 } from "@/data/mockTaxData";
+import { construirDashboard } from "@/lib/dashboardBuilder";
+import { estadoDelPeriodo, simulateAdditionalSale } from "@/utils/taxCalculations";
 import type { ConsultaDashboard, TaxDataService } from "./taxDataService";
 import type { DashboardData } from "@/types/tax";
-import {
-  construirComparacion,
-  construirMeta,
-  construirProyeccion,
-  construirResumenCompras,
-  construirResumenMensual,
-  construirResumenVentas,
-} from "@/utils/taxCalculations";
+import type { AdditionalSaleInput, AdditionalSaleResult } from "@/types/engine";
 
 function esperar(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -27,51 +22,25 @@ export const mockTaxDataService: TaxDataService = {
     const data = obtenerPeriodoData(consulta.escenario, consulta.periodoId);
     const dineroReservado = consulta.dineroReservado ?? data.dineroReservado;
     const metaMensual = consulta.metaMensual ?? data.metaMensual;
+    const anteriorId = periodoAnteriorDe(consulta.periodoId);
 
-    const resumen = construirResumenMensual(data, {
+    return construirDashboard({
+      empresa: { ...EMPRESA_DEMO, periodoActivo: consulta.periodoId },
+      periodo: { ...data, estadoPeriodo: estadoDelPeriodo(consulta.periodoId) },
+      periodoAnterior: anteriorId
+        ? obtenerPeriodoData(consulta.escenario, anteriorId)
+        : null,
+      idPeriodoAnterior: anteriorId,
       margenPorcentaje: consulta.margenPorcentaje,
       dineroReservado,
+      metaMensual,
+      diasDesdeSincronizacion: 0,
+      configuradoManualmente: true,
     });
-    const ventas = construirResumenVentas(data.documentosVenta);
-    const compras = construirResumenCompras(data.documentosCompra);
-    const meta = construirMeta(data, resumen.ventasTotales, metaMensual);
+  },
 
-    const anteriorId = periodoAnteriorDe(consulta.periodoId);
-    let anterior: { resumen: typeof resumen; ventas: typeof ventas } | null = null;
-    if (anteriorId) {
-      const dataAnterior = obtenerPeriodoData(consulta.escenario, anteriorId);
-      anterior = {
-        resumen: construirResumenMensual(dataAnterior, {
-          margenPorcentaje: consulta.margenPorcentaje,
-          dineroReservado: dataAnterior.dineroReservado,
-        }),
-        ventas: construirResumenVentas(dataAnterior.documentosVenta),
-      };
-    }
-
-    const cargaTributaria =
-      resumen.ventasTotales > 0
-        ? resumen.reservaRecomendada / resumen.ventasTotales
-        : 0;
-
-    return {
-      empresa: { ...EMPRESA_DEMO, periodoActivo: consulta.periodoId },
-      resumen,
-      meta,
-      ventas,
-      compras,
-      confiabilidad:
-        compras.documentosPendientes >= 3 ? "media" : data.confiabilidad,
-      comparacion: construirComparacion(
-        consulta.periodoId,
-        { resumen, ventas },
-        anterior,
-        anteriorId,
-      ),
-      proyeccion: construirProyeccion(resumen, meta, cargaTributaria),
-      documentosVenta: data.documentosVenta,
-      documentosCompra: data.documentosCompra,
-    };
+  simulateAdditionalSale(entrada: AdditionalSaleInput): AdditionalSaleResult {
+    return simulateAdditionalSale(entrada);
   },
 
   async sincronizar(): Promise<string> {

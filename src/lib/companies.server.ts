@@ -28,7 +28,7 @@ export class ErrorNegocio extends Error {
 }
 
 /** Verifica que el usuario pertenezca a la empresa con un rol suficiente. */
-async function exigirRol(userId: string, companyId: string, roles: Rol[]) {
+export async function exigirRol(userId: string, companyId: string, roles: Rol[]) {
   const { data, error } = await supabaseAdmin
     .from("tax_company_members")
     .select("role, status")
@@ -43,7 +43,7 @@ async function exigirRol(userId: string, companyId: string, roles: Rol[]) {
   return data.role as Rol;
 }
 
-async function registrarActividad(
+export async function registrarActividad(
   companyId: string | null,
   userId: string,
   action: string,

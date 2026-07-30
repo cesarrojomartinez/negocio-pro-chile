@@ -10,6 +10,7 @@ import {
   crearEmpresa,
   registrarSincronizacionDemo,
 } from "@/lib/companies.server";
+import { recalculateTaxPeriod } from "@/lib/taxRecalc.server";
 import { envolver } from "@/lib/serverResult";
 
 export const crearEmpresaFn = createServerFn({ method: "POST" })
@@ -91,4 +92,12 @@ export const cambiarRolMiembroFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) =>
     envolver(() => cambiarRolMiembro(context.userId, data)),
+  );
+
+/** Recálculo oficial del periodo: valida permisos y persiste el resultado. */
+export const recalcularPeriodoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string; periodo: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => recalculateTaxPeriod(context.userId, data)),
   );

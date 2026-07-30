@@ -1,9 +1,18 @@
-export type TipoDocumentoVenta = "factura" | "boleta" | "notaCredito";
+import type {
+  CarryforwardSource,
+  ComparisonMetric,
+  PeriodState,
+  PpmSource,
+  WithholdingsSource,
+} from "./engine";
+
+export type TipoDocumentoVenta = "factura" | "boleta" | "notaCredito" | "notaDebito";
 export type TipoDocumentoCompra = "factura" | "notaCredito";
 
 export type EstadoDocumentoVenta = "emitido" | "anulado";
 export type EstadoDocumentoCompra =
   | "registrada"
+  | "aceptada"
   | "pendiente"
   | "reclamada"
   | "noIncluir";
@@ -34,13 +43,26 @@ export interface ResumenMensual {
   comprasNetas: number;
   comprasExentas: number;
   ivaDebito: number;
+  /** Verdadero cuando algún documento no traía IVA y hubo que inferirlo. */
+  ivaDebitoInferido: boolean;
   ivaCredito: number;
+  /** IVA de compras pendientes que podría incorporarse más adelante. */
+  ivaCreditoPotencial: number;
   remanenteAnterior: number;
+  fuenteRemanente: CarryforwardSource;
   ivaEstimado: number;
   nuevoRemanente: number;
+  /** IVA estimado si las compras pendientes llegaran a incorporarse. */
+  ivaEstimadoConPendientes: number;
   ppmEstimado: number;
+  basePpm: number;
+  tasaPpm: number | null;
+  fuentePpm: PpmSource;
+  ppmPendiente: boolean;
   retencionesEstimadas: number;
+  fuenteRetenciones: WithholdingsSource;
   totalTributarioEstimado: number;
+  margenPorcentaje: number;
   margenPreventivo: number;
   reservaRecomendada: number;
   dineroReservado: number;
@@ -51,6 +73,8 @@ export interface MetaComercial {
   ventasAcumuladas: number;
   porcentajeCumplimiento: number;
   montoFaltante: number;
+  montoExcedido: number;
+  metaSuperada: boolean;
   diasRestantes: number;
   diasTranscurridos: number;
   diasTotales: number;
@@ -62,6 +86,7 @@ export interface MetaComercial {
 export interface ComparacionMensual {
   periodoActual: string;
   periodoAnterior: string | null;
+  metricas: ComparisonMetric[];
   ventasActuales: number;
   ventasAnteriores: number;
   variacionVentas: number | null;
@@ -80,21 +105,27 @@ export interface ComparacionMensual {
 }
 
 export interface Proyeccion {
+  disponible: boolean;
+  estadoPeriodo: PeriodState;
   ventasActuales: number;
   promedioDiario: number;
   conservadora: number;
   probable: number;
   alta: number;
+  ivaDebitoProyectado: number;
+  ventasNetasProyectadas: number;
+  ppmProyectado: number;
   impuestosMin: number;
   impuestosMax: number;
 }
 
-export type NivelConfiabilidad = "alta" | "media" | "baja";
+export type NivelConfiabilidad = "alta" | "media" | "baja" | "desconocida";
 
 export interface ResumenCompras {
   comprasTotales: number;
   comprasNetas: number;
   ivaCredito: number;
+  ivaCreditoPotencial: number;
   documentosRegistrados: number;
   documentosPendientes: number;
   documentosReclamados: number;
@@ -120,12 +151,16 @@ export interface PeriodoData {
   documentosVenta: DocumentoTributario[];
   documentosCompra: DocumentoTributario[];
   remanenteAnterior: number;
-  tasaPpm: number;
+  fuenteRemanente?: CarryforwardSource;
+  tasaPpm: number | null;
+  fuentePpm?: PpmSource;
   retencionesEstimadas: number;
+  fuenteRetenciones?: WithholdingsSource;
   metaMensual: number;
   dineroReservado: number;
   diasTranscurridos: number;
   diasTotales: number;
+  estadoPeriodo?: PeriodState;
   confiabilidad: NivelConfiabilidad;
 }
 
@@ -138,6 +173,7 @@ export interface DashboardData {
   ventas: ResumenVentas;
   compras: ResumenCompras;
   confiabilidad: NivelConfiabilidad;
+  razonesConfiabilidad: string[];
   documentosVenta: DocumentoTributario[];
   documentosCompra: DocumentoTributario[];
 }

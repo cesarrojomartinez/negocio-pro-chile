@@ -14,12 +14,14 @@ const ESTILOS = {
   verde: "border-success/30 bg-success-soft",
   ambar: "border-warning/40 bg-warning-soft",
   rojo: "border-destructive/30 bg-danger-soft",
+  neutral: "border-border bg-secondary/50",
 } as const;
 
 const TEXTO_ESTADO = {
   verde: "text-success",
   ambar: "text-warning-foreground",
   rojo: "text-destructive",
+  neutral: "text-muted-foreground",
 } as const;
 
 export function ReservaCard({

@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   actualizarConfiguracionFn,
   cambiarConexionDemoFn,
+  recalcularPeriodoFn,
   registrarSincronizacionFn,
 } from "@/lib/companies.functions";
 import {
@@ -10,23 +11,11 @@ import {
   estadoDesdeRcv,
   periodoAnterior,
 } from "@/lib/taxMappers";
-import {
-  construirComparacion,
-  construirMeta,
-  construirProyeccion,
-  construirResumenCompras,
-  construirResumenMensual,
-  construirResumenVentas,
-} from "@/utils/taxCalculations";
+import { construirDashboard } from "@/lib/dashboardBuilder";
+import { estadoDelPeriodo, simulateAdditionalSale } from "@/utils/taxCalculations";
 import type { ConsultaDashboard, TaxDataService } from "./taxDataService";
 import type { Empresa, EstadoConexionSii } from "@/types/company";
-import type {
-  DashboardData,
-  DocumentoTributario,
-  PeriodoData,
-  ResumenMensual,
-  ResumenVentas,
-} from "@/types/tax";
+import type { DashboardData, DocumentoTributario, PeriodoData } from "@/types/tax";
 
 export class ErrorDatosCloud extends Error {
   constructor(mensaje: string) {
@@ -313,6 +302,9 @@ export const cloudTaxDataService: TaxDataService & {
       data: { companyId, periodo: periodoId ?? null },
     });
     if (!r.ok) throw new ErrorDatosCloud(r.error);
+    if (periodoId) {
+      await recalcularPeriodoFn({ data: { companyId, periodo: periodoId } });
+    }
     return r.data.ultimaSincronizacion;
   },
 
@@ -347,61 +339,52 @@ export const cloudTaxDataService: TaxDataService & {
       .maybeSingle();
 
     const dias = diasDePeriodo(consulta.periodoId);
-    const tasaPpm = settings?.tasaPpm ?? 0.006;
+    const tasaPpmCruda = settings?.tasaPpm ?? null;
+    const tasaPpm = tasaPpmCruda && tasaPpmCruda > 0 ? tasaPpmCruda : null;
     const metaMensual =
       consulta.metaMensual ?? metaGuardada ?? settings?.metaMensual ?? 0;
     const dineroReservado = consulta.dineroReservado ?? settings?.dineroReservado ?? 0;
     const margenPorcentaje = consulta.margenPorcentaje;
 
+    const remanente = Number(resumenAnteriorGuardado?.estimated_new_carryforward ?? 0);
+    const retenciones = Number(resumenActualGuardado?.estimated_withholdings ?? 0);
+
     const periodoData: PeriodoData = {
       periodo: consulta.periodoId,
       documentosVenta: docs.venta,
       documentosCompra: docs.compra,
-      remanenteAnterior: Number(resumenAnteriorGuardado?.estimated_new_carryforward ?? 0),
+      remanenteAnterior: remanente,
+      fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
       tasaPpm,
-      retencionesEstimadas: Number(resumenActualGuardado?.estimated_withholdings ?? 0),
+      fuentePpm: tasaPpm == null ? "unknown" : "configured",
+      retencionesEstimadas: retenciones,
+      fuenteRetenciones: retenciones > 0 ? "configured" : "unknown",
       metaMensual,
       dineroReservado,
       diasTranscurridos: dias.diasTranscurridos,
       diasTotales: dias.diasTotales,
+      estadoPeriodo: estadoDelPeriodo(consulta.periodoId),
       confiabilidad: confianzaDesdeDb(periodRow?.confidence_level ?? null),
     };
 
-    const resumen = construirResumenMensual(periodoData, {
-      margenPorcentaje,
-      dineroReservado,
-    });
-    const ventas = construirResumenVentas(docs.venta);
-    const compras = construirResumenCompras(docs.compra);
-    const meta = construirMeta(periodoData, resumen.ventasTotales, metaMensual);
-
-    let anterior: { resumen: ResumenMensual; ventas: ResumenVentas } | null = null;
-    if (docsAnterior.venta.length || docsAnterior.compra.length) {
-      const diasAnt = diasDePeriodo(anteriorId);
-      const periodoDataAnterior: PeriodoData = {
-        periodo: anteriorId,
-        documentosVenta: docsAnterior.venta,
-        documentosCompra: docsAnterior.compra,
-        remanenteAnterior: 0,
-        tasaPpm,
-        retencionesEstimadas: Number(resumenAnteriorGuardado?.estimated_withholdings ?? 0),
-        metaMensual,
-        dineroReservado,
-        diasTranscurridos: diasAnt.diasTranscurridos,
-        diasTotales: diasAnt.diasTotales,
-        confiabilidad: "media",
-      };
-      anterior = {
-        resumen: construirResumenMensual(periodoDataAnterior, {
-          margenPorcentaje,
-          dineroReservado,
-        }),
-        ventas: construirResumenVentas(docsAnterior.venta),
-      };
-    }
-
-    const cargaTributaria =
-      resumen.ventasTotales > 0 ? resumen.reservaRecomendada / resumen.ventasTotales : 0;
+    const diasAnt = diasDePeriodo(anteriorId);
+    const periodoDataAnterior: PeriodoData | null =
+      docsAnterior.venta.length || docsAnterior.compra.length
+        ? {
+            ...periodoData,
+            periodo: anteriorId,
+            documentosVenta: docsAnterior.venta,
+            documentosCompra: docsAnterior.compra,
+            remanenteAnterior: 0,
+            fuenteRemanente: "unknown",
+            retencionesEstimadas: Number(
+              resumenAnteriorGuardado?.estimated_withholdings ?? 0,
+            ),
+            diasTranscurridos: diasAnt.diasTranscurridos,
+            diasTotales: diasAnt.diasTotales,
+            estadoPeriodo: estadoDelPeriodo(anteriorId),
+          }
+        : null;
 
     const empresa: Empresa = {
       id: empresaRow.id,
@@ -414,23 +397,26 @@ export const cloudTaxDataService: TaxDataService & {
       periodoActivo: consulta.periodoId,
     };
 
-    return {
+    const diasDesdeSincronizacion = empresaRow.last_sync_at
+      ? Math.floor((Date.now() - new Date(empresaRow.last_sync_at).getTime()) / 86400000)
+      : null;
+
+    return construirDashboard({
       empresa,
-      resumen,
-      meta,
-      ventas,
-      compras,
-      confiabilidad:
-        compras.documentosPendientes >= 3 ? "media" : periodoData.confiabilidad,
-      comparacion: construirComparacion(
-        consulta.periodoId,
-        { resumen, ventas },
-        anterior,
-        anterior ? anteriorId : null,
-      ),
-      proyeccion: construirProyeccion(resumen, meta, cargaTributaria),
-      documentosVenta: docs.venta,
-      documentosCompra: docs.compra,
-    };
+      periodo: periodoData,
+      periodoAnterior: periodoDataAnterior,
+      idPeriodoAnterior: anteriorId,
+      margenPorcentaje,
+      dineroReservado,
+      metaMensual,
+      diasDesdeSincronizacion,
+      errorSincronizacion: empresaRow.connection_status === "error",
+      configuradoManualmente: settings != null,
+    });
+  },
+
+  /** Simulación puntual: no persiste nada. */
+  simulateAdditionalSale(entrada) {
+    return simulateAdditionalSale(entrada);
   },
 };
