@@ -53,8 +53,11 @@ export interface ConfiguracionCloud {
   dineroReservado: number;
   margenPorcentaje: number;
   tasaPpm: number;
+  /** La tasa de PPM guardada fue confirmada (no es el valor por omisión). */
+  tasaPpmConfirmada: boolean;
   alertasActivas: boolean;
 }
+
 
 function mapDocumento(fila: {
   id: string;
