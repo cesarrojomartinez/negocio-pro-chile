@@ -223,6 +223,15 @@ async function parametroVigenteDe(
 
 
 
+/** Diferencia registrada entre el remanente calculado y el declarado. */
+export interface ConciliacionRemanenteCloud {
+  periodoAnterior: string;
+  remanenteCalculadoPrevio: number;
+  remanenteDeclarado: number;
+  diferencia: number;
+  estado: string;
+}
+
 export const cloudTaxDataService: TaxDataService & {
   getCompanies(): Promise<EmpresaCloud[]>;
   getPeriods(companyId: string): Promise<PeriodoCloud[]>;
