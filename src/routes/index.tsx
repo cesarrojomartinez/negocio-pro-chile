@@ -131,7 +131,7 @@ function Inicio() {
               </Button>
             </div>
 
-            <ScenarioSwitcher />
+            {modo !== "cloud" && <ScenarioSwitcher />}
           </>
         )}
       </div>

@@ -32,8 +32,14 @@ export const Route = createFileRoute("/metas")({
 });
 
 function Metas() {
-  const { data, cargando, margenPorcentaje, setMargenPorcentaje, setMetaMensual } =
-    useTaxDashboard();
+  const {
+    data,
+    cargando,
+    margenPorcentaje,
+    setMargenPorcentaje,
+    setMetaMensual,
+    modo,
+  } = useTaxDashboard();
 
   return (
     <AppShell>
@@ -98,6 +104,7 @@ function Metas() {
               </div>
             </SectionCard>
 
+            {modo !== "cloud" && (
             <SectionCard
               titulo="Historial de metas"
               descripcion="Comparación con meses anteriores (datos demostrativos)."
@@ -126,6 +133,7 @@ function Metas() {
                 })}
               </ul>
             </SectionCard>
+            )}
 
             <SimuladorVentas
               tasaPpm={
