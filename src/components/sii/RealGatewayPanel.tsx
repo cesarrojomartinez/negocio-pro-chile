@@ -331,122 +331,185 @@ export function RealGatewayPanel() {
         </ul>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="rut-usuario-real">RUT del usuario autorizado</Label>
-          <Input
-            id="rut-usuario-real"
-            inputMode="text"
-            autoComplete="off"
-            placeholder="12345678-9"
-            value={rutUsuario}
-            onChange={(e) => setRutUsuario(e.target.value)}
-            onBlur={() =>
-              esRutValido(rutUsuario) && setRutUsuario(formatearRut(rutUsuario))
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="clave-real">Clave Tributaria</Label>
-          <Input
-            id="clave-real"
-            type="password"
-            autoComplete="off"
-            value={clave}
-            onChange={(e) => setClave(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="periodo-real">Periodo a consultar</Label>
-          <Input
-            id="periodo-real"
-            type="month"
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className="mt-3 flex items-start gap-2">
-        <Checkbox
-          id="consentimiento-real"
-          checked={acepta}
-          onCheckedChange={(v) => setAcepta(v === true)}
-        />
-        <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
-          Autorizo esta consulta puntual a mi información del SII para el periodo{" "}
-          {periodo}.
-        </Label>
-      </div>
-
-
-      {sesionNueva && (
-        <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
-          La sesión del SII utilizada por el proveedor venció. La próxima consulta
-          creará una sesión nueva por única vez.
-        </p>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          onClick={() => void ejecutar()}
-          disabled={!acepta || !rutUsuario || !clave || ejecutando || !diagnostico.puedeConsultar}
-        >
-          {ejecutando ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <KeyRound className="h-4 w-4" aria-hidden />
-          )}
-          {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodo}`}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!empresaActiva || ejecutando}
-          onClick={async () => {
-            if (!empresaActiva) return;
-            try {
-              await apiGatewayService.desconectar(empresaActiva.id);
-              setUltima(null);
-              try {
-                sessionStorage.removeItem(CLAVE_ULTIMA_PRUEBA);
-              } catch {
-                /* almacenamiento no disponible */
+      <form
+        id="form-sii-consulta"
+        name="form-sii-consulta"
+        method="post"
+        action="#"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!acepta || !rutUsuario || !clave || ejecutando) return;
+          void ejecutar();
+        }}
+      >
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="sii_username">RUT del usuario autorizado</Label>
+            <Input
+              id="sii_username"
+              name="sii_username"
+              type="text"
+              inputMode="text"
+              autoComplete="section-sii username"
+              autoCapitalize="none"
+              spellCheck={false}
+              placeholder="12345678-9"
+              value={rutUsuario}
+              onChange={(e) => setRutUsuario(e.target.value)}
+              onBlur={() =>
+                esRutValido(rutUsuario) && setRutUsuario(formatearRut(rutUsuario))
               }
-              toast.success("Cortamos la conexión con el proveedor real.");
-            } catch {
-              toast.error("No pudimos cortar la conexión.");
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sii_password">Clave Tributaria</Label>
+            <Input
+              id="sii_password"
+              name="sii_password"
+              type="password"
+              autoComplete="section-sii current-password"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={clave}
+              onChange={(e) => setClave(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="periodo-real">Periodo a consultar</Label>
+            <Input
+              id="periodo-real"
+              name="sii_periodo"
+              type="month"
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-1 rounded-2xl bg-secondary/60 px-3 py-3 text-xs text-muted-foreground">
+          <p>
+            Puedes utilizar el gestor de contraseñas de tu navegador o dispositivo
+            para completar esta clave. Mi Negocio al Día no almacena tu Clave
+            Tributaria.
+          </p>
+          <p>No guardes la clave en un computador o teléfono compartido.</p>
+        </div>
+
+        <div className="mt-3 flex items-start gap-2">
+          <Checkbox
+            id="consentimiento-real"
+            checked={acepta}
+            onCheckedChange={(v) => setAcepta(v === true)}
+          />
+          <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
+            Autorizo esta consulta puntual a mi información del SII para el periodo{" "}
+            {periodo}.
+          </Label>
+        </div>
+
+        {sesionNueva && (
+          <p className="mt-3 rounded-md bg-amber-50 p-3 text-xs text-amber-900">
+            La sesión del SII utilizada por el proveedor venció. La próxima consulta
+            creará una sesión nueva por única vez.
+          </p>
+        )}
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={
+              !acepta || !rutUsuario || !clave || ejecutando || !diagnostico.puedeConsultar
             }
-          }}
-        >
-          Desconectar proveedor real
-        </Button>
-        <Button
-          variant="outline"
-          disabled={!acepta || !rutUsuario || !clave || auditando || ejecutando}
-          onClick={() => void auditar()}
-        >
-          {auditando ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
+          >
+            {ejecutando ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <KeyRound className="h-4 w-4" aria-hidden />
+            )}
+            {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodo}`}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!empresaActiva || ejecutando}
+            onClick={async () => {
+              if (!empresaActiva) return;
+              try {
+                await apiGatewayService.desconectar(empresaActiva.id);
+                setUltima(null);
+                try {
+                  sessionStorage.removeItem(CLAVE_ULTIMA_PRUEBA);
+                } catch {
+                  /* almacenamiento no disponible */
+                }
+                toast.success("Cortamos la conexión con el proveedor real.");
+              } catch {
+                toast.error("No pudimos cortar la conexión.");
+              }
+            }}
+          >
+            Desconectar proveedor real
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!acepta || !rutUsuario || !clave || auditando || ejecutando}
+            onClick={() => void auditar()}
+          >
+            {auditando ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Stethoscope className="h-4 w-4" aria-hidden />
+            )}
+            {auditando ? "Auditando" : "Auditar Formulario 29 (2 consultas)"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={async () => {
+              setCargando(true);
+              try {
+                setDiagnostico(await apiGatewayService.diagnosticar());
+              } finally {
+                setCargando(false);
+              }
+            }}
+          >
             <Stethoscope className="h-4 w-4" aria-hidden />
-          )}
-          {auditando ? "Auditando" : "Auditar Formulario 29 (2 consultas)"}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={async () => {
-            setCargando(true);
-            try {
-              setDiagnostico(await apiGatewayService.diagnosticar());
-            } finally {
-              setCargando(false);
-            }
-          }}
-        >
-          <Stethoscope className="h-4 w-4" aria-hidden />
-          Revisar configuración
-        </Button>
+            Revisar configuración
+          </Button>
+        </div>
+      </form>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-2xl border border-success/40 bg-success-soft px-3 py-3 text-sm">
+          <p className="font-medium">Actualización segura</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ingresa tu clave o complétala con el gestor de contraseñas de tu
+            dispositivo. La clave se utiliza una sola vez y no queda almacenada en Mi
+            Negocio al Día.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-secondary/60 px-3 py-3 text-sm opacity-80">
+          <p className="font-medium">
+            Automatización avanzada{" "}
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal">
+              No disponible
+            </span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Próximamente: actualizaciones programadas mediante un método de
+            autorización compatible, sin almacenar tu Clave Tributaria.
+          </p>
+        </div>
       </div>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        El autocompletado no equivale a sincronización automática: debes abrir la
+        aplicación, autorizar el uso de la credencial en tu dispositivo y pulsar
+        Actualizar. Durante el resto del día se utilizan los datos en caché.
+      </p>
+
 
       {ultima &&
         (() => {
