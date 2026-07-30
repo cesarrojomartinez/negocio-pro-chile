@@ -407,14 +407,23 @@ export const cloudTaxDataService: TaxDataService & {
       .maybeSingle();
 
     const dias = diasDePeriodo(consulta.periodoId);
-    const tasaPpmCruda = settings?.tasaPpm ?? null;
-    const tasaPpm = tasaPpmCruda && tasaPpmCruda > 0 ? tasaPpmCruda : null;
     const metaMensual =
       consulta.metaMensual ?? metaGuardada ?? settings?.metaMensual ?? 0;
     const dineroReservado = consulta.dineroReservado ?? settings?.dineroReservado ?? 0;
     const margenPorcentaje = consulta.margenPorcentaje;
 
     const antecedenteF29 = await antecedenteF29De(companyId, consulta.periodoId);
+    const esDemoEmpresa = !!empresaRow.is_demo;
+    const tasaPrevia = esDemoEmpresa
+      ? null
+      : await tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId);
+    const { tasaPpm, fuentePpm } = resolverTasaPpm({
+      esDemo: esDemoEmpresa,
+      antecedentePeriodo: antecedenteF29,
+      tasaConfigurada: settings?.tasaPpm ?? null,
+      configuracionConfirmada: !!settings?.tasaPpmConfirmada,
+      tasaConfirmadaPrevia: tasaPrevia,
+    });
     const parametros = aplicarAntecedenteF29(
       {
         remanenteAnterior: Number(
@@ -422,7 +431,8 @@ export const cloudTaxDataService: TaxDataService & {
         ),
         fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
         tasaPpm,
-        fuentePpm: tasaPpm == null ? "unknown" : "configured",
+        fuentePpm,
+
         retenciones: Number(resumenActualGuardado?.estimated_withholdings ?? 0),
         fuenteRetenciones:
           Number(resumenActualGuardado?.estimated_withholdings ?? 0) > 0
