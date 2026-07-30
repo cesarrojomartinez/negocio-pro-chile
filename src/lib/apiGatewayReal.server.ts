@@ -42,6 +42,8 @@ export interface EntradaPruebaReal {
   periodo: string;
   /** RUT del usuario autorizado ante el SII. */
   rutUsuario: string;
+  /** Fuerza una sesión nueva (`auth_cache=0`) en la primera consulta RCV. */
+  sesionNueva?: boolean;
   /** Clave Tributaria. Solo en memoria. */
   claveTributaria: string;
   consentimiento: boolean;
@@ -109,7 +111,13 @@ export async function ejecutarPruebaRealApiGateway(
     rutUsuario,
     claveTributaria: entrada.claveTributaria,
   };
-  const proveedor = crearAdaptadorApiGateway({ config, credenciales, registro });
+  const proveedor = crearAdaptadorApiGateway({
+    config,
+    credenciales,
+    registro,
+    // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
+    sesionNueva: entrada.sesionNueva === true,
+  });
   const ahora = new Date().toISOString();
 
   const consumo = () => ({

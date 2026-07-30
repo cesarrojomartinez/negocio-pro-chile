@@ -156,6 +156,7 @@ export function estadoProductoDesdeCodigo(codigo: string): EstadoProducto {
     case "PERIOD_NOT_AVAILABLE":
       return "sin_informacion_periodo";
     case "INVALID_CREDENTIALS":
+    case "SESSION_INVALID":
     case "SESSION_EXPIRED":
     case "AUTH_EXPIRED":
     case "ACCOUNT_BLOCKED":

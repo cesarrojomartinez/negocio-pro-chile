@@ -47,6 +47,10 @@ export interface ApiGatewayCallLog {
   limiteRestante: number | null;
   codigoError: SiiErrorCode | null;
   referenciaTecnica: string | null;
+  /** `X-Stats-NavegadorSessionProblem` / `X-Auth-Session-Problem` = 1. */
+  problemaSesion: boolean | null;
+  /** `true` cuando esta llamada envió `auth_cache=0` (sesión nueva). */
+  sinCacheAuth: boolean;
 }
 
 
@@ -108,8 +112,25 @@ export function mapearError(
   estado: number,
   detalle: string,
   esJson: boolean,
+  problemaSesion = false,
 ): SiiErrorCode {
   const texto = detalle.toLowerCase();
+
+  // Las cabeceras de sesión mandan: una sesión vencida NUNCA se clasifica como
+  // clave incorrecta, aunque el texto mencione autenticación.
+  if (problemaSesion) return "SESSION_INVALID";
+  if (
+    texto.includes("volver a autenticar") ||
+    texto.includes("vuelva a autenticar") ||
+    texto.includes("reautenticar") ||
+    texto.includes("sesion expirada") ||
+    texto.includes("sesión expirada") ||
+    texto.includes("sesion vencida") ||
+    texto.includes("sesión vencida") ||
+    texto.includes("sesion invalida") ||
+    texto.includes("sesión inválida")
+  )
+    return "SESSION_INVALID";
 
   if (!esJson && estado >= 200 && estado < 300) return "INVALID_PROVIDER_RESPONSE";
   // Una respuesta no JSON con 404 es la página web del proveedor: la ruta
@@ -157,18 +178,18 @@ export function mapearError(
   if (/c[óo]digo de error #\d+/.test(texto) || /error #\d+/.test(texto))
     return "INVALID_CREDENTIALS";
 
+  // Solo cuando la respuesta dice expresamente que el RUT o la clave son
+  // incorrectos. "autenticación" a secas ya no basta.
   if (
     texto.includes("clave") ||
     texto.includes("contraseña") ||
     texto.includes("credenciales") ||
-    texto.includes("rut o clave") ||
-    texto.includes("autenticacion") ||
-    texto.includes("autenticación")
+    texto.includes("rut o clave")
   )
     return "INVALID_CREDENTIALS";
   if (texto.includes("mantencion") || texto.includes("mantención") || texto.includes("mantenimiento"))
     return texto.includes("sii") ? "SII_MAINTENANCE" : "PROVIDER_MAINTENANCE";
-  if (texto.includes("sesion") || texto.includes("sesión")) return "SESSION_EXPIRED";
+  if (texto.includes("sesion") || texto.includes("sesión")) return "SESSION_INVALID";
   // Validación de esquema del proveedor: falta o sobra un campo del cuerpo.
   if (
     texto.includes("campo") ||
@@ -238,6 +259,8 @@ export interface ApiGatewayRequestInput<TRequest extends object> {
   registro?: RegistroConsumo;
   /** Auditorías controladas: una sola solicitud, sin reintentos automáticos. */
   sinReintentos?: boolean;
+  /** Fuerza sesión nueva en el proveedor (`auth_cache=0`). Uso puntual. */
+  sinCacheAuth?: boolean;
 }
 
 
@@ -272,7 +295,10 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
 
   input.registro?.exigirPresupuesto(moduloError);
 
-  const url = construirUrl(input.config.baseUrl, input.ruta, input.query);
+  const query = input.sinCacheAuth
+    ? { ...(input.query ?? {}), auth_cache: "0" }
+    : input.query;
+  const url = construirUrl(input.config.baseUrl, input.ruta, query);
   const maxIntentos = input.sinReintentos ? 0 : MAX_REINTENTOS;
   let ultimoError: SiiProviderError | null = null;
 
@@ -295,6 +321,8 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       limiteRestante: null,
       codigoError: null,
       referenciaTecnica: null,
+      problemaSesion: null,
+      sinCacheAuth: input.sinCacheAuth === true,
     };
 
 
@@ -313,6 +341,9 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       estadoHttp = respuesta.status;
 
       const proxy = respuesta.headers.get("x-source-proxy");
+      const problemaSesion =
+        respuesta.headers.get("x-stats-navegadorsessionproblem") === "1" ||
+        respuesta.headers.get("x-auth-session-problem") === "1";
       log = {
         ...log,
         estadoHttp,
@@ -326,6 +357,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
         ),
         proxyUsado: proxy == null ? null : proxy !== "0",
         limiteRestante: numeroCabecera(respuesta.headers, "x-ratelimit-remaining"),
+        problemaSesion,
       };
 
       const texto = await respuesta.text();
@@ -346,7 +378,7 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
                   "",
               )
             : "";
-        const codigo = mapearError(respuesta.status, detalle, esJson);
+        const codigo = mapearError(respuesta.status, detalle, esJson, problemaSesion);
         log = {
           ...log,
           codigoError: codigo,

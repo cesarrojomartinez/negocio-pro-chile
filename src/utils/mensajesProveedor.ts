@@ -10,13 +10,11 @@ export type ProveedorSii = "mock" | "api_gateway";
 /** Severidad visual sugerida para el mensaje. */
 export type TonoMensaje = "info" | "warning" | "error" | "success";
 
-const CODIGOS_AUTENTICACION = [
-  "INVALID_CREDENTIALS",
-  "SESSION_EXPIRED",
-  "AUTH_EXPIRED",
-  "ACCOUNT_BLOCKED",
-  "NOT_AUTHORIZED",
-];
+/** Credenciales explícitamente rechazadas por el SII. */
+const CODIGOS_CREDENCIALES = ["INVALID_CREDENTIALS", "ACCOUNT_BLOCKED"];
+
+/** La sesión del proveedor venció: NO es un problema de clave. */
+const CODIGOS_SESION = ["SESSION_INVALID", "SESSION_EXPIRED", "AUTH_EXPIRED"];
 
 const CODIGOS_PARCIALES = ["PARTIAL_DATA", "REQUEST_BUDGET_REACHED"];
 
@@ -51,10 +49,30 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
   const { proveedor, codigo, productosVerificados } = entrada;
   const respaldo = entrada.mensaje?.trim() || "Consulta completada.";
 
-  if (codigo && CODIGOS_AUTENTICACION.includes(codigo)) {
+  if (codigo && CODIGOS_SESION.includes(codigo)) {
     return {
       texto:
-        "No fue posible autenticar la consulta en el SII. Revisa el RUT autorizado y la Clave Tributaria.",
+        "La sesión del SII utilizada por el proveedor venció. Debes ejecutar nuevamente la consulta para crear una sesión nueva.",
+      tono: "warning",
+    };
+  }
+
+  if (codigo === "ACCOUNT_BLOCKED") {
+    return {
+      texto:
+        "El SII bloqueó el acceso de esta clave. Ingresa al portal del SII para desbloquearla y vuelve a intentar.",
+      tono: "error",
+    };
+  }
+
+  if (codigo && CODIGOS_CREDENCIALES.includes(codigo)) {
+    return { texto: "El SII rechazó las credenciales ingresadas.", tono: "error" };
+  }
+
+  if (codigo === "NOT_AUTHORIZED") {
+    return {
+      texto:
+        "Las credenciales son válidas, pero no tienen autorización para consultar esta empresa.",
       tono: "error",
     };
   }
@@ -68,8 +86,7 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
 
   if (codigo === "INVALID_REQUEST") {
     return {
-      texto:
-        "La consulta se envió con datos incompletos y el servicio la rechazó. Revisa el RUT autorizado y el periodo, y vuelve a intentar.",
+      texto: "La solicitud enviada al proveedor no tenía el formato esperado.",
       tono: "warning",
     };
   }
@@ -77,7 +94,7 @@ export function mensajeProveedor(entrada: EntradaMensajeProveedor): MensajeProve
   if (codigo === "COMPANY_ACCESS_DENIED") {
     return {
       texto:
-        "El usuario autorizado no tiene acceso a esta empresa en el SII. Verifica el RUT autorizado.",
+        "Las credenciales son válidas, pero no tienen autorización para consultar esta empresa.",
       tono: "error",
     };
   }
