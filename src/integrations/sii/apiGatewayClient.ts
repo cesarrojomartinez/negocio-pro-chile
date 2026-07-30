@@ -321,6 +321,8 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       limiteRestante: null,
       codigoError: null,
       referenciaTecnica: null,
+      problemaSesion: null,
+      sinCacheAuth: input.sinCacheAuth === true,
     };
 
 
