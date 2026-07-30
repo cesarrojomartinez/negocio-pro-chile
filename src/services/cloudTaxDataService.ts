@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   actualizarConfiguracionFn,
   cambiarConexionDemoFn,
+  recalcularPeriodoFn,
   registrarSincronizacionFn,
 } from "@/lib/companies.functions";
 import {
@@ -301,6 +302,9 @@ export const cloudTaxDataService: TaxDataService & {
       data: { companyId, periodo: periodoId ?? null },
     });
     if (!r.ok) throw new ErrorDatosCloud(r.error);
+    if (periodoId) {
+      await recalcularPeriodoFn({ data: { companyId, periodo: periodoId } });
+    }
     return r.data.ultimaSincronizacion;
   },
 
