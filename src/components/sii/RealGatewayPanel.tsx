@@ -431,6 +431,14 @@ export function RealGatewayPanel() {
                 Resultado de la última consulta real
               </h3>
               <p className="mt-1 text-sm">{m.texto}</p>
+              {s?.inconsistencias?.length ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                  {s.inconsistencias.map((x) => (
+                    <li key={x}>{x}</li>
+                  ))}
+                </ul>
+              ) : null}
+
 
               <div className="mt-3">
                 <DataRow label="Estado general" value={estadoGeneral} />
