@@ -160,8 +160,9 @@ export async function recalculateTaxPeriod(
   const { data: settings } = await supabaseAdmin
     .from("tax_company_settings")
     .select(
-      "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate",
+      "monthly_sales_goal, reserved_amount, preventive_margin_percent, estimated_ppm_rate, ppm_rate_confirmed",
     )
+
     .eq("company_id", entrada.companyId)
     .maybeSingle();
 
