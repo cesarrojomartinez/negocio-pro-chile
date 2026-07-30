@@ -863,24 +863,30 @@ export async function syncSiiCompanyPeriod(
   await registrarActividad(
     entrada.companyId,
     userId,
-    "sii.sync_demo",
+    esReal ? "sii.sync_real" : "sii.sync_demo",
     "tax_sync_runs",
     {
       periodo: entrada.periodo,
       estado,
       consultas,
       modulos_fallidos: fallidos.length,
+      fuente,
     },
   );
 
+  const noDisponibles: SiiModule[] =
+    errorCodigo === "RESOURCE_NOT_DOCUMENTED" ? fallidos.slice() : [];
+
   const mensaje =
     estado === "success"
-      ? "Actualizamos la información demostrativa de este periodo."
+      ? esReal
+        ? "Actualizamos la información de este periodo con el proveedor real."
+        : "Actualizamos la información demostrativa de este periodo."
       : estado === "partial"
         ? "Trajimos solo una parte de la información. Los cálculos quedan como estimación parcial."
         : primerError
           ? (primerError as SiiProviderError).message
-          : "No pudimos completar la actualización demostrativa.";
+          : "No pudimos completar la actualización.";
 
   return {
     ejecutada: true,
@@ -891,6 +897,7 @@ export async function syncSiiCompanyPeriod(
     modulosCompletados: completados,
     modulosFallidos: fallidos,
     modulosDesdeCache: desdeCache,
+    modulosNoDisponibles: noDisponibles,
     documentosRecibidos: recibidos,
     documentosCreados: creados,
     documentosActualizados: actualizados,
@@ -903,8 +910,12 @@ export async function syncSiiCompanyPeriod(
     proximaActualizacion: decision.proximaActualizacion,
     errorCodigo,
     mensaje,
-    simulado: true,
+    simulado: !esReal,
+    fuente,
+    ...consumo(),
   };
+}
+
 }
 
 export interface RegistroSincronizacion {
