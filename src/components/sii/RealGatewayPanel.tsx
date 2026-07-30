@@ -228,7 +228,7 @@ export function RealGatewayPanel() {
           ) : (
             <KeyRound className="h-4 w-4" aria-hidden />
           )}
-          {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodoId}`}
+          {ejecutando ? "Consultando" : `Ejecutar prueba de ${periodo}`}
         </Button>
         <Button
           variant="outline"
