@@ -22,7 +22,7 @@ import { formatFechaHora } from "@/utils/currency";
  */
 export function RealGatewayPanel() {
   const { empresaActiva } = useCompany();
-  const { periodoId, recargar } = useTaxDashboard();
+  const { periodoId } = useTaxDashboard();
 
   const [diagnostico, setDiagnostico] = useState<DiagnosticoApiGateway | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -69,7 +69,6 @@ export function RealGatewayPanel() {
       setClave("");
       if (r.errorCodigo) toast.error(r.mensaje);
       else toast.success(r.mensaje);
-      await recargar?.();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
@@ -109,7 +108,7 @@ export function RealGatewayPanel() {
         />
         <DataRow
           label="Módulos habilitados"
-          value={diagnostico.modulosHabilitados.length || "—"}
+          value={String(diagnostico.modulosHabilitados.length || "—")}
         />
         <DataRow label="Verificado" value={formatFechaHora(diagnostico.verificadoEn)} />
       </div>
@@ -208,8 +207,8 @@ export function RealGatewayPanel() {
         <div className="mt-4 rounded-2xl border border-border p-4">
           <p className="text-sm font-semibold">{resultado.mensaje}</p>
           <div className="mt-2">
-            <DataRow label="Consultas al proveedor" value={resultado.consultas} />
-            <DataRow label="Créditos consumidos" value={resultado.creditosConsumidos} />
+            <DataRow label="Consultas al proveedor" value={String(resultado.consultas)} />
+            <DataRow label="Créditos consumidos" value={String(resultado.creditosConsumidos)} />
             <DataRow
               label="Créditos disponibles"
               value={
@@ -220,11 +219,11 @@ export function RealGatewayPanel() {
             />
             <DataRow
               label="Documentos recibidos"
-              value={resultado.sincronizacion?.documentosRecibidos ?? 0}
+              value={String(resultado.sincronizacion?.documentosRecibidos ?? 0)}
             />
             <DataRow
               label="Documentos nuevos"
-              value={resultado.sincronizacion?.documentosCreados ?? 0}
+              value={String(resultado.sincronizacion?.documentosCreados ?? 0)}
             />
             {resultado.sincronizacion?.modulosNoDisponibles.length ? (
               <DataRow
