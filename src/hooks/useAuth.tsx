@@ -78,7 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Primer ingreso: creamos el perfil a partir de los metadatos del registro.
+    // Reparación para cuentas antiguas: los registros nuevos ya reciben su
+    // perfil desde el trigger on_auth_user_created en la base de datos.
     const meta = (user?.user_metadata ?? {}) as Record<string, string | undefined>;
     const nuevo = {
       id: userId,
