@@ -246,11 +246,23 @@ export function AppShell({ children }: { children: ReactNode }) {
               </DropdownMenu>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
-              <ConnectionBadge estado={estadoConexion} />
-              <FuentePeriodoBadge fuente={fuentePeriodo} />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3 sm:px-6">
+              <span className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Empresa:</span>
+                <ConnectionBadge estado={estadoConexion} />
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">
+                  Fuente del periodo:
+                </span>
+                <FuentePeriodoBadge fuente={fuentePeriodo} />
+              </span>
               <span className="text-xs text-muted-foreground">
-                Última actualización: {formatFechaHora(ultimaSincronizacion)}
+                {fuentePeriodo === "accountant_confirmed"
+                  ? "Antecedentes confirmados por tu contador."
+                  : estadoConexion === "stale"
+                    ? `Información desactualizada. Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`
+                    : `Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`}
               </span>
             </div>
           </header>
@@ -260,13 +272,23 @@ export function AppShell({ children }: { children: ReactNode }) {
               <SimulatedDataNotice className="mb-4" compacto />
             )}
             {fuentePeriodo === "not_synchronized" && (
-              <p
+              <div
                 role="note"
-                className="mb-4 rounded-xl bg-warning-soft px-3 py-2 text-xs font-medium text-warning-foreground"
+                className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-warning-soft px-3 py-2 text-xs font-medium text-warning-foreground"
               >
-                {MENSAJE_PERIODO_SIN_SINCRONIZAR}
-              </p>
+                <span>{MENSAJE_PERIODO_SIN_SINCRONIZAR}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8"
+                  onClick={() => void actualizar()}
+                  disabled={actualizando}
+                >
+                  {actualizando ? "Sincronizando" : "Sincronizar este periodo"}
+                </Button>
+              </div>
             )}
+
             {children}
           </main>
 
