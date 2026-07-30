@@ -38,17 +38,30 @@ const ERRORES_DE_SESION = ["AUTH_EXPIRED", "INVALID_CREDENTIALS", "NOT_AUTHORIZE
 
 /**
  * Opciones internas del servidor. No se exponen en las server functions:
- * existen para pruebas controladas (reloj y proveedor inyectables).
+ * existen para pruebas controladas (reloj y proveedor inyectables) y para la
+ * prueba real con API Gateway.
  */
 export interface OpcionesInternas {
   ahora?: Date;
   proveedor?: SiiProviderAdapter;
+  /** Proveedor con el que se trabaja la conexión y la fuente de los datos. */
+  proveedorId?: SiiProviderId;
+  /** Acumulador de consumo real (consultas, créditos, proxy). */
+  registro?: RegistroConsumo;
+  /** Omite la política de caché: la prueba real la controla su propio límite. */
+  omitirPoliticaCache?: boolean;
 }
 
-/** Selecciona el proveedor activo. Hoy siempre el simulado. */
+/** Selecciona el proveedor activo. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
   return id === "api_gateway" ? apiGatewaySiiProviderAdapter : mockSiiProviderAdapter;
 }
+
+/** Fuente de datos que corresponde a cada proveedor. */
+function fuenteDe(id: SiiProviderId): "mock_gateway" | "api_gateway" {
+  return id === "api_gateway" ? "api_gateway" : "mock_gateway";
+}
+
 
 
 export interface ConexionSii {
