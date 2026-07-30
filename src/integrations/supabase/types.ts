@@ -723,22 +723,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      company_role_of: {
-        Args: { _company_id: string; _user_id: string }
-        Returns: Database["public"]["Enums"]["app_company_role"]
-      }
-      has_company_role: {
-        Args: {
-          _company_id: string
-          _roles: Database["public"]["Enums"]["app_company_role"][]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_active_company_member: {
-        Args: { _company_id: string; _user_id: string }
-        Returns: boolean
-      }
       normalize_rut: { Args: { _rut: string }; Returns: string }
     }
     Enums: {
