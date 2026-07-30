@@ -207,6 +207,8 @@ export type FuentePeriodo =
 export interface DashboardData {
   /** Origen de la información del periodo mostrado. */
   fuentePeriodo: FuentePeriodo;
+  /** Contexto tributario con la procedencia de cada componente. */
+  contexto: import("@/lib/taxContext").ContextoTributario;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
   meta: MetaComercial;
