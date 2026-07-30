@@ -220,6 +220,14 @@ export function RealGatewayPanel() {
       setEjecutando(false);
     }
   };
+  // Cuando el usuario pide "Actualizar" con proveedor real, traemos el formulario
+  // a la vista para que ingrese su clave (nunca se guarda).
+  useEffect(() => {
+    if (solicitudActualizacionReal > 0) {
+      contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [solicitudActualizacionReal]);
+
 
 
 
