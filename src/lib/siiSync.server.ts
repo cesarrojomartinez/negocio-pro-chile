@@ -1172,15 +1172,18 @@ export async function syncSiiCompanyPeriod(
   const mensaje = soloAutenticacion
     ? "No fue posible autenticar la consulta en el SII. Revisa el RUT autorizado y la Clave Tributaria."
     : estado === "success"
-      ? !completados.length && sinInformacion.length
+      ? // "Sin movimientos" solo cuando el resumen oficial también viene vacío.
+        informadosResumen === 0 && persistidos === 0
         ? "El SII no registra movimientos para el periodo seleccionado."
         : noDisponibles.length
           ? "Consulta completada. Obtuvimos las ventas y compras disponibles. Algunos antecedentes complementarios del F29 no están disponibles de forma estructurada."
           : esReal
-            ? "Actualizamos la información de este periodo con el proveedor real."
+            ? `Actualizamos la información de este periodo con el proveedor real. Guardamos ${persistidos} documentos.`
             : "Actualizamos la información demostrativa de este periodo."
       : estado === "partial"
-        ? "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes."
+        ? inconsistencias.length
+          ? `Recibimos los totales oficiales del SII, pero no pudimos importar todo el detalle. ${inconsistencias[0]}`
+          : "Consulta parcialmente completada. Obtuvimos parte de la información del periodo. Revisa los módulos pendientes."
         : primerError
           ? (primerError as SiiProviderError).message
           : "No pudimos completar la actualización.";
@@ -1191,6 +1194,18 @@ export async function syncSiiCompanyPeriod(
     estado,
     periodo: entrada.periodo,
     syncRunId: run.id,
+    documentosInformadosResumen: informadosResumen,
+    documentosPersistidos: persistidos,
+    motivosRechazo: [...motivos.entries()].map(([motivo, cantidad]) => ({
+      motivo,
+      cantidad,
+    })),
+    totalesResumen: hayResumen
+      ? { ventas: resumenVentas, compras: resumenCompras }
+      : null,
+    inconsistencias,
+    fuenteTotales: usarResumenComoRespaldo ? "rcv_summary" : "documents",
+
     modulosCompletados: completados,
     modulosFallidos: fallidos,
     modulosDesdeCache: desdeCache,
