@@ -446,6 +446,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       error,
       actualizando,
       periodoId,
+      companyId,
       periodosDisponibles,
       escenario,
       margenPorcentaje,
