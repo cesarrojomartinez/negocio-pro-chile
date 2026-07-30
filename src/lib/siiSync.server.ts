@@ -1085,8 +1085,19 @@ export async function syncSiiCompanyPeriod(
       credits_balance: registro?.creditosDisponibles ?? null,
       proxy_used: registro?.proxyUsado ?? null,
       pages_requested: registro?.consultas ?? undefined,
-
+      summary_documents_reported: informadosResumen,
+      detail_documents_received: recibidos,
+      documents_persisted: persistidos,
+      documents_rejected: descartados,
+      rejection_reasons: [...motivos.entries()].map(([motivo, cantidad]) => ({
+        motivo,
+        cantidad,
+      })) as never,
+      summary_totals: hayResumen
+        ? ({ ventas: resumenVentas, compras: resumenCompras } as never)
+        : null,
       data_through_date: datosHasta,
+
       duration_ms: Date.now() - inicio,
       error_code: errorCodigo,
       error_message: primerError ? (primerError as SiiProviderError).message : null,
