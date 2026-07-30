@@ -186,6 +186,87 @@ const ESTADOS_QUE_PRUEBAN_CONTRATO: EstadoProducto[] = [
   "mantenimiento",
 ];
 
+/** RUT genérico de sondeo: nunca corresponde a un contribuyente real. */
+const RUT_SONDEO = "11111111-1";
+
+/**
+ * Sondea un recurso de cada producto para distinguir con evidencia real entre
+ * producto no contratado, recurso inexistente, periodo sin datos, error de
+ * autenticación, saldo insuficiente, proxy requerido y mantenimiento.
+ * Nunca usa credenciales reales: la clave enviada es un valor de descarte.
+ */
+async function sondearProductos(
+  config: ApiGatewayConfig,
+  registro: RegistroConsumo,
+): Promise<ProductoDiagnostico[]> {
+  const ahora = new Date();
+  const anterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+  const periodoCompacto = `${anterior.getFullYear()}${String(anterior.getMonth() + 1).padStart(2, "0")}`;
+  const periodoAnual = String(anterior.getFullYear());
+  const cuerpo = { auth: { pass: { rut: RUT_SONDEO, clave: "sondeo-sin-valor" } } };
+
+  const definiciones = [
+    {
+      clave: "rcv" as const,
+      titulo: "Registro de Compras y Ventas",
+      modulo: "rcv_sales_summary" as const,
+      ruta: recursoDe("rcv_sales_summary")
+        .path.replace("{emisor}", RUT_SONDEO)
+        .replace("{periodo}", periodoCompacto),
+      query: { formato: "json" },
+    },
+    {
+      clave: "f29" as const,
+      titulo: "Formulario 29",
+      modulo: "f29_periods" as const,
+      ruta: recursoDe("f29_periods").path.replace("{periodo}", periodoAnual),
+      query: undefined,
+    },
+  ];
+
+  const salida: ProductoDiagnostico[] = [];
+  for (const d of definiciones) {
+    try {
+      await requestApiGateway<typeof cuerpo, unknown>({
+        config,
+        modulo: d.modulo,
+        metodo: "POST",
+        ruta: d.ruta,
+        query: d.query,
+        body: cuerpo,
+        registro,
+      });
+      salida.push({
+        clave: d.clave,
+        titulo: d.titulo,
+        estado: "habilitado",
+        etiqueta: ETIQUETA_PRODUCTO.habilitado,
+        contratado: true,
+        recurso: d.ruta,
+        detalle: "El recurso respondió correctamente.",
+      });
+    } catch (error) {
+      const codigo = error instanceof SiiProviderError ? error.code : "UNKNOWN_ERROR";
+      const estado = estadoProductoDesdeCodigo(codigo);
+      const contratado = ESTADOS_QUE_PRUEBAN_CONTRATO.includes(estado);
+      salida.push({
+        clave: d.clave,
+        titulo: d.titulo,
+        estado,
+        etiqueta: ETIQUETA_PRODUCTO[estado],
+        contratado,
+        recurso: d.ruta,
+        detalle: contratado
+          ? "El servicio ejecutó la consulta y llegó al SII: el producto está contratado. Con credenciales válidas entrega información."
+          : `El sondeo terminó con el código interno ${codigo}.`,
+      });
+    }
+  }
+  return salida;
+}
+
+
+
 /**
  * Comprueba la configuración antes de cualquier consulta real.
  * Usa un recurso documentado que NO requiere credenciales del SII.
