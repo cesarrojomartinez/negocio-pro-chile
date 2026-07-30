@@ -419,7 +419,7 @@ export async function recalculateTaxPeriod(
       gross_vat_position: ctx.gross_vat_position,
       declared_tax_total: ctx.declared_tax_total,
       calculation_status: ctx.calculation_status,
-      missing_components: ctx.missing_components,
+      missing_components: ctx.missing_components.map((c) => ({ ...c })),
       sales_total: r.ventasTotales,
       invoice_sales: r.ventasFacturas,
       receipt_sales: r.ventasBoletas,
