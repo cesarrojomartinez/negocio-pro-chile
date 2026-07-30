@@ -60,7 +60,7 @@ describe("validación oficial universal", () => {
       code,
       raw_value: String(monto),
       normalized_value: monto,
-      value_type: "amount",
+      value_type: "money",
       page: 1,
       extraction_method: "positional",
       confidence: 1,
