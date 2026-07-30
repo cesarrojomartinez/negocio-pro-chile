@@ -305,6 +305,56 @@ export type Database = {
           },
         ]
       }
+      tax_company_tax_parameters: {
+        Row: {
+          company_id: string
+          confirmed: boolean
+          created_at: string
+          effective_from: string
+          effective_to: string | null
+          id: string
+          notes: string | null
+          parameter_type: string
+          source: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          company_id: string
+          confirmed?: boolean
+          created_at?: string
+          effective_from: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          parameter_type: string
+          source?: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          company_id?: string
+          confirmed?: boolean
+          created_at?: string
+          effective_from?: string
+          effective_to?: string | null
+          id?: string
+          notes?: string | null
+          parameter_type?: string
+          source?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_company_tax_parameters_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_documents: {
         Row: {
           company_id: string
@@ -455,11 +505,14 @@ export type Database = {
       tax_monthly_summaries: {
         Row: {
           calculated_at: string
+          calculation_status: string
+          carryforward_known: boolean
           carryforward_source: string
           company_id: string
           confidence_level: string
           confidence_reasons: Json
           created_at: string
+          declared_tax_total: number | null
           estimated_new_carryforward: number
           estimated_ppm: number
           estimated_tax_total: number
@@ -467,9 +520,14 @@ export type Database = {
           estimated_withholdings: number
           exempt_purchases: number
           exempt_sales: number
+          gross_vat_position: number
           id: string
           invoice_sales: number
+          missing_components: Json
           net_purchases: number
+          other_vat_credits: number
+          other_vat_debits: number
+          ppm_base_source: string | null
           ppm_rate: number | null
           ppm_source: string
           ppm_tax_base: number
@@ -485,23 +543,33 @@ export type Database = {
           recommended_reserve: number
           reserved_amount_snapshot: number
           sales_credit_notes: number
+          sales_source: string | null
           sales_total: number
           source: Database["public"]["Enums"]["tax_data_source"]
+          special_adjustments_source: string | null
+          special_credits: number
+          special_debits: number
           tax_period_id: string
+          total_vat_credits: number
           totals_source: string
           updated_at: string
           vat_credit: number
           vat_credit_potential: number
+          vat_credit_source: string | null
           vat_debit: number
+          vat_debit_source: string | null
           withholdings_source: string
         }
         Insert: {
           calculated_at?: string
+          calculation_status?: string
+          carryforward_known?: boolean
           carryforward_source?: string
           company_id: string
           confidence_level?: string
           confidence_reasons?: Json
           created_at?: string
+          declared_tax_total?: number | null
           estimated_new_carryforward?: number
           estimated_ppm?: number
           estimated_tax_total?: number
@@ -509,9 +577,14 @@ export type Database = {
           estimated_withholdings?: number
           exempt_purchases?: number
           exempt_sales?: number
+          gross_vat_position?: number
           id?: string
           invoice_sales?: number
+          missing_components?: Json
           net_purchases?: number
+          other_vat_credits?: number
+          other_vat_debits?: number
+          ppm_base_source?: string | null
           ppm_rate?: number | null
           ppm_source?: string
           ppm_tax_base?: number
@@ -527,23 +600,33 @@ export type Database = {
           recommended_reserve?: number
           reserved_amount_snapshot?: number
           sales_credit_notes?: number
+          sales_source?: string | null
           sales_total?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
+          special_adjustments_source?: string | null
+          special_credits?: number
+          special_debits?: number
           tax_period_id: string
+          total_vat_credits?: number
           totals_source?: string
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
+          vat_credit_source?: string | null
           vat_debit?: number
+          vat_debit_source?: string | null
           withholdings_source?: string
         }
         Update: {
           calculated_at?: string
+          calculation_status?: string
+          carryforward_known?: boolean
           carryforward_source?: string
           company_id?: string
           confidence_level?: string
           confidence_reasons?: Json
           created_at?: string
+          declared_tax_total?: number | null
           estimated_new_carryforward?: number
           estimated_ppm?: number
           estimated_tax_total?: number
@@ -551,9 +634,14 @@ export type Database = {
           estimated_withholdings?: number
           exempt_purchases?: number
           exempt_sales?: number
+          gross_vat_position?: number
           id?: string
           invoice_sales?: number
+          missing_components?: Json
           net_purchases?: number
+          other_vat_credits?: number
+          other_vat_debits?: number
+          ppm_base_source?: string | null
           ppm_rate?: number | null
           ppm_source?: string
           ppm_tax_base?: number
@@ -569,14 +657,21 @@ export type Database = {
           recommended_reserve?: number
           reserved_amount_snapshot?: number
           sales_credit_notes?: number
+          sales_source?: string | null
           sales_total?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
+          special_adjustments_source?: string | null
+          special_credits?: number
+          special_debits?: number
           tax_period_id?: string
+          total_vat_credits?: number
           totals_source?: string
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
+          vat_credit_source?: string | null
           vat_debit?: number
+          vat_debit_source?: string | null
           withholdings_source?: string
         }
         Relationships: [
