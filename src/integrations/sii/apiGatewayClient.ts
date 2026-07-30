@@ -12,13 +12,20 @@
  *   cabeceras: x-stats-credits-used, x-stats-credits-remaining, x-source-proxy,
  *              x-ratelimit-limit, x-ratelimit-remaining
  */
-import { SiiProviderError, type SiiErrorCode, type SiiModule } from "./contracts";
+import {
+  ERRORES_REINTENTABLES,
+  SiiProviderError,
+  type SiiErrorCode,
+  type SiiModule,
+} from "./contracts";
 import { sanitizarProfundo } from "./sanitize";
 
 export const BASE_URL_POR_DEFECTO = "https://app.apigateway.cl/api/v2/";
 export const TIEMPO_MAXIMO_MS = 45_000;
 export const MAX_REAL_PROVIDER_REQUESTS_PER_SYNC = 24;
-const MAX_REINTENTOS = 2;
+/** Prueba controlada: como máximo un reintento automático. */
+const MAX_REINTENTOS = 1;
+
 
 export interface ApiGatewayConfig {
   baseUrl: string;
