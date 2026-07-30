@@ -7,6 +7,8 @@ import { DataRow, SectionCard } from "@/components/shared/SectionCard";
 import { MargenSelector } from "@/components/dashboard/MargenSelector";
 import { ScenarioSwitcher } from "@/components/shared/ScenarioSwitcher";
 import { ConnectionBadge } from "@/components/shared/Badges";
+import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
+import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
 import { MoneyDialog } from "@/components/shared/MoneyDialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -99,6 +101,8 @@ function Configuracion() {
           </p>
         </header>
 
+        <SimulatedDataNotice />
+
         <SectionCard
           titulo="Datos generales de la empresa"
           acciones={<Building2 className="h-5 w-5 text-primary" aria-hidden />}
@@ -170,33 +174,38 @@ function Configuracion() {
           </div>
         </SectionCard>
 
-        <SectionCard
-          titulo="Conexión con el SII"
-          descripcion="En esta etapa la conexión es solo demostrativa."
-        >
-          <div className="flex flex-wrap items-center gap-3">
-            <ConnectionBadge estado={estadoConexion} />
-            <span className="text-sm text-muted-foreground">
-              Última sincronización: {formatFechaHora(ultimaSincronizacion)}
-            </span>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={() => setModalConexion(true)}>
-              <Link2 className="h-4 w-4" aria-hidden />
-              Conectar SII
-            </Button>
-            <Button
-              variant="outline"
-              onClick={desconectar}
-              disabled={estadoConexion === "disconnected"}
-            >
-              <Unlink className="h-4 w-4" aria-hidden />
-              Desconectar
-            </Button>
-          </div>
-        </SectionCard>
+        {esCloud ? (
+          <SiiConnectionPanel />
+        ) : (
+          <SectionCard
+            titulo="Conexión con el SII"
+            descripcion="En esta etapa la conexión es solo demostrativa."
+          >
+            <SimulatedDataNotice className="mb-4" />
+            <div className="flex flex-wrap items-center gap-3">
+              <ConnectionBadge estado={estadoConexion} />
+              <span className="text-sm text-muted-foreground">
+                Última sincronización: {formatFechaHora(ultimaSincronizacion)}
+              </span>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button onClick={() => setModalConexion(true)}>
+                <Link2 className="h-4 w-4" aria-hidden />
+                Conectar SII
+              </Button>
+              <Button
+                variant="outline"
+                onClick={desconectar}
+                disabled={estadoConexion === "disconnected"}
+              >
+                <Unlink className="h-4 w-4" aria-hidden />
+                Desconectar
+              </Button>
+            </div>
+          </SectionCard>
+        )}
 
-        <ScenarioSwitcher />
+        {!esCloud && <ScenarioSwitcher />}
 
         <Dialog open={modalConexion} onOpenChange={setModalConexion}>
           <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">

@@ -643,6 +643,73 @@ export type Database = {
           },
         ]
       }
+      tax_provider_snapshots: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          module: Database["public"]["Enums"]["sii_snapshot_module"]
+          normalized_at: string | null
+          payload: Json
+          payload_checksum: string | null
+          provider: Database["public"]["Enums"]["sii_provider"]
+          provider_reference: string | null
+          received_at: string
+          sync_run_id: string | null
+          tax_period_id: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          module: Database["public"]["Enums"]["sii_snapshot_module"]
+          normalized_at?: string | null
+          payload?: Json
+          payload_checksum?: string | null
+          provider?: Database["public"]["Enums"]["sii_provider"]
+          provider_reference?: string | null
+          received_at?: string
+          sync_run_id?: string | null
+          tax_period_id?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          module?: Database["public"]["Enums"]["sii_snapshot_module"]
+          normalized_at?: string | null
+          payload?: Json
+          payload_checksum?: string | null
+          provider?: Database["public"]["Enums"]["sii_provider"]
+          provider_reference?: string | null
+          received_at?: string
+          sync_run_id?: string | null
+          tax_period_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_provider_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_provider_snapshots_sync_run_id_fkey"
+            columns: ["sync_run_id"]
+            isOneToOne: false
+            referencedRelation: "tax_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_provider_snapshots_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sales_goals: {
         Row: {
           company_id: string
@@ -688,54 +755,167 @@ export type Database = {
           },
         ]
       }
+      tax_sii_connections: {
+        Row: {
+          auth_method: Database["public"]["Enums"]["sii_auth_method"]
+          authorized_rut: string | null
+          company_id: string
+          connected_at: string | null
+          consent_accepted_at: string | null
+          consent_version: string | null
+          created_at: string
+          created_by: string | null
+          disconnected_at: string | null
+          id: string
+          last_attempt_at: string | null
+          last_error_code: string | null
+          last_error_message: string | null
+          last_successful_sync_at: string | null
+          provider: Database["public"]["Enums"]["sii_provider"]
+          provider_connection_ref: string | null
+          session_expires_at: string | null
+          status: Database["public"]["Enums"]["sii_connection_status"]
+          updated_at: string
+        }
+        Insert: {
+          auth_method?: Database["public"]["Enums"]["sii_auth_method"]
+          authorized_rut?: string | null
+          company_id: string
+          connected_at?: string | null
+          consent_accepted_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          disconnected_at?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_successful_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["sii_provider"]
+          provider_connection_ref?: string | null
+          session_expires_at?: string | null
+          status?: Database["public"]["Enums"]["sii_connection_status"]
+          updated_at?: string
+        }
+        Update: {
+          auth_method?: Database["public"]["Enums"]["sii_auth_method"]
+          authorized_rut?: string | null
+          company_id?: string
+          connected_at?: string | null
+          consent_accepted_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          disconnected_at?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_successful_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["sii_provider"]
+          provider_connection_ref?: string | null
+          session_expires_at?: string | null
+          status?: Database["public"]["Enums"]["sii_connection_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_sii_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sync_runs: {
         Row: {
+          cache_hit: boolean
           company_id: string
           completed_at: string | null
           created_at: string
+          data_through_date: string | null
+          duration_ms: number | null
           error_code: string | null
           error_message: string | null
+          estimated_credits: number | null
           id: string
+          idempotency_key: string | null
+          modules_completed: string[]
+          modules_failed: string[]
+          modules_requested: string[]
+          next_retry_at: string | null
+          provider_request_count: number
           records_created: number
           records_received: number
           records_updated: number
+          retry_count: number
           source: Database["public"]["Enums"]["tax_data_source"]
           started_at: string
           status: Database["public"]["Enums"]["tax_sync_status"]
           sync_type: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id: string | null
+          trigger_type: Database["public"]["Enums"]["tax_sync_type"] | null
+          triggered_by: string | null
         }
         Insert: {
+          cache_hit?: boolean
           company_id: string
           completed_at?: string | null
           created_at?: string
+          data_through_date?: string | null
+          duration_ms?: number | null
           error_code?: string | null
           error_message?: string | null
+          estimated_credits?: number | null
           id?: string
+          idempotency_key?: string | null
+          modules_completed?: string[]
+          modules_failed?: string[]
+          modules_requested?: string[]
+          next_retry_at?: string | null
+          provider_request_count?: number
           records_created?: number
           records_received?: number
           records_updated?: number
+          retry_count?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           started_at?: string
           status?: Database["public"]["Enums"]["tax_sync_status"]
           sync_type?: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id?: string | null
+          trigger_type?: Database["public"]["Enums"]["tax_sync_type"] | null
+          triggered_by?: string | null
         }
         Update: {
+          cache_hit?: boolean
           company_id?: string
           completed_at?: string | null
           created_at?: string
+          data_through_date?: string | null
+          duration_ms?: number | null
           error_code?: string | null
           error_message?: string | null
+          estimated_credits?: number | null
           id?: string
+          idempotency_key?: string | null
+          modules_completed?: string[]
+          modules_failed?: string[]
+          modules_requested?: string[]
+          next_retry_at?: string | null
+          provider_request_count?: number
           records_created?: number
           records_received?: number
           records_updated?: number
+          retry_count?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           started_at?: string
           status?: Database["public"]["Enums"]["tax_sync_status"]
           sync_type?: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id?: string | null
+          trigger_type?: Database["public"]["Enums"]["tax_sync_type"] | null
+          triggered_by?: string | null
         }
         Relationships: [
           {
@@ -764,12 +944,24 @@ export type Database = {
     Enums: {
       app_company_role: "owner" | "business_user" | "accountant" | "viewer"
       company_member_status: "invited" | "active" | "suspended" | "removed"
+      sii_auth_method: "demo" | "tax_key" | "certificate"
       sii_connection_status:
         | "disconnected"
         | "connecting"
         | "connected"
         | "stale"
         | "error"
+      sii_provider: "mock" | "api_gateway"
+      sii_snapshot_module:
+        | "rcv_sales_summary"
+        | "rcv_sales_documents"
+        | "rcv_purchases_registered"
+        | "rcv_purchases_pending"
+        | "rcv_purchases_claimed"
+        | "rcv_purchases_excluded"
+        | "f29_periods"
+        | "f29_detail"
+        | "withholdings"
       tax_alert_severity: "info" | "success" | "warning" | "critical"
       tax_alert_type:
         | "reserve_insufficient"
@@ -780,7 +972,13 @@ export type Database = {
         | "high_tax_projection"
         | "positive_carryforward"
       tax_confidence_level: "high" | "medium" | "low" | "unknown"
-      tax_data_source: "mock" | "manual" | "gateway" | "sii" | "accountant"
+      tax_data_source:
+        | "mock"
+        | "manual"
+        | "gateway"
+        | "sii"
+        | "accountant"
+        | "mock_gateway"
       tax_document_direction: "sale" | "purchase"
       tax_f29_status:
         | "not_available"
@@ -796,13 +994,22 @@ export type Database = {
         | "excluded"
         | "accepted"
         | "unknown"
-      tax_sync_status: "pending" | "running" | "success" | "partial" | "failed"
+      tax_sync_status:
+        | "pending"
+        | "running"
+        | "success"
+        | "partial"
+        | "failed"
+        | "skipped"
       tax_sync_type:
         | "demo"
         | "manual"
         | "scheduled"
         | "login_refresh"
         | "gateway"
+        | "demo_connect"
+        | "weekly_refresh"
+        | "retry"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -932,12 +1139,25 @@ export const Constants = {
     Enums: {
       app_company_role: ["owner", "business_user", "accountant", "viewer"],
       company_member_status: ["invited", "active", "suspended", "removed"],
+      sii_auth_method: ["demo", "tax_key", "certificate"],
       sii_connection_status: [
         "disconnected",
         "connecting",
         "connected",
         "stale",
         "error",
+      ],
+      sii_provider: ["mock", "api_gateway"],
+      sii_snapshot_module: [
+        "rcv_sales_summary",
+        "rcv_sales_documents",
+        "rcv_purchases_registered",
+        "rcv_purchases_pending",
+        "rcv_purchases_claimed",
+        "rcv_purchases_excluded",
+        "f29_periods",
+        "f29_detail",
+        "withholdings",
       ],
       tax_alert_severity: ["info", "success", "warning", "critical"],
       tax_alert_type: [
@@ -950,7 +1170,14 @@ export const Constants = {
         "positive_carryforward",
       ],
       tax_confidence_level: ["high", "medium", "low", "unknown"],
-      tax_data_source: ["mock", "manual", "gateway", "sii", "accountant"],
+      tax_data_source: [
+        "mock",
+        "manual",
+        "gateway",
+        "sii",
+        "accountant",
+        "mock_gateway",
+      ],
       tax_document_direction: ["sale", "purchase"],
       tax_f29_status: [
         "not_available",
@@ -968,13 +1195,23 @@ export const Constants = {
         "accepted",
         "unknown",
       ],
-      tax_sync_status: ["pending", "running", "success", "partial", "failed"],
+      tax_sync_status: [
+        "pending",
+        "running",
+        "success",
+        "partial",
+        "failed",
+        "skipped",
+      ],
       tax_sync_type: [
         "demo",
         "manual",
         "scheduled",
         "login_refresh",
         "gateway",
+        "demo_connect",
+        "weekly_refresh",
+        "retry",
       ],
     },
   },

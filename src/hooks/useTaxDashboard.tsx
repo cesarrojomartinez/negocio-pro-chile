@@ -11,6 +11,9 @@ import { toast } from "sonner";
 
 import { mockTaxDataService } from "@/services/mockTaxDataService";
 import { cloudTaxDataService } from "@/services/cloudTaxDataService";
+import { siiConnectionService } from "@/services/siiConnectionService";
+import type { ConexionSii } from "@/lib/siiSync.server";
+import type { TipoActivacion } from "@/lib/syncPolicy";
 import { obtenerPeriodoData, PERIODOS } from "@/data/mockTaxData";
 import { useCompany } from "@/hooks/useCompany";
 import type { EscenarioId, EstadoConexionSii } from "@/types/company";
@@ -36,6 +39,12 @@ interface DashboardState {
   soloLectura: boolean;
   estadoConexion: EstadoConexionSii;
   ultimaSincronizacion: string | null;
+  /** Estado de la conexión simulada con el SII (solo modo autenticado). */
+  conexionSii: ConexionSii | null;
+  /** Mensaje del último intento de sincronización, para mostrar en pantalla. */
+  resumenSincronizacion: string | null;
+  /** Verdadero cuando la información visible proviene del proveedor simulado. */
+  datosSimulados: boolean;
   setPeriodo: (id: string) => void;
   setEscenario: (id: EscenarioId) => void;
   setMargenPorcentaje: (v: number) => void;
@@ -68,6 +77,11 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     string | null
   >(null);
   const [ajustesCargados, setAjustesCargados] = useState(false);
+  const [conexionSii, setConexionSii] = useState<ConexionSii | null>(null);
+  const [resumenSincronizacion, setResumenSincronizacion] = useState<string | null>(
+    null,
+  );
+  const [refrescoInicial, setRefrescoInicial] = useState<string | null>(null);
 
   const esCloud = modo === "cloud";
   const companyId = empresaActiva?.id ?? null;
@@ -232,43 +246,74 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     [esCloud, companyId, periodoId, soloLectura, guardarCloud],
   );
 
+  /** Ejecuta la sincronización simulada en el servidor y refresca el panel. */
+  const sincronizarCloud = useCallback(
+    async (tipo: TipoActivacion) => {
+      if (!companyId) return;
+      const r = await siiConnectionService.sincronizar(companyId, periodoId, tipo);
+      setResumenSincronizacion(r.mensaje);
+      setConexionSii(await siiConnectionService.obtenerConexion(companyId));
+      await refrescarEmpresas();
+      return r;
+    },
+    [companyId, periodoId, refrescarEmpresas],
+  );
+
   const actualizar = useCallback(async () => {
     setActualizando(true);
     try {
       if (esCloud && companyId) {
-        await cloudTaxDataService.sincronizar(companyId, periodoId);
-        await refrescarEmpresas();
-      } else {
-        const fecha = await mockTaxDataService.sincronizar();
-        setUltimaSincronizacionDemo(fecha);
-        setEstadoConexionDemo((prev) =>
-          prev === "disconnected" ? prev : "connected",
-        );
+        const r = await sincronizarCloud("manual");
+        await cargar();
+        if (r && r.estado === "failed") {
+          toast.error("No pudimos actualizar la información", {
+            description: r.mensaje,
+          });
+        } else if (r && r.estado === "partial") {
+          toast.warning("Actualización parcial", { description: r.mensaje });
+        } else if (r && !r.ejecutada) {
+          toast("Sin cambios", { description: r.mensaje });
+        } else {
+          toast.success("Información actualizada", {
+            description:
+              "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
+          });
+        }
+        return;
       }
+      const fecha = await mockTaxDataService.sincronizar();
+      setUltimaSincronizacionDemo(fecha);
+      setEstadoConexionDemo((prev) => (prev === "disconnected" ? prev : "connected"));
       await cargar();
       toast.success("Información actualizada", {
         description: "Los datos mostrados son una estimación informativa.",
       });
-    } catch {
+    } catch (error) {
       toast.error("No pudimos actualizar la información", {
-        description: "Intenta nuevamente en unos segundos.",
+        description:
+          error instanceof Error && error.name === "ErrorSii"
+            ? error.message
+            : "Intenta nuevamente en unos segundos.",
       });
     } finally {
       setActualizando(false);
     }
-  }, [cargar, esCloud, companyId, periodoId, refrescarEmpresas]);
+  }, [cargar, esCloud, companyId, sincronizarCloud]);
 
   const conectarDemo = useCallback(async () => {
     if (esCloud && companyId) {
+      const conexion = await siiConnectionService.conectar(companyId);
+      setConexionSii(conexion);
+      setActualizando(true);
       try {
-        await cloudTaxDataService.connectDemo(companyId);
-        await refrescarEmpresas();
+        await sincronizarCloud("demo_connect");
         await cargar();
         toast.success("Conexión demostrativa establecida", {
-          description: "No hubo conexión real con el SII.",
+          description:
+            "Datos simulados para pruebas. No corresponden a información obtenida del SII.",
         });
-      } catch {
-        toast.error("No pudimos activar la conexión demostrativa");
+      } finally {
+        setActualizando(false);
       }
       return;
     }
@@ -280,18 +325,20 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     toast.success("Conexión demostrativa establecida", {
       description: "Se cargaron datos ficticios. No hubo conexión real con el SII.",
     });
-  }, [cargar, esCloud, companyId, refrescarEmpresas]);
+  }, [cargar, esCloud, companyId, sincronizarCloud]);
 
   const desconectar = useCallback(() => {
     if (esCloud && companyId) {
-      void cloudTaxDataService
-        .disconnectDemo(companyId)
-        .then(() => refrescarEmpresas())
-        .then(() =>
+      void siiConnectionService
+        .desconectar(companyId)
+        .then(async () => {
+          setConexionSii(await siiConnectionService.obtenerConexion(companyId));
+          setResumenSincronizacion(null);
+          await refrescarEmpresas();
           toast("Conexión demostrativa desactivada", {
             description: "Los datos quedan marcados como no sincronizados.",
-          }),
-        )
+          });
+        })
         .catch(() => toast.error("No pudimos desactivar la conexión demostrativa"));
       return;
     }
@@ -301,6 +348,57 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
         "Mantenemos los datos demostrativos, pero quedan marcados como no sincronizados.",
     });
   }, [esCloud, companyId, refrescarEmpresas]);
+
+  // Carga el estado de la conexión simulada de la empresa activa.
+  useEffect(() => {
+    if (!esCloud || !companyId) {
+      setConexionSii(null);
+      return;
+    }
+    let vigente = true;
+    void siiConnectionService
+      .obtenerConexion(companyId)
+      .then((c) => {
+        if (vigente) setConexionSii(c);
+      })
+      .catch(() => {
+        if (vigente) setConexionSii(null);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [esCloud, companyId]);
+
+  /**
+   * Regla al ingresar: una vez por empresa y periodo, el servidor decide si
+   * corresponde consultar de nuevo o reutilizar la información guardada.
+   */
+  useEffect(() => {
+    if (!esCloud || !companyId || soloLectura) return;
+    if (!conexionSii || !["connected", "stale"].includes(conexionSii.estado)) return;
+    const clave = `${companyId}|${periodoId}`;
+    if (refrescoInicial === clave) return;
+    setRefrescoInicial(clave);
+    void siiConnectionService
+      .sincronizar(companyId, periodoId, "login_refresh")
+      .then(async (r) => {
+        setResumenSincronizacion(r.mensaje);
+        if (r.ejecutada) {
+          await refrescarEmpresas();
+          await cargar();
+        }
+      })
+      .catch(() => undefined);
+  }, [
+    esCloud,
+    companyId,
+    periodoId,
+    soloLectura,
+    conexionSii,
+    refrescoInicial,
+    refrescarEmpresas,
+    cargar,
+  ]);
 
   const estadoConexion: EstadoConexionSii = esCloud
     ? (empresaActiva?.estadoConexion ?? "disconnected")
@@ -325,6 +423,11 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       soloLectura,
       estadoConexion,
       ultimaSincronizacion,
+      conexionSii,
+      resumenSincronizacion,
+      datosSimulados: esCloud
+        ? conexionSii?.simulado !== false
+        : true,
       setPeriodo: cambiarPeriodo,
       setEscenario: cambiarEscenario,
       setMargenPorcentaje: cambiarMargen,
@@ -349,6 +452,9 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       soloLectura,
       estadoConexion,
       ultimaSincronizacion,
+      conexionSii,
+      resumenSincronizacion,
+      esCloud,
       cambiarPeriodo,
       cambiarEscenario,
       cambiarMargen,
