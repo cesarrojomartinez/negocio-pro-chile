@@ -9,6 +9,8 @@ import { ScenarioSwitcher } from "@/components/shared/ScenarioSwitcher";
 import { ConnectionBadge } from "@/components/shared/Badges";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
+import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
+
 import { MoneyDialog } from "@/components/shared/MoneyDialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -175,7 +177,11 @@ function Configuracion() {
         </SectionCard>
 
         {esCloud ? (
-          <SiiConnectionPanel />
+          <>
+            <SiiConnectionPanel />
+            <RealGatewayPanel />
+          </>
+
         ) : (
           <SectionCard
             titulo="Conexión con el SII"
