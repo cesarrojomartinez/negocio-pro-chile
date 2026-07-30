@@ -8,7 +8,7 @@ import { TASA_IVA } from "@/utils/taxCalculations";
 
 export const EMPRESA_DEMO: Empresa = {
   id: "emp-1",
-  rut: "76.123.456-7",
+  rut: "76.123.456-0",
   razonSocial: "Comercial Los Vilos SpA",
   nombreFantasia: "Los Vilos Market",
   actividad: "Venta al por menor de alimentos y abarrotes",
