@@ -20,7 +20,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
+import { useCompany } from "@/hooks/useCompany";
 import { EMPRESA_DEMO } from "@/data/mockTaxData";
+import { formatearRut } from "@/lib/rut";
 import { formatCLP, formatFechaHora } from "@/utils/currency";
 
 export const Route = createFileRoute("/configuracion")({
