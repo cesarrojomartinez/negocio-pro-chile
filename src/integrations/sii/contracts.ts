@@ -85,6 +85,11 @@ export const MENSAJE_ERROR_SII: Record<SiiErrorCode, string> = {
     "Primero necesitas activar la conexión demostrativa de esta empresa.",
   INVALID_CREDENTIALS:
     "No pudimos validar la autorización demostrativa de esta empresa.",
+  INVALID_REQUEST:
+    "La consulta se envió con datos incompletos y el servicio la rechazó. Revisa el RUT autorizado y vuelve a intentar.",
+  COMPANY_ACCESS_DENIED:
+    "El usuario autorizado no tiene acceso a esta empresa en el SII.",
+
   AUTH_EXPIRED:
     "La autorización demostrativa venció. Vuelve a activar la conexión.",
   NOT_AUTHORIZED: "Esta empresa no está autorizada para consultar esta información.",
