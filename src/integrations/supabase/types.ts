@@ -485,6 +485,7 @@ export type Database = {
           sales_total: number
           source: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id: string
+          totals_source: string
           updated_at: string
           vat_credit: number
           vat_credit_potential: number
@@ -526,6 +527,7 @@ export type Database = {
           sales_total?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id: string
+          totals_source?: string
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
@@ -567,6 +569,7 @@ export type Database = {
           sales_total?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           tax_period_id?: string
+          totals_source?: string
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
@@ -601,6 +604,8 @@ export type Database = {
           last_calculated_at: string | null
           month: number
           period: string
+          rcv_summary: Json | null
+          rcv_summary_updated_at: string | null
           status: Database["public"]["Enums"]["tax_period_status"]
           updated_at: string
           year: number
@@ -615,6 +620,8 @@ export type Database = {
           last_calculated_at?: string | null
           month: number
           period: string
+          rcv_summary?: Json | null
+          rcv_summary_updated_at?: string | null
           status?: Database["public"]["Enums"]["tax_period_status"]
           updated_at?: string
           year: number
@@ -629,6 +636,8 @@ export type Database = {
           last_calculated_at?: string | null
           month?: number
           period?: string
+          rcv_summary?: Json | null
+          rcv_summary_updated_at?: string | null
           status?: Database["public"]["Enums"]["tax_period_status"]
           updated_at?: string
           year?: number
@@ -838,6 +847,9 @@ export type Database = {
           created_at: string
           credits_balance: number | null
           data_through_date: string | null
+          detail_documents_received: number
+          documents_persisted: number
+          documents_rejected: number
           duration_ms: number | null
           error_code: string | null
           error_message: string | null
@@ -855,10 +867,13 @@ export type Database = {
           records_created: number
           records_received: number
           records_updated: number
+          rejection_reasons: Json
           retry_count: number
           source: Database["public"]["Enums"]["tax_data_source"]
           started_at: string
           status: Database["public"]["Enums"]["tax_sync_status"]
+          summary_documents_reported: number
+          summary_totals: Json | null
           sync_type: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id: string | null
           trigger_type: Database["public"]["Enums"]["tax_sync_type"] | null
@@ -872,6 +887,9 @@ export type Database = {
           created_at?: string
           credits_balance?: number | null
           data_through_date?: string | null
+          detail_documents_received?: number
+          documents_persisted?: number
+          documents_rejected?: number
           duration_ms?: number | null
           error_code?: string | null
           error_message?: string | null
@@ -889,10 +907,13 @@ export type Database = {
           records_created?: number
           records_received?: number
           records_updated?: number
+          rejection_reasons?: Json
           retry_count?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           started_at?: string
           status?: Database["public"]["Enums"]["tax_sync_status"]
+          summary_documents_reported?: number
+          summary_totals?: Json | null
           sync_type?: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id?: string | null
           trigger_type?: Database["public"]["Enums"]["tax_sync_type"] | null
@@ -906,6 +927,9 @@ export type Database = {
           created_at?: string
           credits_balance?: number | null
           data_through_date?: string | null
+          detail_documents_received?: number
+          documents_persisted?: number
+          documents_rejected?: number
           duration_ms?: number | null
           error_code?: string | null
           error_message?: string | null
@@ -923,10 +947,13 @@ export type Database = {
           records_created?: number
           records_received?: number
           records_updated?: number
+          rejection_reasons?: Json
           retry_count?: number
           source?: Database["public"]["Enums"]["tax_data_source"]
           started_at?: string
           status?: Database["public"]["Enums"]["tax_sync_status"]
+          summary_documents_reported?: number
+          summary_totals?: Json | null
           sync_type?: Database["public"]["Enums"]["tax_sync_type"]
           tax_period_id?: string | null
           trigger_type?: Database["public"]["Enums"]["tax_sync_type"] | null
