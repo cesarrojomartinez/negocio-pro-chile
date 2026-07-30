@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, KeyRound, Loader2, PlugZap, Stethoscope } from "lucide-react";
 import { toast } from "sonner";
 
