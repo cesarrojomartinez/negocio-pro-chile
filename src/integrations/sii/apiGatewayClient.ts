@@ -38,6 +38,8 @@ export interface ApiGatewayCallLog {
   metodo: string;
   recurso: string;
   estadoHttp: number | null;
+  /** Tipo de contenido devuelto, sin parámetros. Nunca sensible. */
+  contentType: string | null;
   duracionMs: number;
   creditosUsados: number | null;
   creditosDisponibles: number | null;
@@ -46,6 +48,7 @@ export interface ApiGatewayCallLog {
   codigoError: SiiErrorCode | null;
   referenciaTecnica: string | null;
 }
+
 
 /** Acumulador de consumo de una sincronización. Nunca contiene credenciales. */
 export class RegistroConsumo {
