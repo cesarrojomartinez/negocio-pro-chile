@@ -113,6 +113,35 @@ export function RealGatewayPanel() {
         <DataRow label="Verificado" value={formatFechaHora(diagnostico.verificadoEn)} />
       </div>
 
+      <div className="mt-3 space-y-2">
+        {diagnostico.productos.map((p) => (
+          <div
+            key={p.clave}
+            className="rounded-2xl border border-border bg-card px-3 py-2 text-sm"
+          >
+            <p className="font-medium">
+              {p.titulo}: <span className="font-normal">{p.etiqueta}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">{p.detalle}</p>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={comprobandoProductos}
+          onClick={comprobarProductos}
+        >
+          {comprobandoProductos ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
+          )}
+          Comprobar productos contratados
+        </Button>
+      </div>
+
+
       {diagnostico.modulosPendientes.length > 0 && (
         <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
           {diagnostico.modulosPendientes.map((m) => (
