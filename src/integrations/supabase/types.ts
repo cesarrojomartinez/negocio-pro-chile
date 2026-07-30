@@ -256,6 +256,7 @@ export type Database = {
           estimated_ppm_rate: number
           id: string
           monthly_sales_goal: number | null
+          ppm_rate_confirmed: boolean
           preventive_margin_percent: number
           reserved_amount: number
           timezone: string
@@ -271,6 +272,7 @@ export type Database = {
           estimated_ppm_rate?: number
           id?: string
           monthly_sales_goal?: number | null
+          ppm_rate_confirmed?: boolean
           preventive_margin_percent?: number
           reserved_amount?: number
           timezone?: string
@@ -286,6 +288,7 @@ export type Database = {
           estimated_ppm_rate?: number
           id?: string
           monthly_sales_goal?: number | null
+          ppm_rate_confirmed?: boolean
           preventive_margin_percent?: number
           reserved_amount?: number
           timezone?: string
