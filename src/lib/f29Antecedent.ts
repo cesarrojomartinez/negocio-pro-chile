@@ -7,6 +7,7 @@
  * proviene de este antecedente persistido.
  */
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
+import type { FuentePeriodo } from "@/types/tax";
 
 /** Marca usada en `tax_f29_history.raw_data` para el F29 confirmado. */
 export const ORIGEN_F29_CONTADOR = "accountant_confirmed_f29";
@@ -114,17 +115,37 @@ export function textoRemanente(
 }
 
 /** Descripción del origen de la estimación mostrada en pantalla. */
-export function descripcionOrigenEstimacion(entrada: {
-  esDemo: boolean;
-  fuentePpm: PpmSource;
-  fuenteRemanente: CarryforwardSource;
-}): string {
-  if (entrada.esDemo)
-    return "Estimación al día de hoy, calculada con tus datos demostrativos.";
-  const conF29 =
-    entrada.fuentePpm === ORIGEN_F29_CONTADOR ||
-    entrada.fuenteRemanente === ORIGEN_F29_CONTADOR;
-  if (conF29)
-    return "Estimación calculada con información del Registro de Compras y Ventas obtenida mediante API Gateway / SII y antecedentes del F29 confirmados por el contador.";
-  return "Estimación calculada con información del Registro de Compras y Ventas obtenida mediante API Gateway / SII.";
+export function descripcionOrigenEstimacion(fuente: FuentePeriodo): string {
+  switch (fuente) {
+    case "mock":
+      return "Estimación al día de hoy, calculada con tus datos demostrativos.";
+    case "rcv_real_plus_accountant":
+      return "Estimación calculada con información del Registro de Compras y Ventas obtenida mediante API Gateway / SII y antecedentes del F29 confirmados por el contador.";
+    case "accountant_confirmed":
+      return "Estimación calculada con antecedentes del F29 confirmados por el contador.";
+    case "rcv_real":
+      return "Estimación calculada con información del Registro de Compras y Ventas obtenida mediante API Gateway / SII.";
+    default:
+      return MENSAJE_PERIODO_SIN_SINCRONIZAR;
+  }
+}
+
+/** Texto único para un periodo sin información importada. */
+export const MENSAJE_PERIODO_SIN_SINCRONIZAR =
+  "Este periodo todavía no fue sincronizado con el SII.";
+
+/** Etiqueta breve del origen del periodo, para el encabezado. */
+export function etiquetaFuentePeriodo(fuente: FuentePeriodo): string {
+  switch (fuente) {
+    case "mock":
+      return "Datos demostrativos";
+    case "rcv_real":
+      return "Periodo con datos reales del RCV";
+    case "accountant_confirmed":
+      return "Periodo con F29 confirmado";
+    case "rcv_real_plus_accountant":
+      return "RCV real + F29 confirmado";
+    default:
+      return "Periodo sin sincronizar";
+  }
 }
