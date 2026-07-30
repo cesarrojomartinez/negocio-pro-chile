@@ -75,7 +75,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const esCloud = modo === "cloud";
   const empresaId = esCloud ? (empresaActiva?.id ?? "") : EMPRESA_DEMO.id;
-  const rutVisible = esCloud ? (empresaActiva?.rut ?? "—") : EMPRESA_DEMO.rut;
+  const rutVisible = esCloud
+    ? empresaActiva
+      ? formatearRut(empresaActiva.rut)
+      : "—"
+    : EMPRESA_DEMO.rut;
   const nombreUsuario = esCloud
     ? (perfil?.display_name ?? user?.email ?? "Mi cuenta")
     : "Camila Rojas";
