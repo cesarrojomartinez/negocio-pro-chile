@@ -15,6 +15,22 @@ import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import { formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 
+/** Clave del sondeo guardado para esta sesión del navegador. */
+const CLAVE_SONDEO = "mnd.diagnostico-productos";
+
+/** Estilo visual por estado de producto (solo presentación). */
+const ESTILO_PRODUCTO: Record<string, string> = {
+  no_verificado: "border-primary/30 bg-info-soft",
+  habilitado: "border-success/40 bg-success-soft",
+  sin_informacion_periodo: "border-primary/30 bg-info-soft",
+  no_contratado: "border-warning/40 bg-warning-soft",
+  recurso_no_disponible: "border-warning/40 bg-warning-soft",
+  saldo_insuficiente: "border-warning/40 bg-warning-soft",
+  proxy_requerido: "border-warning/40 bg-warning-soft",
+  mantenimiento: "border-warning/40 bg-warning-soft",
+  error_autenticacion: "border-destructive/40 bg-destructive/5",
+};
+
 
 /**
  * Prueba controlada con el proveedor real.
@@ -35,12 +51,35 @@ export function RealGatewayPanel() {
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
   const [comprobandoProductos, setComprobandoProductos] = useState(false);
+  /** Último sondeo de productos, guardado solo para esta sesión del navegador. */
+  const [sondeo, setSondeo] = useState<{
+    productos: DiagnosticoApiGateway["productos"];
+    verificadoEn: string;
+  } | null>(null);
+
+  // Se recupera el último sondeo guardado: nunca se vuelve a ejecutar solo.
+  useEffect(() => {
+    try {
+      const crudo = sessionStorage.getItem(CLAVE_SONDEO);
+      if (crudo) setSondeo(JSON.parse(crudo));
+    } catch {
+      setSondeo(null);
+    }
+  }, []);
 
   /** Sondeo opcional: verifica productos contratados y consume pocos créditos. */
   const comprobarProductos = async () => {
     setComprobandoProductos(true);
     try {
-      setDiagnostico(await apiGatewayService.diagnosticar(true));
+      const d = await apiGatewayService.diagnosticar(true);
+      setDiagnostico(d);
+      const guardado = { productos: d.productos, verificadoEn: d.verificadoEn };
+      setSondeo(guardado);
+      try {
+        sessionStorage.setItem(CLAVE_SONDEO, JSON.stringify(guardado));
+      } catch {
+        /* almacenamiento no disponible: el sondeo solo vive en memoria */
+      }
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -75,10 +114,13 @@ export function RealGatewayPanel() {
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
+  // Se prefiere el último sondeo real por sobre el estado "no verificado".
+  const productos = sondeo?.productos ?? diagnostico.productos;
+
   // Los productos se consideran verificados solo tras un sondeo real.
   const productosVerificados =
-    diagnostico.productos.length > 0 &&
-    diagnostico.productos.every((p) => p.estado !== "no_verificado");
+    productos.length > 0 && productos.every((p) => p.estado !== "no_verificado");
+
 
   const ejecutar = async () => {
     if (!empresaActiva) return;
@@ -151,13 +193,11 @@ export function RealGatewayPanel() {
       </div>
 
       <div className="mt-3 space-y-2">
-        {diagnostico.productos.map((p) => (
+        {productos.map((p) => (
           <div
             key={p.clave}
             className={`rounded-2xl border px-3 py-2 text-sm ${
-              p.estado === "no_verificado"
-                ? "border-primary/30 bg-info-soft"
-                : "border-border bg-card"
+              ESTILO_PRODUCTO[p.estado] ?? "border-border bg-card"
             }`}
           >
             <p className="font-medium">
@@ -171,6 +211,12 @@ export function RealGatewayPanel() {
           </div>
         ))}
 
+        {sondeo && (
+          <p className="text-xs text-muted-foreground">
+            Productos verificados el {formatFechaHora(sondeo.verificadoEn)}.
+          </p>
+        )}
+
         <Button
           type="button"
           variant="outline"
@@ -183,9 +229,10 @@ export function RealGatewayPanel() {
           ) : (
             <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
           )}
-          Comprobar productos contratados
+          {sondeo ? "Comprobar nuevamente" : "Comprobar productos contratados"}
         </Button>
       </div>
+
 
 
       {diagnostico.modulosPendientes.length > 0 && (
