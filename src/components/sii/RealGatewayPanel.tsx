@@ -13,6 +13,8 @@ import { apiGatewayService } from "@/services/apiGatewayService";
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import { formatFechaHora } from "@/utils/currency";
+import { mensajeProveedor } from "@/utils/mensajesProveedor";
+
 
 /**
  * Prueba controlada con el proveedor real.
@@ -73,6 +75,11 @@ export function RealGatewayPanel() {
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
+  // Los productos se consideran verificados solo tras un sondeo real.
+  const productosVerificados =
+    diagnostico.productos.length > 0 &&
+    diagnostico.productos.every((p) => p.estado !== "no_verificado");
+
   const ejecutar = async () => {
     if (!empresaActiva) return;
     setEjecutando(true);
@@ -84,8 +91,17 @@ export function RealGatewayPanel() {
         claveTributaria: clave,
       });
       setResultado(r);
-      if (r.errorCodigo) toast.error(r.mensaje);
-      else toast.success(r.mensaje);
+      // La prueba controlada siempre usa API Gateway: nunca textos del mock.
+      const m = mensajeProveedor({
+        proveedor: "api_gateway",
+        codigo: r.errorCodigo,
+        mensaje: r.mensaje,
+        productosVerificados,
+      });
+      if (m.tono === "error") toast.error(m.texto);
+      else if (m.tono === "warning") toast.warning(m.texto);
+      else if (m.tono === "info") toast.info(m.texto);
+      else toast.success(m.texto);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
@@ -96,6 +112,7 @@ export function RealGatewayPanel() {
       setEjecutando(false);
     }
   };
+
 
 
   return (
@@ -137,14 +154,23 @@ export function RealGatewayPanel() {
         {diagnostico.productos.map((p) => (
           <div
             key={p.clave}
-            className="rounded-2xl border border-border bg-card px-3 py-2 text-sm"
+            className={`rounded-2xl border px-3 py-2 text-sm ${
+              p.estado === "no_verificado"
+                ? "border-primary/30 bg-info-soft"
+                : "border-border bg-card"
+            }`}
           >
             <p className="font-medium">
               {p.titulo}: <span className="font-normal">{p.etiqueta}</span>
             </p>
-            <p className="text-xs text-muted-foreground">{p.detalle}</p>
+            <p className="text-xs text-muted-foreground">
+              {p.estado === "no_verificado"
+                ? "Los productos RCV y F29 todavía no fueron verificados en esta ejecución."
+                : p.detalle}
+            </p>
           </div>
         ))}
+
         <Button
           type="button"
           variant="outline"
@@ -262,9 +288,26 @@ export function RealGatewayPanel() {
         </Button>
       </div>
 
-      {resultado && (
-        <div className="mt-4 rounded-2xl border border-border p-4">
-          <p className="text-sm font-semibold">{resultado.mensaje}</p>
+      {resultado &&
+        (() => {
+          const m = mensajeProveedor({
+            proveedor: "api_gateway",
+            codigo: resultado.errorCodigo,
+            mensaje: resultado.mensaje,
+            productosVerificados,
+          });
+          const estilo =
+            m.tono === "error"
+              ? "border-destructive/40 bg-destructive/5"
+              : m.tono === "warning"
+                ? "border-warning/40 bg-warning-soft"
+                : m.tono === "info"
+                  ? "border-primary/30 bg-info-soft"
+                  : "border-border";
+          return (
+        <div className={`mt-4 rounded-2xl border p-4 ${estilo}`}>
+          <p className="text-sm font-semibold">{m.texto}</p>
+
           <div className="mt-2">
             <DataRow label="Consultas al proveedor" value={String(resultado.consultas)} />
             <DataRow label="Créditos consumidos" value={String(resultado.creditosConsumidos)} />
@@ -299,7 +342,9 @@ export function RealGatewayPanel() {
             ser confirmado por tu contador.
           </p>
         </div>
-      )}
+          );
+        })()}
+
     </SectionCard>
   );
 }

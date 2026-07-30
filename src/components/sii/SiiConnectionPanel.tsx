@@ -21,6 +21,8 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { siiConnectionService } from "@/services/siiConnectionService";
 import type { RegistroSincronizacion } from "@/lib/siiSync.server";
 import { formatFechaHora } from "@/utils/currency";
+import { mensajeProveedor } from "@/utils/mensajesProveedor";
+
 import { formatearRut } from "@/lib/rut";
 
 const ETIQUETA_TIPO: Record<string, string> = {
@@ -128,8 +130,19 @@ export function SiiConnectionPanel() {
             value={conexionSii?.expiraEn ? formatFechaHora(conexionSii.expiraEn) : "—"}
           />
           {conexionSii?.ultimoErrorMensaje && (
-            <DataRow label="Último aviso" value={conexionSii.ultimoErrorMensaje} />
+            <DataRow
+              label="Último aviso"
+              value={
+                mensajeProveedor({
+                  proveedor: conexionSii.simulado === false ? "api_gateway" : "mock",
+                  codigo: conexionSii.ultimoErrorCodigo ?? null,
+                  mensaje: conexionSii.ultimoErrorMensaje,
+                  productosVerificados: true,
+                }).texto
+              }
+            />
           )}
+
         </div>
 
         {resumenSincronizacion && (
