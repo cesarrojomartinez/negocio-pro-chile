@@ -4,7 +4,9 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
+  resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+
 import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
