@@ -47,12 +47,21 @@ interface DashboardState {
   resumenSincronizacion: string | null;
   /** Verdadero cuando la información visible proviene del proveedor simulado. */
   datosSimulados: boolean;
+  /** La empresa activa usa el proveedor real (API Gateway) y no el mock. */
+  conexionReal: boolean;
+  /**
+   * Se incrementa cuando el usuario pide una actualización real: el panel de
+   * consulta segura lo observa para abrir el formulario con RUT y clave.
+   */
+  solicitudActualizacionReal: number;
   setPeriodo: (id: string) => void;
   setEscenario: (id: EscenarioId) => void;
   setMargenPorcentaje: (v: number) => void;
   setDineroReservado: (v: number) => void;
   setMetaMensual: (v: number) => void;
   actualizar: () => Promise<void>;
+  /** Relee lo ya guardado, sin consultar a ningún proveedor. */
+  refrescarDatos: () => Promise<void>;
   conectarDemo: () => Promise<void>;
   desconectar: () => void;
 }
