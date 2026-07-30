@@ -123,6 +123,11 @@ function Impuestos() {
 
             <EstadoCalculo contexto={data.contexto} />
             <ConciliacionRemanente companyId={companyId} periodo={periodoId} />
+            <F29OficialPanel
+              companyId={companyId}
+              periodo={periodoId}
+              onCambio={refrescarDatos}
+            />
             <CierreMensual
               companyId={companyId}
               periodo={periodoId}
