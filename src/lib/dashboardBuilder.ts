@@ -27,19 +27,25 @@ import type {
 
 /**
  * Determina el origen real del periodo. Una empresa conectada no implica que
- * todos sus periodos tengan información importada.
+ * todos sus periodos tengan información importada, pero una sincronización
+ * real exitosa (o un resumen real guardado) sí basta para considerarlo real
+ * aunque el F29 todavía no esté confirmado.
  */
 export function determinarFuentePeriodo(entrada: {
   esDemo: boolean;
   hayDocumentos: boolean;
   f29Confirmado: boolean;
+  /** Existe sincronización real exitosa, snapshot o resumen real del periodo. */
+  sincronizacionReal?: boolean;
 }): FuentePeriodo {
   if (entrada.esDemo) return "mock";
-  if (entrada.hayDocumentos && entrada.f29Confirmado) return "rcv_real_plus_accountant";
-  if (entrada.hayDocumentos) return "rcv_real";
+  const hayRcvReal = entrada.hayDocumentos || !!entrada.sincronizacionReal;
+  if (hayRcvReal && entrada.f29Confirmado) return "rcv_real_plus_accountant";
+  if (hayRcvReal) return "rcv_real";
   if (entrada.f29Confirmado) return "accountant_confirmed";
   return "not_synchronized";
 }
+
 
 export interface EntradaDashboard {
   empresa: Empresa;
