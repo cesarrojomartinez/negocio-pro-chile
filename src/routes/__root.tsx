@@ -142,11 +142,16 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TaxDashboardProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-        <Toaster position="top-center" richColors />
-      </TaxDashboardProvider>
+      <AuthProvider>
+        <CompanyProvider>
+          <TaxDashboardProvider>
+            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+            <Outlet />
+            <Toaster position="top-center" richColors />
+          </TaxDashboardProvider>
+        </CompanyProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
+
