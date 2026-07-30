@@ -113,6 +113,9 @@ function Impuestos() {
               esDemo={modo === "demo"}
             />
 
+            <AuditoriaMontos data={data} esDemo={modo === "demo"} />
+
+
             <SectionCard
               titulo="Qué puede modificar este cálculo"
               descripcion="Factores que suelen cambiar el resultado antes del cierre del periodo."
