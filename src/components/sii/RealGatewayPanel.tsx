@@ -291,6 +291,13 @@ export function RealGatewayPanel() {
               />
             ) : null}
           </div>
+          <p className="mt-3 rounded-xl bg-secondary px-3 py-2 text-xs text-muted-foreground">
+            El Formulario 29 está disponible, pero API Gateway no entrega de forma
+            estructurada todos sus conceptos tributarios. Remanente, PPM,
+            retenciones y total pagado quedan como desconocidos cuando no llegan
+            en la respuesta. Estimación informativa: el resultado definitivo debe
+            ser confirmado por tu contador.
+          </p>
         </div>
       )}
     </SectionCard>
