@@ -788,7 +788,7 @@ export async function syncSiiCompanyPeriod(
   if (hubieron) {
     await supabaseAdmin
       .from("tax_periods")
-      .update({ data_source: "mock_gateway" })
+      .update({ data_source: fuente })
       .eq("id", periodoRow.id);
     await recalculateTaxPeriod(userId, {
       companyId: entrada.companyId,
