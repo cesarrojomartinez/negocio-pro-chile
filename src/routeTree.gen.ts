@@ -14,6 +14,7 @@ import { Route as ActualizarClaveRouteImport } from './routes/actualizar-clave'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
+import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -43,6 +44,11 @@ const ComprasRoute = ComprasRouteImport.update({
 const ConfiguracionRoute = ConfiguracionRouteImport.update({
   id: '/configuracion',
   path: '/configuracion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentosRoute = DocumentosRouteImport.update({
+  id: '/documentos',
+  path: '/documentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ImpuestosRoute = ImpuestosRouteImport.update({
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/documentos'
     | '/impuestos'
     | '/metas'
     | '/onboarding'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/documentos'
     | '/impuestos'
     | '/metas'
     | '/onboarding'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/documentos'
     | '/impuestos'
     | '/metas'
     | '/onboarding'
@@ -153,6 +165,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ComprasRoute: typeof ComprasRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
+  DocumentosRoute: typeof DocumentosRoute
   ImpuestosRoute: typeof ImpuestosRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -195,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracion'
       fullPath: '/configuracion'
       preLoaderRoute: typeof ConfiguracionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/documentos': {
+      id: '/documentos'
+      path: '/documentos'
+      fullPath: '/documentos'
+      preLoaderRoute: typeof DocumentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/impuestos': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ComprasRoute: ComprasRoute,
   ConfiguracionRoute: ConfiguracionRoute,
+  DocumentosRoute: DocumentosRoute,
   ImpuestosRoute: ImpuestosRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
@@ -250,13 +271,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -9,7 +9,7 @@
  *
  * Este archivo es puro y NO contiene secretos: solo rutas y metadatos.
  */
-import type { SiiModule } from "./contracts";
+import type { DteFileModule, SiiModule } from "./contracts";
 
 export type ApiGatewayMethod = "GET" | "POST";
 
@@ -167,3 +167,102 @@ export function recursoDe(modulo: SiiModule): ApiGatewayResourceDefinition {
 export const MODULOS_REALES_HABILITADOS: SiiModule[] = RECURSOS_API_GATEWAY.filter(
   (r) => r.documented && r.enabled,
 ).map((r) => r.module);
+
+// ---------------------------------------------------------------------------
+// Archivos individuales de documentos tributarios (Portal MIPYME)
+// ---------------------------------------------------------------------------
+
+/**
+ * Todas estas rutas aparecen literalmente en el esquema oficial, junto con su
+ * costo declarado (`x-credits`). No hay rutas inferidas.
+ */
+export interface DteResourceDefinition {
+  module: DteFileModule;
+  method: "POST";
+  path: string;
+  documented: boolean;
+  enabled: boolean;
+  /** Costo por consulta declarado por el proveedor (`x-credits`). */
+  estimatedCredits: number;
+  nota: string;
+}
+
+export const RECURSOS_DTE: Record<DteFileModule, DteResourceDefinition> = {
+  dte_pdf_issued: {
+    module: "dte_pdf_issued",
+    method: "POST",
+    path: "sii/mipyme/emitidos/pdf/{emisor}/{dte}/{folio}",
+    documented: true,
+    enabled: true,
+    estimatedCredits: 0.01,
+    nota: "PDF de un documento emitido en el Portal MIPYME.",
+  },
+  dte_xml_issued: {
+    module: "dte_xml_issued",
+    method: "POST",
+    path: "sii/mipyme/emitidos/xml/{emisor}/{dte}/{folio}",
+    documented: true,
+    enabled: true,
+    estimatedCredits: 0.005,
+    nota: "XML de un documento emitido en el Portal MIPYME.",
+  },
+  dte_pdf_received: {
+    module: "dte_pdf_received",
+    method: "POST",
+    path: "sii/mipyme/recibidos/pdf/{receptor}/{emisor}/{dte}/{folio}",
+    documented: true,
+    enabled: true,
+    estimatedCredits: 0.01,
+    nota: "PDF de un documento recibido en el Portal MIPYME.",
+  },
+  dte_xml_received: {
+    module: "dte_xml_received",
+    method: "POST",
+    path: "sii/mipyme/recibidos/xml/{receptor}/{emisor}/{dte}/{folio}",
+    documented: true,
+    enabled: true,
+    estimatedCredits: 0.005,
+    nota: "XML de un documento recibido en el Portal MIPYME.",
+  },
+};
+
+export function moduloArchivoDte(
+  direccion: "sale" | "purchase",
+  tipoArchivo: "pdf" | "xml",
+): DteFileModule {
+  if (direccion === "sale")
+    return tipoArchivo === "pdf" ? "dte_pdf_issued" : "dte_xml_issued";
+  return tipoArchivo === "pdf" ? "dte_pdf_received" : "dte_xml_received";
+}
+
+/**
+ * Construye la ruta concreta del archivo. La empresa siempre es el emisor en
+ * los documentos de venta y el receptor en los de compra.
+ */
+export function rutaRecursoDte(entrada: {
+  modulo: DteFileModule;
+  rutEmpresa: string;
+  rutContraparte: string;
+  dteCode: number;
+  folio: number;
+  fechaEmision?: string | null;
+}): string {
+  const recurso = RECURSOS_DTE[entrada.modulo];
+  const esVenta = entrada.modulo.endsWith("_issued");
+  let ruta = recurso.path
+    .replace("{emisor}", esVenta ? entrada.rutEmpresa : entrada.rutContraparte)
+    .replace("{receptor}", entrada.rutEmpresa)
+    .replace("{dte}", String(entrada.dteCode))
+    .replace("{folio}", String(entrada.folio));
+
+  const consulta = new URLSearchParams();
+  // Parámetros de consulta documentados en el esquema oficial.
+  if (entrada.modulo === "dte_pdf_issued") consulta.set("folio", String(entrada.folio));
+  if (entrada.modulo.startsWith("dte_xml") && entrada.fechaEmision)
+    consulta.set("fecha_emision", entrada.fechaEmision);
+
+  const cadena = consulta.toString();
+  if (cadena) ruta = `${ruta}?${cadena}`;
+  return ruta;
+}
+

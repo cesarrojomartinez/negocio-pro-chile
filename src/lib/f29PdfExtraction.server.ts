@@ -277,6 +277,29 @@ export async function obtenerExtraccionF29(
   return data ? aExtraccion(data as Record<string, unknown>) : null;
 }
 
+/**
+ * Historial de formularios ya leídos de la empresa, para cualquier año y mes.
+ * No consulta al proveedor: solo lee lo ya guardado.
+ */
+export async function listarExtraccionesF29(
+  userId: string,
+  entrada: { companyId: string },
+): Promise<ExtraccionF29[]> {
+  await exigirRol(userId, entrada.companyId, [
+    "owner",
+    "business_user",
+    "accountant",
+    "viewer",
+  ]);
+  const { data } = await supabaseAdmin
+    .from("tax_f29_extractions")
+    .select("*")
+    .eq("company_id", entrada.companyId)
+    .eq("superseded", false)
+    .order("period", { ascending: false });
+  return ((data ?? []) as Record<string, unknown>[]).map(aExtraccion);
+}
+
 /** URL temporal y privada para ver el PDF. Solo dueño y contador. */
 export async function urlFirmadaF29(
   userId: string,

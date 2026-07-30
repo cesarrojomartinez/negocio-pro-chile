@@ -433,6 +433,102 @@ export type Database = {
           },
         ]
       }
+      tax_document_files: {
+        Row: {
+          byte_size: number | null
+          company_id: string
+          content_type: string | null
+          counterparty_rut: string
+          created_at: string
+          credits_used: number
+          direction: Database["public"]["Enums"]["tax_document_direction"]
+          downloaded_at: string
+          dte_code: number
+          error_code: string | null
+          file_kind: string
+          folio: number
+          id: string
+          period: string
+          requested_by: string | null
+          sha256: string | null
+          source_endpoint: string
+          status: string
+          storage_path: string | null
+          tax_document_id: string | null
+          updated_at: string
+          validation: Json
+          warnings: Json
+          xml_fields: Json
+        }
+        Insert: {
+          byte_size?: number | null
+          company_id: string
+          content_type?: string | null
+          counterparty_rut?: string
+          created_at?: string
+          credits_used?: number
+          direction: Database["public"]["Enums"]["tax_document_direction"]
+          downloaded_at?: string
+          dte_code: number
+          error_code?: string | null
+          file_kind: string
+          folio: number
+          id?: string
+          period: string
+          requested_by?: string | null
+          sha256?: string | null
+          source_endpoint: string
+          status?: string
+          storage_path?: string | null
+          tax_document_id?: string | null
+          updated_at?: string
+          validation?: Json
+          warnings?: Json
+          xml_fields?: Json
+        }
+        Update: {
+          byte_size?: number | null
+          company_id?: string
+          content_type?: string | null
+          counterparty_rut?: string
+          created_at?: string
+          credits_used?: number
+          direction?: Database["public"]["Enums"]["tax_document_direction"]
+          downloaded_at?: string
+          dte_code?: number
+          error_code?: string | null
+          file_kind?: string
+          folio?: number
+          id?: string
+          period?: string
+          requested_by?: string | null
+          sha256?: string | null
+          source_endpoint?: string
+          status?: string
+          storage_path?: string | null
+          tax_document_id?: string | null
+          updated_at?: string
+          validation?: Json
+          warnings?: Json
+          xml_fields?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_document_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_document_files_tax_document_id_fkey"
+            columns: ["tax_document_id"]
+            isOneToOne: false
+            referencedRelation: "tax_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_documents: {
         Row: {
           company_id: string

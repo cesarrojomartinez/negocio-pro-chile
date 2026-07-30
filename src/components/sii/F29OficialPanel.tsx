@@ -66,12 +66,18 @@ export function F29OficialPanel({
   const [rutUsuario, setRutUsuario] = useState("");
   const [clave, setClave] = useState("");
   const [folioConfirmado, setFolioConfirmado] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<ExtraccionF29[]>([]);
 
   const cargar = useCallback(async () => {
     if (!companyId) return;
     setCargando(true);
     try {
-      setExtraccion(await f29PdfService.obtener(companyId, periodo));
+      const [actual, todos] = await Promise.all([
+        f29PdfService.obtener(companyId, periodo),
+        f29PdfService.listar(companyId).catch(() => [] as ExtraccionF29[]),
+      ]);
+      setExtraccion(actual);
+      setHistorial(todos);
     } catch {
       setExtraccion(null);
     } finally {
@@ -229,6 +235,28 @@ export function F29OficialPanel({
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {historial.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-border p-4">
+          <p className="text-sm font-semibold">Formularios leídos de esta empresa</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            El lector funciona igual para cualquier año y mes disponible en el SII.
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+            {historial.map((h) => (
+              <li
+                key={`${h.periodo}-${h.folio ?? "sin-folio"}`}
+                className="flex items-center justify-between gap-3 rounded-xl bg-secondary px-3 py-2 text-sm"
+              >
+                <span>{h.periodo}</span>
+                <span className="text-xs text-muted-foreground">
+                  {(ETIQUETA_ESTADO[h.estadoExtraccion] ?? ETIQUETA_ESTADO.pending).texto}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
