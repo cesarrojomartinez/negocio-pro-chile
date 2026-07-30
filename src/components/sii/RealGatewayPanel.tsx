@@ -15,6 +15,22 @@ import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import { formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 
+/** Clave del sondeo guardado para esta sesión del navegador. */
+const CLAVE_SONDEO = "mnd.diagnostico-productos";
+
+/** Estilo visual por estado de producto (solo presentación). */
+const ESTILO_PRODUCTO: Record<string, string> = {
+  no_verificado: "border-primary/30 bg-info-soft",
+  habilitado: "border-success/40 bg-success-soft",
+  sin_informacion_periodo: "border-primary/30 bg-info-soft",
+  no_contratado: "border-warning/40 bg-warning-soft",
+  recurso_no_disponible: "border-warning/40 bg-warning-soft",
+  saldo_insuficiente: "border-warning/40 bg-warning-soft",
+  proxy_requerido: "border-warning/40 bg-warning-soft",
+  mantenimiento: "border-warning/40 bg-warning-soft",
+  error_autenticacion: "border-destructive/40 bg-destructive/5",
+};
+
 
 /**
  * Prueba controlada con el proveedor real.
