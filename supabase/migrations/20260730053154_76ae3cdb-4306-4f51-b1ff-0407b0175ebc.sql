@@ -1,0 +1,1 @@
+ALTER TYPE public.tax_data_source ADD VALUE IF NOT EXISTS 'api_gateway';

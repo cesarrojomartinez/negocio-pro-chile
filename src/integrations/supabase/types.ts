@@ -982,6 +982,7 @@ export type Database = {
         | "sii"
         | "accountant"
         | "mock_gateway"
+        | "api_gateway"
       tax_document_direction: "sale" | "purchase"
       tax_f29_status:
         | "not_available"
@@ -1180,6 +1181,7 @@ export const Constants = {
         "sii",
         "accountant",
         "mock_gateway",
+        "api_gateway",
       ],
       tax_document_direction: ["sale", "purchase"],
       tax_f29_status: [
