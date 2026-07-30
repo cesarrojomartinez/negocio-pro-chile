@@ -33,3 +33,14 @@ export function formatearRut(valor: string): string {
   const dv = limpio.slice(-1);
   return `${cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".")}-${dv}`;
 }
+
+/**
+ * RUT sin puntos y con guion (`12345678-9`).
+ * Es el formato que exige API Gateway tanto en la ruta como en `auth.pass.rut`.
+ */
+export function rutConGuion(valor: string): string {
+  const limpio = normalizarRut(valor);
+  if (limpio.length < 2) return limpio;
+  return `${limpio.slice(0, -1)}-${limpio.slice(-1)}`;
+}
+

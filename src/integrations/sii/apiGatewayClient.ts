@@ -12,13 +12,20 @@
  *   cabeceras: x-stats-credits-used, x-stats-credits-remaining, x-source-proxy,
  *              x-ratelimit-limit, x-ratelimit-remaining
  */
-import { SiiProviderError, type SiiErrorCode, type SiiModule } from "./contracts";
+import {
+  ERRORES_REINTENTABLES,
+  SiiProviderError,
+  type SiiErrorCode,
+  type SiiModule,
+} from "./contracts";
 import { sanitizarProfundo } from "./sanitize";
 
 export const BASE_URL_POR_DEFECTO = "https://app.apigateway.cl/api/v2/";
 export const TIEMPO_MAXIMO_MS = 45_000;
 export const MAX_REAL_PROVIDER_REQUESTS_PER_SYNC = 24;
-const MAX_REINTENTOS = 2;
+/** Prueba controlada: como máximo un reintento automático. */
+const MAX_REINTENTOS = 1;
+
 
 export interface ApiGatewayConfig {
   baseUrl: string;
@@ -87,7 +94,13 @@ function numeroCabecera(headers: Headers, nombre: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Traduce una respuesta real de API Gateway a un código interno. */
+/**
+ * Traduce una respuesta real de API Gateway a un código interno.
+ *
+ * Regla clave: un HTTP 400 NO es automáticamente `MALFORMED_RESPONSE`. Se
+ * clasifica según el contenido sanitizado de la respuesta; solo un cuerpo que
+ * no es JSON (HTML del portal, por ejemplo) se considera realmente inesperado.
+ */
 export function mapearError(
   estado: number,
   detalle: string,
@@ -99,6 +112,8 @@ export function mapearError(
   // Una respuesta no JSON con 404 es la página web del proveedor: la ruta
   // solicitada no existe en la versión V2 del servicio.
   if (!esJson && estado === 404) return "RESOURCE_NOT_DOCUMENTED";
+  // Contenido realmente inesperado (HTML u otro formato) en un error.
+  if (!esJson) return "MALFORMED_RESPONSE";
 
   if (texto.includes("productos asociados") || texto.includes("no tiene producto"))
     return "PRODUCT_NOT_ENABLED";
@@ -107,6 +122,15 @@ export function mapearError(
   if (texto.includes("proxy") && texto.includes("no disponible")) return "PROXY_UNAVAILABLE";
   if (texto.includes("proxy")) return "PROXY_REQUIRED";
   if (texto.includes("bloquead")) return "ACCOUNT_BLOCKED";
+  // El usuario autenticado no puede representar a la empresa consultada.
+  if (
+    texto.includes("no tiene acceso") ||
+    texto.includes("sin acceso a la empresa") ||
+    texto.includes("no está autorizado a representar") ||
+    texto.includes("no esta autorizado a representar") ||
+    texto.includes("no representa")
+  )
+    return "COMPANY_ACCESS_DENIED";
   // Periodo contratado pero sin información publicada por el SII.
   if (
     texto.includes("sin movimiento") ||
@@ -133,16 +157,32 @@ export function mapearError(
   if (
     texto.includes("clave") ||
     texto.includes("contraseña") ||
-    texto.includes("credenciales")
+    texto.includes("credenciales") ||
+    texto.includes("rut o clave") ||
+    texto.includes("autenticacion") ||
+    texto.includes("autenticación")
   )
     return "INVALID_CREDENTIALS";
   if (texto.includes("mantencion") || texto.includes("mantención") || texto.includes("mantenimiento"))
     return texto.includes("sii") ? "SII_MAINTENANCE" : "PROVIDER_MAINTENANCE";
   if (texto.includes("sesion") || texto.includes("sesión")) return "SESSION_EXPIRED";
+  // Validación de esquema del proveedor: falta o sobra un campo del cuerpo.
+  if (
+    texto.includes("campo") ||
+    texto.includes("field") ||
+    texto.includes("requerid") ||
+    texto.includes("required") ||
+    texto.includes("inválid") ||
+    texto.includes("invalid") ||
+    texto.includes("formato")
+  )
+    return "INVALID_REQUEST";
 
   switch (estado) {
     case 400:
-      return "MALFORMED_RESPONSE";
+      // JSON de error válido del proveedor sin pista de credenciales:
+      // el cuerpo o un campo requerido es inválido.
+      return "INVALID_REQUEST";
     case 401:
       return "INVALID_CREDENTIALS";
     case 402:
@@ -164,14 +204,25 @@ export function mapearError(
   }
 }
 
-const NO_REINTENTABLES: SiiErrorCode[] = [
-  "INVALID_CREDENTIALS",
-  "ACCOUNT_BLOCKED",
-  "NOT_AUTHORIZED",
-  "PRODUCT_NOT_ENABLED",
-  "INSUFFICIENT_CREDITS",
-  "PROXY_REQUIRED",
-];
+/**
+ * Únicos casos que se reintentan: problemas transitorios. Todo lo demás
+ * (400, credenciales, request inválido, acceso denegado, producto no
+ * habilitado) se devuelve de inmediato para no gastar créditos.
+ */
+export function esReintentable(codigo: SiiErrorCode, estado: number | null): boolean {
+  if (estado === 400) return false;
+  return ERRORES_REINTENTABLES.includes(codigo);
+}
+
+/** Espera indicada por el proveedor en `Retry-After`, acotada a 10 segundos. */
+function esperaRetryAfter(headers: Headers): number | null {
+  const v = headers.get("retry-after");
+  if (!v) return null;
+  const segundos = Number(v);
+  if (!Number.isFinite(segundos)) return null;
+  return Math.min(Math.max(segundos, 0), 10) * 1000;
+}
+
 
 export interface ApiGatewayRequestInput<TRequest extends object> {
   config: ApiGatewayConfig;
@@ -288,14 +339,22 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
         log = {
           ...log,
           codigoError: codigo,
-          referenciaTecnica: `${input.modulo}:${respuesta.status}:${codigo}`,
+          // Referencia técnica no sensible: módulo, estado HTTP, tipo de
+          // contenido y código normalizado. Nunca incluye el cuerpo enviado.
+          referenciaTecnica: `${input.modulo}:${respuesta.status}:${
+            respuesta.headers.get("content-type")?.split(";")[0] ?? "sin-tipo"
+          }:${codigo}`,
         };
         input.registro?.agregar(log);
         const error = new SiiProviderError(codigo, moduloError);
-        if (NO_REINTENTABLES.includes(codigo) || intento === MAX_REINTENTOS) throw error;
+        if (!esReintentable(codigo, respuesta.status) || intento === MAX_REINTENTOS)
+          throw error;
         ultimoError = error;
-        await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+        await new Promise((r) =>
+          setTimeout(r, esperaRetryAfter(respuesta.headers) ?? 800 * (intento + 1)),
+        );
         continue;
+
       }
 
       input.registro?.agregar(log);

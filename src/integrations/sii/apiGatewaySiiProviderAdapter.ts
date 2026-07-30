@@ -30,7 +30,6 @@ import {
 import {
   ESTADOS_RCV_COMPRAS,
   RECURSO_RESUMEN_COMPRAS,
-  RECURSO_VALIDACION,
   recursoDe,
 } from "./apiGatewayResourceMap";
 import {
@@ -38,6 +37,8 @@ import {
   RegistroConsumo,
   type ApiGatewayConfig,
 } from "./apiGatewayClient";
+import { rutConGuion } from "@/lib/rut";
+
 
 export interface CredencialesTemporales {
   /** RUT de la empresa consultada (emisor/receptor en el RCV). */
@@ -51,6 +52,22 @@ export interface CredencialesTemporales {
 interface CuerpoAuth {
   auth: { pass: { rut: string; clave: string } };
 }
+
+/**
+ * Construye el cuerpo de autenticación exigido por API Gateway.
+ * Sin envoltorios adicionales (`credentials`, `authorizedRut`, `taxKey`, etc.).
+ */
+export function construirCuerpoAuth(
+  rutUsuarioAutorizado: string,
+  claveTributaria: string,
+): CuerpoAuth {
+  return {
+    auth: {
+      pass: { rut: rutConGuion(rutUsuarioAutorizado), clave: claveTributaria },
+    },
+  };
+}
+
 
 interface FilaResumen {
   rsmnTipoDocInteger?: number;
@@ -177,11 +194,14 @@ export function crearAdaptadorApiGateway(
   const { config, credenciales, registro } = opciones;
   const maxTipos = opciones.maxTiposPorModulo ?? 6;
 
-  const cuerpo: CuerpoAuth = {
-    auth: {
-      pass: { rut: credenciales.rutUsuario, clave: credenciales.claveTributaria },
-    },
-  };
+  // Cuerpo EXACTO exigido por API Gateway: solo `auth.pass.rut` (el RUT del
+  // usuario autorizado, sin puntos y con guion) y `auth.pass.clave`.
+  // El RUT de la empresa jamás reemplaza al del usuario autorizado.
+  const cuerpo: CuerpoAuth = construirCuerpoAuth(
+    credenciales.rutUsuario,
+    credenciales.claveTributaria,
+  );
+
 
   async function pedir<T>(
     modulo: SiiModule | "autenticacion",
@@ -223,23 +243,18 @@ export function crearAdaptadorApiGateway(
     esSimulado: false,
 
     /**
-     * API Gateway no entrega una sesión reutilizable del SII: la conexión se
-     * valida consultando los datos del contribuyente con las credenciales.
+     * NO hay validación previa contra `misii/contribuyente/datos`: ese recurso
+     * fue retirado del flujo real porque devolvía HTTP 400 y bloqueaba el RCV
+     * sin aportar nada al MVP. La primera consulta real es el resumen de
+     * ventas del RCV, y es ella la que confirma si las credenciales sirven.
+     * Aquí solo se prepara una referencia local, sin gastar créditos.
      */
     async connectCompany({ rut }): Promise<ProviderConnection> {
-      await requestApiGateway<CuerpoAuth, unknown>({
-        config,
-        modulo: "autenticacion",
-        metodo: RECURSO_VALIDACION.method,
-        ruta: RECURSO_VALIDACION.path,
-        body: cuerpo,
-        registro,
-      });
       const ahora = new Date();
       return {
         // Referencia no sensible: no contiene clave ni token.
         providerConnectionRef: `apigw:${rut}:${ahora.getTime()}`,
-        authorizedRut: rut,
+        authorizedRut: credenciales.rutUsuario,
         authMethod: "tax_key",
         connectedAt: ahora.toISOString(),
         // El proveedor exige credenciales en cada consulta: la "sesión" solo
@@ -248,15 +263,8 @@ export function crearAdaptadorApiGateway(
       };
     },
 
+    /** Sin sesión reutilizable: no se consulta nada ni se consumen créditos. */
     async authenticateCompany() {
-      await requestApiGateway<CuerpoAuth, unknown>({
-        config,
-        modulo: "autenticacion",
-        metodo: RECURSO_VALIDACION.method,
-        ruta: RECURSO_VALIDACION.path,
-        body: cuerpo,
-        registro,
-      });
       return {
         sessionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
       };
@@ -269,7 +277,8 @@ export function crearAdaptadorApiGateway(
 
     async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
       const periodo = periodoCompacto(query.period);
-      const emisor = query.rut;
+      const emisor = rutConGuion(query.rut);
+
       const resumenRecurso = recursoDe("rcv_sales_summary");
       const detalleRecurso = recursoDe("rcv_sales_documents");
 
@@ -309,7 +318,7 @@ export function crearAdaptadorApiGateway(
 
     async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
       const periodo = periodoCompacto(query.period);
-      const receptor = query.rut;
+      const receptor = rutConGuion(query.rut);
       const byStatus: ProviderPurchasesResult["byStatus"] = {
         registered: [],
         pending: [],
