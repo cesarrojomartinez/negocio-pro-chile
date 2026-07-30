@@ -916,7 +916,7 @@ export async function syncSiiCompanyPeriod(
   };
 }
 
-}
+
 
 export interface RegistroSincronizacion {
   id: string;
