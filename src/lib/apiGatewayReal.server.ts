@@ -232,13 +232,61 @@ export async function ejecutarPruebaRealApiGateway(
       .eq("provider", "api_gateway");
   }
 
+  // 4. Formulario 29 oficial del mismo periodo: ocurre solo, sin pasos extra
+  //    para la persona. Si el periodo aún no tiene declaración, simplemente se
+  //    mantiene la estimación del RCV. Nunca interrumpe la actualización.
+  let f29: ResultadoF29Automatico = {
+    estado: "omitido",
+    mensaje: "No se revisó el Formulario 29 en esta actualización.",
+    folio: null,
+    recalculado: false,
+  };
+  if (exito) {
+    try {
+      const { extraerF29Compacto } = await import("@/lib/f29PdfExtraction.server");
+      const r = await extraerF29Compacto(userId, {
+        companyId: entrada.companyId,
+        periodo: entrada.periodo,
+        rutUsuario,
+        claveTributaria: entrada.claveTributaria,
+        consentimiento: true,
+      });
+      f29 = {
+        estado: r.errorCodigo === "F29_NOT_DECLARED"
+          ? "no_declarado"
+          : r.errorCodigo
+            ? "revisar"
+            : "leido",
+        mensaje: r.errorCodigo
+          ? r.mensaje
+          : "Leímos el Formulario 29 oficial de este periodo.",
+        folio: r.extraccion?.folio ?? null,
+        recalculado: r.recalculado,
+      };
+    } catch {
+      f29 = {
+        estado: "revisar",
+        mensaje:
+          "Actualizamos tus ventas y compras, pero no pudimos leer el Formulario 29 de este periodo.",
+        folio: null,
+        recalculado: false,
+      };
+    }
+  }
+
   await registrarActividad(
     entrada.companyId,
     userId,
     exito ? "sii.connected_real" : "sii.real_test_failed",
     "tax_sii_connections",
-    { proveedor: "api_gateway", estado: sincronizacion.estado, ...consumo() },
+    {
+      proveedor: "api_gateway",
+      estado: sincronizacion.estado,
+      f29: f29.estado,
+      ...consumo(),
+    },
   );
+
 
   return {
     conexion: {
