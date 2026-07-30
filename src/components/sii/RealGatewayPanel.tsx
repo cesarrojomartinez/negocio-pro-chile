@@ -154,14 +154,23 @@ export function RealGatewayPanel() {
         {diagnostico.productos.map((p) => (
           <div
             key={p.clave}
-            className="rounded-2xl border border-border bg-card px-3 py-2 text-sm"
+            className={`rounded-2xl border px-3 py-2 text-sm ${
+              p.estado === "no_verificado"
+                ? "border-primary/30 bg-info-soft"
+                : "border-border bg-card"
+            }`}
           >
             <p className="font-medium">
               {p.titulo}: <span className="font-normal">{p.etiqueta}</span>
             </p>
-            <p className="text-xs text-muted-foreground">{p.detalle}</p>
+            <p className="text-xs text-muted-foreground">
+              {p.estado === "no_verificado"
+                ? "Los productos RCV y F29 todavía no fueron verificados en esta ejecución."
+                : p.detalle}
+            </p>
           </div>
         ))}
+
         <Button
           type="button"
           variant="outline"
