@@ -95,15 +95,40 @@ export const MENSAJE_ERROR_SII: Record<SiiErrorCode, string> = {
     "Recibimos información incompleta del proveedor demostrativo y no la usamos.",
   PARTIAL_DATA:
     "Trajimos solo una parte de la información. Los cálculos quedan como estimación parcial.",
+  ACCOUNT_BLOCKED:
+    "El SII bloqueó el acceso de esta clave. Ingresa al portal del SII para desbloquearla y vuelve a intentar.",
+  SESSION_EXPIRED:
+    "La sesión con el SII venció. Vuelve a ingresar tu Clave Tributaria para continuar.",
+  PROVIDER_MAINTENANCE:
+    "El servicio intermediario está en mantención. Intenta nuevamente más tarde.",
+  SII_MAINTENANCE:
+    "El sitio del SII está en mantención. Intenta nuevamente más tarde.",
+  INVALID_PROVIDER_RESPONSE:
+    "Recibimos una respuesta que no pudimos interpretar y no la usamos.",
+  INSUFFICIENT_CREDITS:
+    "No hay saldo suficiente en el servicio de consultas. Recarga y vuelve a intentar.",
+  PRODUCT_NOT_ENABLED:
+    "El servicio de consultas no tiene contratado este recurso todavía.",
+  RESOURCE_NOT_DOCUMENTED:
+    "Este dato no está disponible por ahora en el servicio de consultas.",
+  PROXY_REQUIRED:
+    "El servicio de consultas exige una salida a internet dedicada que aún no está configurada.",
+  PROXY_UNAVAILABLE:
+    "La salida a internet dedicada del servicio de consultas no está disponible.",
+  REQUEST_BUDGET_REACHED:
+    "Alcanzamos el máximo de consultas permitidas en una actualización. Guardamos lo que alcanzamos a traer.",
   UNKNOWN_ERROR: "No pudimos completar la consulta demostrativa. Intenta nuevamente.",
 };
 
 /** Errores que tiene sentido reintentar automáticamente. */
 export const ERRORES_REINTENTABLES: SiiErrorCode[] = [
   "PROVIDER_UNAVAILABLE",
+  "PROVIDER_MAINTENANCE",
+  "SII_MAINTENANCE",
   "TIMEOUT",
   "RATE_LIMITED",
 ];
+
 
 export class SiiProviderError extends Error {
   readonly code: SiiErrorCode;
