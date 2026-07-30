@@ -56,6 +56,7 @@ export type SiiErrorCode =
   | "ACCOUNT_BLOCKED"
   | "AUTH_EXPIRED"
   | "SESSION_EXPIRED"
+  | "SESSION_INVALID"
   | "NOT_AUTHORIZED"
   | "COMPANY_NOT_FOUND"
   | "PERIOD_NOT_AVAILABLE"
@@ -83,12 +84,11 @@ export const MENSAJE_ERROR_SII: Record<SiiErrorCode, string> = {
     "La conexión real con el SII todavía no está habilitada. Por ahora solo funciona la conexión demostrativa.",
   CONNECTION_REQUIRED:
     "Primero necesitas activar la conexión demostrativa de esta empresa.",
-  INVALID_CREDENTIALS:
-    "No pudimos validar la autorización demostrativa de esta empresa.",
+  INVALID_CREDENTIALS: "El SII rechazó las credenciales ingresadas.",
   INVALID_REQUEST:
-    "La consulta se envió con datos incompletos y el servicio la rechazó. Revisa el RUT autorizado y vuelve a intentar.",
+    "La solicitud enviada al proveedor no tenía el formato esperado.",
   COMPANY_ACCESS_DENIED:
-    "El usuario autorizado no tiene acceso a esta empresa en el SII.",
+    "Las credenciales son válidas, pero no tienen autorización para consultar esta empresa.",
 
   AUTH_EXPIRED:
     "La autorización demostrativa venció. Vuelve a activar la conexión.",
@@ -106,7 +106,9 @@ export const MENSAJE_ERROR_SII: Record<SiiErrorCode, string> = {
   ACCOUNT_BLOCKED:
     "El SII bloqueó el acceso de esta clave. Ingresa al portal del SII para desbloquearla y vuelve a intentar.",
   SESSION_EXPIRED:
-    "La sesión con el SII venció. Vuelve a ingresar tu Clave Tributaria para continuar.",
+    "La sesión del SII utilizada por el proveedor venció. Debes ejecutar nuevamente la consulta para crear una sesión nueva.",
+  SESSION_INVALID:
+    "La sesión del SII utilizada por el proveedor venció. Debes ejecutar nuevamente la consulta para crear una sesión nueva.",
   PROVIDER_MAINTENANCE:
     "El servicio intermediario está en mantención. Intenta nuevamente más tarde.",
   SII_MAINTENANCE:
