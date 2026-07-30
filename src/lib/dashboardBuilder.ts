@@ -45,6 +45,10 @@ export interface EntradaDashboard {
   diasDesdeSincronizacion?: number | null;
   errorSincronizacion?: boolean;
   configuradoManualmente?: boolean;
+  /** Empresa o modo demostrativo: sus cifras son ficticias. */
+  esDemo?: boolean;
+  /** El periodo tiene un F29 confirmado por el contador. */
+  f29Confirmado?: boolean;
 }
 
 /**
@@ -91,6 +95,12 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
   });
 
   return {
+    fuentePeriodo: determinarFuentePeriodo({
+      esDemo: !!entrada.esDemo,
+      hayDocumentos:
+        data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
+      f29Confirmado: !!entrada.f29Confirmado,
+    }),
     empresa: entrada.empresa,
     resumen,
     meta,
