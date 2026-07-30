@@ -53,7 +53,10 @@ export function interpretarAntecedenteF29(
   const bruto = (fila.raw_data ?? {}) as Record<string, unknown>;
   const confirmado =
     fila.declaration_status === "filed" &&
-    (fila.source === "accountant" || bruto.origin === ORIGEN_F29_CONTADOR);
+    (fila.source === "accountant" ||
+      fila.source === "f29_pdf_extracted" ||
+      bruto.origin === ORIGEN_F29_CONTADOR ||
+      bruto.origin === ORIGEN_F29_PDF);
 
   return {
     confirmado,
