@@ -404,6 +404,23 @@ const ESTADOS_SIN_FALLA: EstadoModulo[] = [
   "omitido",
 ];
 
+/** Totales oficiales tal como los informa el resumen del RCV, sin recalcular. */
+export interface TotalesResumenRcv {
+  ventas: ProviderRcvSummary;
+  compras: ProviderRcvSummary;
+}
+
+/** Valores neutros para las salidas que no llegan a consultar al proveedor. */
+const SIN_RESUMEN = {
+  documentosInformadosResumen: 0,
+  documentosPersistidos: 0,
+  motivosRechazo: [] as { motivo: string; cantidad: number }[],
+  totalesResumen: null as TotalesResumenRcv | null,
+  inconsistencias: [] as string[],
+  fuenteTotales: "documents" as "documents" | "rcv_summary",
+};
+
+
 export interface ResultadoSincronizacion {
   ejecutada: boolean;
   motivo: string;
