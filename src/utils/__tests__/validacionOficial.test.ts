@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import type { MapaCodigos, ValorCodigo } from "@/lib/f29PdfParser";
 import {
   codigosFaltantes,
   documentosRequeridos,
@@ -55,11 +56,19 @@ describe("validación oficial universal", () => {
   });
 
   it("prioriza el código 91 como total oficial y detecta faltantes", () => {
-    const total = totalOficialDeclarado({
-      "91": { valor: 1125729, informado: true },
-      "94": { valor: 5000, informado: true },
+    const valor = (code: string, monto: number): ValorCodigo => ({
+      code,
+      raw_value: String(monto),
+      normalized_value: monto,
+      value_type: "amount",
+      page: 1,
+      extraction_method: "positional",
+      confidence: 1,
+      anchor: null,
+      coordinates: null,
     });
-    expect(total.valor).toBe(1125729);
-    expect(codigosFaltantes({ "91": { valor: 1125729, informado: true } })).toContain("538");
+    const codigos: MapaCodigos = { "91": valor("91", 1125729), "94": valor("94", 5000) };
+    expect(totalOficialDeclarado(codigos).valor).toBe(1125729);
+    expect(codigosFaltantes({ "91": valor("91", 1125729) })).toContain("538");
   });
 });
