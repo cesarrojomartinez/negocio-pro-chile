@@ -94,13 +94,62 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     manuallyConfigured: !!entrada.configuradoManualmente,
   });
 
+  const fuentePeriodo = determinarFuentePeriodo({
+    esDemo: !!entrada.esDemo,
+    hayDocumentos:
+      data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
+    f29Confirmado: !!entrada.f29Confirmado,
+  });
+
+  const fuenteDocumentos: ConceptSource = entrada.esDemo
+    ? "mock"
+    : data.documentosVenta.length > 0 || data.documentosCompra.length > 0
+      ? "rcv"
+      : "unknown";
+
+  const contexto = construirContextoTributario({
+    periodo: data.periodo,
+    vatDebit: resumen.ivaDebito,
+    vatDebitSource: fuenteDocumentos,
+    currentPeriodVatCredit: resumen.ivaCredito,
+    vatCreditSource: entrada.esDemo
+      ? "mock"
+      : data.documentosCompra.length > 0
+        ? "rcv"
+        : "unknown",
+    previousVatCarryforward:
+      data.remanenteConocido === false ? null : resumen.remanenteAnterior,
+    carryforwardSource: fuenteConceptoRemanente(resumen.fuenteRemanente),
+    otherVatDebits: data.otrosDebitosIva ?? 0,
+    otherVatCredits: data.otrosCreditosIva ?? 0,
+    specialDebits: data.debitosEspeciales ?? 0,
+    specialCredits: data.creditosEspeciales ?? 0,
+    ppmTaxBase: resumen.basePpm,
+    ppmBaseSource:
+      data.basePpmConfirmada != null && data.basePpmConfirmada > 0
+        ? "accountant_confirmed"
+        : entrada.esDemo
+          ? "mock"
+          : "calculated",
+    ppmRate: resumen.tasaPpm,
+    ppmRateSource: fuenteConceptoPpm(resumen.fuentePpm),
+    withholdings:
+      resumen.fuenteRetenciones === "unknown" ? null : resumen.retencionesEstimadas,
+    withholdingsSource: fuenteConceptoRetenciones(resumen.fuenteRetenciones),
+    salesSource: fuenteDocumentos,
+    hasSales: data.documentosVenta.length > 0,
+    hasPurchases: data.documentosCompra.length > 0,
+    declaredVat: data.ivaDeclarado ?? null,
+    declaredPpm: data.ppmDeclarado ?? null,
+    declaredWithholdings: data.retencionesDeclaradas ?? null,
+    declaredTaxTotal: data.totalDeclarado ?? null,
+    f29Confirmado: !!entrada.f29Confirmado,
+    periodoCerrado: estado === "cerrado",
+  });
+
   return {
-    fuentePeriodo: determinarFuentePeriodo({
-      esDemo: !!entrada.esDemo,
-      hayDocumentos:
-        data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
-      f29Confirmado: !!entrada.f29Confirmado,
-    }),
+    fuentePeriodo,
+    contexto,
     empresa: entrada.empresa,
     resumen,
     meta,
