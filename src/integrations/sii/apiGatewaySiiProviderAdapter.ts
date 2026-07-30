@@ -318,7 +318,7 @@ export function crearAdaptadorApiGateway(
 
     async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
       const periodo = periodoCompacto(query.period);
-      const receptor = query.rut;
+      const receptor = rutConGuion(query.rut);
       const byStatus: ProviderPurchasesResult["byStatus"] = {
         registered: [],
         pending: [],
