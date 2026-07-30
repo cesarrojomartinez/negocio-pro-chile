@@ -47,3 +47,13 @@ export const urlFirmadaF29Fn = createServerFn({ method: "POST" })
       return urlFirmadaF29(context.userId, data);
     });
   });
+
+export const listarExtraccionesF29Fn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ companyId: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    return envolver(async () => {
+      const { listarExtraccionesF29 } = await import("@/lib/f29PdfExtraction.server");
+      return listarExtraccionesF29(context.userId, data);
+    });
+  });

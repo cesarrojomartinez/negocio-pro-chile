@@ -10,7 +10,16 @@ import {
   type ApiGatewayCallLog,
   type ApiGatewayConfig,
 } from "./apiGatewayClient";
-import { SiiProviderError, type SiiModule } from "./contracts";
+import {
+  esModuloSii,
+  SiiProviderError,
+  type ModuloConsulta,
+  type SiiModule,
+} from "./contracts";
+
+function moduloSii(modulo: ModuloConsulta): SiiModule | null {
+  return esModuloSii(modulo) ? modulo : null;
+}
 
 export interface RespuestaBinaria {
   bytes: Uint8Array;
@@ -21,13 +30,13 @@ export interface RespuestaBinaria {
 /** Una sola solicitud, sin reintentos automáticos: cada intento cuesta créditos. */
 export async function requestApiGatewayBinary<TRequest extends object>(entrada: {
   config: ApiGatewayConfig;
-  modulo: SiiModule;
+  modulo: ModuloConsulta;
   ruta: string;
   body: TRequest;
   registro?: { agregar: (log: ApiGatewayCallLog) => void; exigirPresupuesto: (m: SiiModule | null) => void };
   sinCacheAuth?: boolean;
 }): Promise<RespuestaBinaria> {
-  entrada.registro?.exigirPresupuesto(entrada.modulo);
+  entrada.registro?.exigirPresupuesto(moduloSii(entrada.modulo));
 
   const base = entrada.config.baseUrl.endsWith("/")
     ? entrada.config.baseUrl
@@ -111,7 +120,7 @@ export async function requestApiGatewayBinary<TRequest extends object>(entrada: 
         referenciaTecnica: `${entrada.modulo}:${respuesta.status}:${contentType ?? "sin-tipo"}:${codigo}`,
       };
       entrada.registro?.agregar(log);
-      throw new SiiProviderError(codigo, entrada.modulo);
+      throw new SiiProviderError(codigo, moduloSii(entrada.modulo));
     }
 
     entrada.registro?.agregar(log);
@@ -123,7 +132,7 @@ export async function requestApiGatewayBinary<TRequest extends object>(entrada: 
     const codigo = esTimeout ? "TIMEOUT" : "PROVIDER_UNAVAILABLE";
     log = { ...log, duracionMs: Date.now() - inicio, codigoError: codigo, referenciaTecnica: `${entrada.modulo}:red:${codigo}` };
     entrada.registro?.agregar(log);
-    throw new SiiProviderError(codigo, entrada.modulo);
+    throw new SiiProviderError(codigo, moduloSii(entrada.modulo));
   } finally {
     clearTimeout(temporizador);
   }

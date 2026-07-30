@@ -1,5 +1,6 @@
 import {
   extraerF29CompactoFn,
+  listarExtraccionesF29Fn,
   obtenerExtraccionF29Fn,
   urlFirmadaF29Fn,
 } from "@/lib/f29Pdf.functions";
@@ -37,6 +38,12 @@ export const f29PdfService = {
 
   async obtener(companyId: string, periodo: string): Promise<ExtraccionF29 | null> {
     const r = await obtenerExtraccionF29Fn({ data: { companyId, periodo } });
+    if (!r.ok) throw new ErrorF29Pdf(r.error);
+    return r.data;
+  },
+
+  async listar(companyId: string): Promise<ExtraccionF29[]> {
+    const r = await listarExtraccionesF29Fn({ data: { companyId } });
     if (!r.ok) throw new ErrorF29Pdf(r.error);
     return r.data;
   },

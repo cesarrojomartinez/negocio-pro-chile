@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Calculator,
+  FileText,
   Home,
   Receipt,
   RefreshCw,
@@ -46,6 +47,7 @@ const NAV = [
   { to: "/ventas", label: "Ventas", icon: Receipt },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/impuestos", label: "Impuestos", icon: Calculator },
+  { to: "/documentos", label: "Documentos", icon: FileText },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/configuracion", label: "Configuración", icon: Settings },
 ] as const;
@@ -53,6 +55,7 @@ const NAV = [
 const NAV_MOVIL = [
   { to: "/", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Movimientos", icon: ArrowLeftRight },
+  { to: "/documentos", label: "Documentos", icon: FileText },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/configuracion", label: "Ajustes", icon: Settings },
 ] as const;

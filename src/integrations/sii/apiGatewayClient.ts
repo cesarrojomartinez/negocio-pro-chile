@@ -16,6 +16,7 @@ import {
   ERRORES_REINTENTABLES,
   SiiProviderError,
   type SiiErrorCode,
+  type ModuloConsulta,
   type SiiModule,
 } from "./contracts";
 import { sanitizarProfundo } from "./sanitize";
@@ -34,7 +35,7 @@ export interface ApiGatewayConfig {
 }
 
 export interface ApiGatewayCallLog {
-  modulo: SiiModule | "diagnostico" | "autenticacion";
+  modulo: ModuloConsulta | "diagnostico" | "autenticacion";
   metodo: string;
   recurso: string;
   estadoHttp: number | null;
@@ -250,7 +251,7 @@ function esperaRetryAfter(headers: Headers): number | null {
 
 export interface ApiGatewayRequestInput<TRequest extends object> {
   config: ApiGatewayConfig;
-  modulo: SiiModule | "diagnostico" | "autenticacion";
+  modulo: ModuloConsulta | "diagnostico" | "autenticacion";
   metodo: "GET" | "POST";
   /** Ruta ya resuelta, relativa a la base. Nunca debe contener credenciales. */
   ruta: string;

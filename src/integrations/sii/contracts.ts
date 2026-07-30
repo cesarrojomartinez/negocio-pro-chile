@@ -25,6 +25,30 @@ export type SiiModule =
   | "f29_compact_pdf"
   | "withholdings";
 
+/**
+ * Archivos individuales de documentos tributarios (Portal MIPYME).
+ * No son módulos de sincronización: se descargan uno por uno, bajo demanda.
+ */
+export type DteFileModule =
+  | "dte_pdf_issued"
+  | "dte_xml_issued"
+  | "dte_pdf_received"
+  | "dte_xml_received";
+
+export const ETIQUETA_MODULO_DTE: Record<DteFileModule, string> = {
+  dte_pdf_issued: "PDF de documento emitido",
+  dte_xml_issued: "XML de documento emitido",
+  dte_pdf_received: "PDF de documento recibido",
+  dte_xml_received: "XML de documento recibido",
+};
+
+/** Cualquier recurso consultable del proveedor. */
+export type ModuloConsulta = SiiModule | DteFileModule;
+
+export function esModuloSii(modulo: ModuloConsulta): modulo is SiiModule {
+  return !modulo.startsWith("dte_");
+}
+
 export const MODULOS_SINCRONIZACION: SiiModule[] = [
   "rcv_sales_documents",
   "rcv_purchases_registered",
