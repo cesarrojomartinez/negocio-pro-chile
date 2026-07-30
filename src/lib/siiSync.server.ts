@@ -415,9 +415,9 @@ async function upsertDocumentos(
 
 
 /**
- * Sincroniza un periodo completo contra el proveedor simulado:
- * consulta, guarda el respaldo crudo, normaliza, deduplica, recalcula y
- * deja registro del uso.
+ * Sincroniza un periodo completo contra el proveedor activo (simulado o real):
+ * consulta, guarda el respaldo crudo sanitizado, normaliza, deduplica,
+ * recalcula y deja registro del uso y del consumo.
  */
 export async function syncSiiCompanyPeriod(
   userId: string,
@@ -432,14 +432,25 @@ export async function syncSiiCompanyPeriod(
   await exigirRol(userId, entrada.companyId, ["owner", "business_user", "accountant"]);
 
   const tipo: TipoActivacion = entrada.triggerType ?? "manual";
+  const proveedorId: SiiProviderId = opciones.proveedorId ?? "mock";
+  const fuente = fuenteDe(proveedorId);
+  const esReal = proveedorId === "api_gateway";
+  const registro = opciones.registro ?? null;
   const empresa = await empresaDe(entrada.companyId);
-  const conexionFila = await conexionDe(entrada.companyId);
-
+  const conexionFila = await conexionDe(entrada.companyId, proveedorId);
 
   if (!conexionFila || !["connected", "stale"].includes(String(conexionFila.status)))
     throw new ErrorNegocio(
-      "Primero necesitas activar la conexión demostrativa de esta empresa.",
+      esReal
+        ? "Primero necesitas autorizar la conexión real de esta empresa."
+        : "Primero necesitas activar la conexión demostrativa de esta empresa.",
     );
+
+  const consumo = () => ({
+    creditosConsumidos: registro ? Number(registro.creditosUsados.toFixed(4)) : null,
+    creditosDisponibles: registro?.creditosDisponibles ?? null,
+    proxyUsado: registro?.proxyUsado ?? null,
+  });
 
   // Idempotencia: la misma clave nunca ejecuta dos veces.
   if (entrada.idempotencyKey) {
@@ -459,6 +470,7 @@ export async function syncSiiCompanyPeriod(
         modulosCompletados: (previo.modules_completed ?? []) as SiiModule[],
         modulosFallidos: (previo.modules_failed ?? []) as SiiModule[],
         modulosDesdeCache: (previo.modules_from_cache ?? []) as SiiModule[],
+        modulosNoDisponibles: [],
         documentosRecibidos: 0,
         documentosCreados: 0,
         documentosActualizados: 0,
@@ -469,18 +481,27 @@ export async function syncSiiCompanyPeriod(
         proximaActualizacion: null,
         errorCodigo: null,
         mensaje: "Esta actualización ya se había procesado.",
-        simulado: true,
+        simulado: !esReal,
+        fuente,
+        ...consumo(),
       };
   }
 
   const ahora = opciones.ahora ?? new Date();
   const periodoRow = await asegurarPeriodo(entrada.companyId, entrada.periodo);
-  const decision = decidirSincronizacion({
-    ahora,
-    ultimaSincronizacionExitosa: conexionFila.last_successful_sync_at,
-    tipo,
-    periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
-  });
+  const decision = opciones.omitirPoliticaCache
+    ? {
+        debeConsultar: true,
+        motivo: "solicitud_manual" as const,
+        proximaActualizacion: null,
+        minutosDesdeUltima: null,
+      }
+    : decidirSincronizacion({
+        ahora,
+        ultimaSincronizacionExitosa: conexionFila.last_successful_sync_at,
+        tipo,
+        periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
+      });
 
   if (!decision.debeConsultar) {
     const { data: omitido } = await supabaseAdmin
@@ -491,7 +512,7 @@ export async function syncSiiCompanyPeriod(
         sync_type: tipo === "manual" ? "manual" : "scheduled",
         trigger_type: tipo,
         status: "skipped",
-        source: "mock_gateway",
+        source: fuente,
         cache_hit: true,
         completed_at: ahora.toISOString(),
         modules_requested: MODULOS_SINCRONIZACION,
@@ -510,6 +531,7 @@ export async function syncSiiCompanyPeriod(
       modulosCompletados: [],
       modulosFallidos: [],
       modulosDesdeCache: MODULOS_SINCRONIZACION.slice(),
+      modulosNoDisponibles: [],
       documentosRecibidos: 0,
       documentosCreados: 0,
       documentosActualizados: 0,
@@ -523,9 +545,12 @@ export async function syncSiiCompanyPeriod(
         decision.motivo === "espera_minima_manual"
           ? "Actualizaste hace muy poco. Espera unos minutos antes de volver a intentar."
           : "Ya tienes información reciente, no fue necesario volver a consultar.",
-      simulado: true,
+      simulado: !esReal,
+      fuente,
+      ...consumo(),
     };
   }
+
 
   const inicio = Date.now();
   const { data: run, error: errorRun } = await supabaseAdmin
