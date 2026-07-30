@@ -208,6 +208,8 @@ export function RealGatewayPanel() {
       else if (m.tono === "warning") toast.warning(m.texto);
       else if (m.tono === "info") toast.info(m.texto);
       else toast.success(m.texto);
+      // Tras una consulta real hay datos nuevos guardados: refrescamos el panel.
+      if (m.tono !== "error") await refrescarDatos();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
