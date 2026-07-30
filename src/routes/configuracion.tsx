@@ -55,6 +55,23 @@ function Configuracion() {
     conectarDemo,
     desconectar,
   } = useTaxDashboard();
+  const { modo, empresaActiva } = useCompany();
+
+  const esCloud = modo === "cloud";
+  const empresa = {
+    razonSocial: esCloud
+      ? (empresaActiva?.razonSocial ?? "—")
+      : EMPRESA_DEMO.razonSocial,
+    nombreFantasia: esCloud
+      ? (empresaActiva?.nombreFantasia ?? "—")
+      : EMPRESA_DEMO.nombreFantasia,
+    rut: esCloud
+      ? empresaActiva
+        ? formatearRut(empresaActiva.rut)
+        : "—"
+      : EMPRESA_DEMO.rut,
+    actividad: esCloud ? (empresaActiva?.actividad ?? "—") : EMPRESA_DEMO.actividad,
+  };
 
   const [modalConexion, setModalConexion] = useState(false);
   const [dialogMeta, setDialogMeta] = useState(false);
@@ -74,7 +91,9 @@ function Configuracion() {
             Configuración
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Ajustes de la demostración. Nada de lo que ingreses se envía al SII.
+            {esCloud
+              ? "Ajusta tu meta, tu reserva y las alertas. Nada de lo que ingreses se envía al SII."
+              : "Ajustes de la demostración. Nada de lo que ingreses se envía al SII."}
           </p>
         </header>
 
@@ -83,12 +102,13 @@ function Configuracion() {
           acciones={<Building2 className="h-5 w-5 text-primary" aria-hidden />}
         >
           <div className="rounded-2xl bg-secondary/60 p-4">
-            <DataRow label="Razón social" value={EMPRESA_DEMO.razonSocial} />
-            <DataRow label="Nombre de fantasía" value={EMPRESA_DEMO.nombreFantasia} />
-            <DataRow label="RUT" value={EMPRESA_DEMO.rut} />
-            <DataRow label="Actividad" value={EMPRESA_DEMO.actividad} />
+            <DataRow label="Razón social" value={empresa.razonSocial} />
+            <DataRow label="Nombre de fantasía" value={empresa.nombreFantasia} />
+            <DataRow label="RUT" value={empresa.rut} />
+            <DataRow label="Actividad" value={empresa.actividad} />
           </div>
         </SectionCard>
+
 
         <div className="grid gap-5 xl:grid-cols-2">
           <SectionCard titulo="Meta y reserva">
