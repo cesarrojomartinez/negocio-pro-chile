@@ -51,6 +51,8 @@ export type SiiErrorCode =
   | "PROVIDER_NOT_CONFIGURED"
   | "CONNECTION_REQUIRED"
   | "INVALID_CREDENTIALS"
+  | "INVALID_REQUEST"
+  | "COMPANY_ACCESS_DENIED"
   | "ACCOUNT_BLOCKED"
   | "AUTH_EXPIRED"
   | "SESSION_EXPIRED"
@@ -72,6 +74,7 @@ export type SiiErrorCode =
   | "PROXY_UNAVAILABLE"
   | "REQUEST_BUDGET_REACHED"
   | "UNKNOWN_ERROR";
+
 
 
 /** Mensajes en español, sin jerga técnica, para mostrar al microempresario. */
