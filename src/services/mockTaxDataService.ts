@@ -36,6 +36,7 @@ export const mockTaxDataService: TaxDataService = {
       metaMensual,
       diasDesdeSincronizacion: 0,
       configuradoManualmente: true,
+      esDemo: true,
     });
   },
 
