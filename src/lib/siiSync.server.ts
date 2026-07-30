@@ -122,15 +122,16 @@ async function empresaDe(companyId: string) {
   return data;
 }
 
-async function conexionDe(companyId: string) {
+async function conexionDe(companyId: string, proveedor: SiiProviderId = "mock") {
   const { data } = await supabaseAdmin
     .from("tax_sii_connections")
     .select("*")
     .eq("company_id", companyId)
-    .eq("provider", "mock")
+    .eq("provider", proveedor)
     .maybeSingle();
   return data ?? null;
 }
+
 
 /** Asegura la existencia del periodo y devuelve su id. */
 async function asegurarPeriodo(companyId: string, periodo: string) {
