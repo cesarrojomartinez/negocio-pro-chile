@@ -982,11 +982,36 @@ export async function syncSiiCompanyPeriod(
   });
 
   const hubieron = completados.length > 0;
-  const estado: ResultadoSincronizacion["estado"] = fallidos.length
+
+  /**
+   * Consistencia obligatoria resumen ↔ detalle.
+   * Si el SII informa documentos y no logramos guardar ninguno, el resultado NO
+   * puede presentarse como exitoso: se marca como parcial y se explica.
+   */
+  const informadosResumen = resumenVentas.documentCount + resumenCompras.documentCount;
+  const inconsistencias: string[] = [];
+  if (hayResumen) {
+    if (resumenVentas.documentCount > 0 && totalesDetalle.ventas === 0)
+      inconsistencias.push(
+        `El SII informa ${resumenVentas.documentCount} documentos de venta y el detalle llegó vacío.`,
+      );
+    if (resumenCompras.documentCount > 0 && totalesDetalle.compras === 0)
+      inconsistencias.push(
+        `El SII informa ${resumenCompras.documentCount} documentos de compra y el detalle llegó vacío.`,
+      );
+    if (informadosResumen > 0 && persistidos > 0 && persistidos < informadosResumen)
+      inconsistencias.push(
+        `El resumen informa ${informadosResumen} documentos y guardamos ${persistidos}.`,
+      );
+  }
+
+  const estadoBase: ResultadoSincronizacion["estado"] = fallidos.length
     ? hubieron
       ? "partial"
       : "failed"
     : "success";
+  const estado: ResultadoSincronizacion["estado"] =
+    estadoBase === "success" && inconsistencias.length ? "partial" : estadoBase;
   const fin = new Date();
   const errorCodigo = primerError
     ? (primerError as SiiProviderError).code
@@ -996,13 +1021,51 @@ export async function syncSiiCompanyPeriod(
   if (hubieron) {
     await supabaseAdmin
       .from("tax_periods")
-      .update({ data_source: fuente })
+      .update({
+        data_source: fuente,
+        rcv_summary: hayResumen
+          ? ({ ventas: resumenVentas, compras: resumenCompras } as never)
+          : null,
+        rcv_summary_updated_at: hayResumen ? fin.toISOString() : null,
+      })
       .eq("id", periodoRow.id);
     await recalculateTaxPeriod(userId, {
       companyId: entrada.companyId,
       periodo: entrada.periodo,
     });
   }
+
+  /**
+   * Respaldo del panel: si el resumen oficial trae movimientos pero el detalle
+   * no pudo importarse, se muestran igualmente los totales del SII marcados
+   * como provenientes del resumen. Nunca se inventan documentos.
+   */
+  const usarResumenComoRespaldo =
+    hubieron && hayResumen && informadosResumen > 0 && persistidos === 0;
+  if (hubieron) {
+    await supabaseAdmin.from("tax_monthly_summaries").upsert(
+      usarResumenComoRespaldo
+        ? {
+            company_id: entrada.companyId,
+            tax_period_id: periodoRow.id,
+            totals_source: "rcv_summary",
+            sales_total: Math.round(resumenVentas.totalAmount),
+            exempt_sales: Math.round(resumenVentas.exemptAmount),
+            vat_debit: Math.round(resumenVentas.vatAmount),
+            purchases_total: Math.round(resumenCompras.totalAmount),
+            net_purchases: Math.round(resumenCompras.netAmount),
+            exempt_purchases: Math.round(resumenCompras.exemptAmount),
+            vat_credit: Math.round(resumenCompras.vatAmount),
+          }
+        : {
+            company_id: entrada.companyId,
+            tax_period_id: periodoRow.id,
+            totals_source: "documents",
+          },
+      { onConflict: "company_id,tax_period_id" },
+    );
+  }
+
 
   await supabaseAdmin
     .from("tax_sync_runs")
