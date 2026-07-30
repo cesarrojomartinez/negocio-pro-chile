@@ -151,7 +151,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     declaredWithholdings: data.retencionesDeclaradas ?? null,
     declaredTaxTotal: data.totalDeclarado ?? null,
     f29Confirmado: !!entrada.f29Confirmado,
-    periodoCerrado: estado === "cerrado",
+    periodoCerrado: estado === "closed",
   });
 
   return {
