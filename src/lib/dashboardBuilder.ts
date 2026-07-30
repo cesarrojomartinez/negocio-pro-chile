@@ -10,7 +10,29 @@ import {
   nivelAEspanol,
 } from "@/utils/taxCalculations";
 import type { Empresa } from "@/types/company";
-import type { DashboardData, PeriodoData, ResumenMensual, ResumenVentas } from "@/types/tax";
+import type {
+  DashboardData,
+  FuentePeriodo,
+  PeriodoData,
+  ResumenMensual,
+  ResumenVentas,
+} from "@/types/tax";
+
+/**
+ * Determina el origen real del periodo. Una empresa conectada no implica que
+ * todos sus periodos tengan información importada.
+ */
+export function determinarFuentePeriodo(entrada: {
+  esDemo: boolean;
+  hayDocumentos: boolean;
+  f29Confirmado: boolean;
+}): FuentePeriodo {
+  if (entrada.esDemo) return "mock";
+  if (entrada.hayDocumentos && entrada.f29Confirmado) return "rcv_real_plus_accountant";
+  if (entrada.hayDocumentos) return "rcv_real";
+  if (entrada.f29Confirmado) return "accountant_confirmed";
+  return "not_synchronized";
+}
 
 export interface EntradaDashboard {
   empresa: Empresa;
@@ -23,6 +45,10 @@ export interface EntradaDashboard {
   diasDesdeSincronizacion?: number | null;
   errorSincronizacion?: boolean;
   configuradoManualmente?: boolean;
+  /** Empresa o modo demostrativo: sus cifras son ficticias. */
+  esDemo?: boolean;
+  /** El periodo tiene un F29 confirmado por el contador. */
+  f29Confirmado?: boolean;
 }
 
 /**
@@ -69,6 +95,12 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
   });
 
   return {
+    fuentePeriodo: determinarFuentePeriodo({
+      esDemo: !!entrada.esDemo,
+      hayDocumentos:
+        data.documentosVenta.length > 0 || data.documentosCompra.length > 0,
+      f29Confirmado: !!entrada.f29Confirmado,
+    }),
     empresa: entrada.empresa,
     resumen,
     meta,

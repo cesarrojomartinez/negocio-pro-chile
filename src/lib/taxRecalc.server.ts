@@ -294,6 +294,8 @@ export async function recalculateTaxPeriod(
     diasDesdeSincronizacion: diasDesdeSync,
     errorSincronizacion: syncRow?.status === "failed",
     configuradoManualmente: !esDemo,
+    esDemo,
+    f29Confirmado: !!antecedente?.confirmado,
   });
 
   const r = dashboard.resumen;

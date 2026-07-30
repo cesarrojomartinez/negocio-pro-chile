@@ -340,7 +340,7 @@ export const cloudTaxDataService: TaxDataService & {
     const { data: empresaRow, error: errorEmpresa } = await supabase
       .from("tax_companies")
       .select(
-        "id, rut, business_name, fantasy_name, business_activity, connection_status, last_sync_at",
+        "id, rut, business_name, fantasy_name, business_activity, connection_status, last_sync_at, is_demo",
       )
       .eq("id", companyId)
       .maybeSingle();
@@ -452,6 +452,8 @@ export const cloudTaxDataService: TaxDataService & {
       diasDesdeSincronizacion,
       errorSincronizacion: empresaRow.connection_status === "error",
       configuradoManualmente: settings != null,
+      esDemo: !!empresaRow.is_demo,
+      f29Confirmado: !!antecedenteF29?.confirmado,
     });
   },
 

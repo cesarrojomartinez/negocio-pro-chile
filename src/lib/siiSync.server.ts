@@ -935,6 +935,14 @@ export async function syncSiiCompanyPeriod(
     });
     for (const fila of normalizarF29(historial)) {
       const p = await asegurarPeriodo(entrada.companyId, fila.period);
+      // Nunca sobreescribimos un F29 confirmado por el contador.
+      const { data: existente } = await supabaseAdmin
+        .from("tax_f29_history")
+        .select("source")
+        .eq("company_id", entrada.companyId)
+        .eq("tax_period_id", p.id)
+        .maybeSingle();
+      if (existente?.source === "accountant") continue;
       await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,

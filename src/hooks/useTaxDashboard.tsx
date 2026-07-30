@@ -425,9 +425,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       ultimaSincronizacion,
       conexionSii,
       resumenSincronizacion,
-      datosSimulados: esCloud
-        ? conexionSii?.simulado !== false
-        : true,
+      // Depende del periodo mostrado, no del estado de conexión de la empresa.
+      datosSimulados: data?.fuentePeriodo === "mock",
       setPeriodo: cambiarPeriodo,
       setEscenario: cambiarEscenario,
       setMargenPorcentaje: cambiarMargen,

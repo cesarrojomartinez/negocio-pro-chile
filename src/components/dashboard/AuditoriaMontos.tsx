@@ -50,14 +50,9 @@ function Etiqueta({ evidencia }: { evidencia: Evidencia }) {
   );
 }
 
-export function AuditoriaMontos({
-  data,
-  esDemo,
-}: {
-  data: DashboardData;
-  esDemo: boolean;
-}) {
+export function AuditoriaMontos({ data }: { data: DashboardData }) {
   const { resumen, ventas, compras } = data;
+  const esDemo = data.fuentePeriodo === "mock";
 
   const hayDocsVenta = data.documentosVenta.length > 0;
   const hayDocsCompra = data.documentosCompra.length > 0;
