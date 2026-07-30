@@ -1551,6 +1551,126 @@ export type Database = {
           },
         ]
       }
+      tax_validation_runs: {
+        Row: {
+          actual_credits: number
+          cache_hits: number
+          calls: Json
+          codes_found: Json
+          codes_missing: Json
+          company_id: string
+          created_at: string
+          created_by: string | null
+          credits_balance: number | null
+          declared_total: number | null
+          difference: number | null
+          difference_percentage: number | null
+          document_results: Json
+          error_code: string | null
+          error_message: string | null
+          estimated_total: number | null
+          explanation_codes: Json
+          f29_confidence: string | null
+          f29_extraction_status: string | null
+          f29_folio: string | null
+          f29_found: boolean
+          f29_pdf_archived: boolean
+          id: string
+          period: string
+          prevented_provider_calls: number
+          provider_requests: number
+          selected_documents: Json
+          stage: string | null
+          status: string
+          tax_period_id: string | null
+          updated_at: string
+          validation_type: string
+        }
+        Insert: {
+          actual_credits?: number
+          cache_hits?: number
+          calls?: Json
+          codes_found?: Json
+          codes_missing?: Json
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          credits_balance?: number | null
+          declared_total?: number | null
+          difference?: number | null
+          difference_percentage?: number | null
+          document_results?: Json
+          error_code?: string | null
+          error_message?: string | null
+          estimated_total?: number | null
+          explanation_codes?: Json
+          f29_confidence?: string | null
+          f29_extraction_status?: string | null
+          f29_folio?: string | null
+          f29_found?: boolean
+          f29_pdf_archived?: boolean
+          id?: string
+          period: string
+          prevented_provider_calls?: number
+          provider_requests?: number
+          selected_documents?: Json
+          stage?: string | null
+          status?: string
+          tax_period_id?: string | null
+          updated_at?: string
+          validation_type: string
+        }
+        Update: {
+          actual_credits?: number
+          cache_hits?: number
+          calls?: Json
+          codes_found?: Json
+          codes_missing?: Json
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          credits_balance?: number | null
+          declared_total?: number | null
+          difference?: number | null
+          difference_percentage?: number | null
+          document_results?: Json
+          error_code?: string | null
+          error_message?: string | null
+          estimated_total?: number | null
+          explanation_codes?: Json
+          f29_confidence?: string | null
+          f29_extraction_status?: string | null
+          f29_folio?: string | null
+          f29_found?: boolean
+          f29_pdf_archived?: boolean
+          id?: string
+          period?: string
+          prevented_provider_calls?: number
+          provider_requests?: number
+          selected_documents?: Json
+          stage?: string | null
+          status?: string
+          tax_period_id?: string | null
+          updated_at?: string
+          validation_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_validation_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_validation_runs_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
