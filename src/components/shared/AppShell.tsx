@@ -35,9 +35,11 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { formatFechaHora } from "@/utils/currency";
+import { MENSAJE_PERIODO_SIN_SINCRONIZAR } from "@/lib/f29Antecedent";
+import type { FuentePeriodo } from "@/types/tax";
 import { formatearRut } from "@/lib/rut";
 import { cn } from "@/lib/utils";
-import { ConnectionBadge, DemoBadge } from "./Badges";
+import { ConnectionBadge, FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
   { to: "/", label: "Inicio", icon: Home },
@@ -65,6 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     ultimaSincronizacion,
     periodosDisponibles,
     modo,
+    data,
   } = useTaxDashboard();
   const { empresas, empresaActiva, seleccionarEmpresa, necesitaOnboarding } =
     useCompany();
@@ -77,6 +80,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const esCloud = modo === "cloud";
+  // El encabezado describe el periodo seleccionado, no la conexión de la empresa.
+  const fuentePeriodo: FuentePeriodo =
+    data?.fuentePeriodo ?? (esCloud ? "not_synchronized" : "mock");
   const empresaId = esCloud ? (empresaActiva?.id ?? "") : EMPRESA_DEMO.id;
   const rutVisible = esCloud
     ? empresaActiva
@@ -242,7 +248,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <div className="flex flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
               <ConnectionBadge estado={estadoConexion} />
-              <DemoBadge />
+              <FuentePeriodoBadge fuente={fuentePeriodo} />
               <span className="text-xs text-muted-foreground">
                 Última actualización: {formatFechaHora(ultimaSincronizacion)}
               </span>
@@ -250,7 +256,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
 
           <main className="flex-1 px-4 pb-28 pt-5 sm:px-6 lg:pb-10">
-            <SimulatedDataNotice className="mb-4" compacto />
+            {fuentePeriodo === "mock" && (
+              <SimulatedDataNotice className="mb-4" compacto />
+            )}
+            {fuentePeriodo === "not_synchronized" && (
+              <p
+                role="note"
+                className="mb-4 rounded-xl bg-warning-soft px-3 py-2 text-xs font-medium text-warning-foreground"
+              >
+                {MENSAJE_PERIODO_SIN_SINCRONIZAR}
+              </p>
+            )}
             {children}
           </main>
 
