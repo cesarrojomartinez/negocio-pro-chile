@@ -1,24 +1,125 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
+import { AppShell } from "@/components/shared/AppShell";
+import { ScenarioSwitcher } from "@/components/shared/ScenarioSwitcher";
+import { ErrorState, LoadingBlock, LoadingCards } from "@/components/shared/States";
+import { ReservaCard } from "@/components/dashboard/ReservaCard";
+import { IndicadoresGrid } from "@/components/dashboard/IndicadoresGrid";
+import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
+import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
+import { MetaCard } from "@/components/goals/MetaCard";
+import { ProyeccionCard } from "@/components/projections/ProyeccionCard";
+import { SimuladorVentas } from "@/components/projections/SimuladorVentas";
+import { useTaxDashboard } from "@/hooks/useTaxDashboard";
+import { PERIODOS } from "@/data/mockTaxData";
+import { Button } from "@/components/ui/button";
+
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Mi Negocio al Día | Panel del mes" },
+      {
+        name: "description",
+        content:
+          "Revisa tus ventas, tu IVA estimado y la reserva recomendada del mes en un panel simple para microempresarios chilenos.",
+      },
+      { property: "og:title", content: "Mi Negocio al Día | Panel del mes" },
+      {
+        property: "og:description",
+        content:
+          "Controla tus ventas, anticipa tus impuestos y toma mejores decisiones durante el mes.",
+      },
+    ],
+  }),
+  component: Inicio,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function Inicio() {
+  const {
+    data,
+    cargando,
+    error,
+    margenPorcentaje,
+    setMargenPorcentaje,
+    setDineroReservado,
+    setMetaMensual,
+    periodoId,
+    actualizar,
+  } = useTaxDashboard();
+
+  const etiquetaPeriodo =
+    PERIODOS.find((p) => p.id === periodoId)?.etiqueta ?? periodoId;
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <AppShell>
+      <div className="space-y-5">
+        <header>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Hola, Camila
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Así va Comercial Los Vilos SpA en {etiquetaPeriodo}.
+          </p>
+        </header>
+
+        {error && <ErrorState mensaje={error} onReintentar={() => void actualizar()} />}
+
+        {cargando || !data ? (
+          <>
+            <LoadingBlock alto="h-72" />
+            <LoadingCards />
+            <LoadingBlock alto="h-80" />
+          </>
+        ) : (
+          <>
+            <ReservaCard resumen={data.resumen} onGuardarReservado={setDineroReservado} />
+
+            <IndicadoresGrid
+              resumen={data.resumen}
+              ventas={data.ventas}
+              comparacion={data.comparacion}
+            />
+
+            <div className="grid gap-5 xl:grid-cols-2">
+              <ResumenTributario
+                resumen={data.resumen}
+                margenPorcentaje={margenPorcentaje}
+                onCambiarMargen={setMargenPorcentaje}
+              />
+              <div className="space-y-5">
+                <MetaCard meta={data.meta} onGuardarMeta={setMetaMensual} />
+                <ProyeccionCard proyeccion={data.proyeccion} />
+              </div>
+            </div>
+
+            <SimuladorVentas
+              tasaPpm={
+                data.resumen.ventasTotales > 0
+                  ? data.resumen.ppmEstimado / (data.resumen.ventasTotales / 1.19)
+                  : 0.006
+              }
+              margenPorcentaje={margenPorcentaje}
+            />
+
+            <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
+
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/ventas">Ver ventas</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/compras">Ver compras</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/impuestos">Ver detalle tributario</Link>
+              </Button>
+            </div>
+
+            <ScenarioSwitcher />
+          </>
+        )}
+      </div>
+    </AppShell>
   );
 }

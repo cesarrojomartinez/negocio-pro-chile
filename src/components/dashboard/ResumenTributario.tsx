@@ -1,0 +1,117 @@
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { DataRow, SectionCard } from "@/components/shared/SectionCard";
+import { formatCLP } from "@/utils/currency";
+import type { ResumenMensual } from "@/types/tax";
+import { MargenSelector } from "./MargenSelector";
+
+export function ResumenTributario({
+  resumen,
+  margenPorcentaje,
+  onCambiarMargen,
+  mostrarSelectorMargen = true,
+}: {
+  resumen: ResumenMensual;
+  margenPorcentaje: number;
+  onCambiarMargen: (v: number) => void;
+  mostrarSelectorMargen?: boolean;
+}) {
+  return (
+    <SectionCard
+      titulo="Estimación tributaria del mes"
+      descripcion="Estimación al día de hoy, calculada con tus datos demostrativos."
+    >
+      <div className="rounded-2xl bg-secondary/60 p-4">
+        <DataRow
+          label="IVA débito por ventas"
+          value={formatCLP(resumen.ivaDebito)}
+        />
+        <DataRow
+          label="IVA crédito por compras"
+          value={`−${formatCLP(resumen.ivaCredito)}`}
+          tone="success"
+        />
+        <DataRow
+          label="Remanente anterior"
+          value={`−${formatCLP(resumen.remanenteAnterior)}`}
+          tone="success"
+          hint={
+            resumen.remanenteAnterior === 0
+              ? "No registras remanente del periodo anterior."
+              : undefined
+          }
+        />
+        <DataRow
+          label="IVA estimado por pagar"
+          value={formatCLP(resumen.ivaEstimado)}
+          strong
+          tone={resumen.ivaEstimado > 0 ? "default" : "success"}
+          hint={
+            resumen.ivaEstimado === 0
+              ? "Con los datos actuales no habría IVA por pagar."
+              : undefined
+          }
+        />
+        <DataRow
+          label="Nuevo remanente estimado"
+          value={formatCLP(resumen.nuevoRemanente)}
+          tone={resumen.nuevoRemanente > 0 ? "success" : "default"}
+          hint={
+            resumen.nuevoRemanente > 0
+              ? "Podría utilizarse como crédito en el próximo periodo."
+              : "Sin remanente estimado para el próximo periodo."
+          }
+        />
+        <DataRow label="PPM estimado" value={formatCLP(resumen.ppmEstimado)} />
+        <DataRow
+          label="Retenciones estimadas"
+          value={formatCLP(resumen.retencionesEstimadas)}
+        />
+        <DataRow
+          label="Total tributario estimado"
+          value={formatCLP(resumen.totalTributarioEstimado)}
+          strong
+        />
+        <DataRow
+          label={`Margen preventivo (${margenPorcentaje}%)`}
+          value={formatCLP(resumen.margenPreventivo)}
+        />
+        <DataRow
+          label="Reserva recomendada"
+          value={formatCLP(resumen.reservaRecomendada)}
+          strong
+          tone="primary"
+        />
+      </div>
+
+      {mostrarSelectorMargen && (
+        <div className="mt-4">
+          <MargenSelector valor={margenPorcentaje} onCambiar={onCambiarMargen} />
+        </div>
+      )}
+
+      <Accordion type="single" collapsible className="mt-4">
+        <AccordionItem value="explicacion" className="border-b-0">
+          <AccordionTrigger className="text-sm font-semibold">
+            ¿Cómo se calcula esta estimación?
+          </AccordionTrigger>
+          <AccordionContent className="text-sm text-muted-foreground">
+            El IVA estimado considera el IVA de las ventas, el crédito disponible de
+            compras y el remanente registrado. El PPM y las retenciones se muestran
+            por separado. El resultado definitivo puede variar cuando tu contador
+            prepare el Formulario 29.
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        Estimación informativa. No corresponde a una declaración oficial del SII.
+        Revisa este resultado con tu contador.
+      </p>
+    </SectionCard>
+  );
+}
