@@ -178,11 +178,14 @@ export function crearAdaptadorApiGateway(
   const { config, credenciales, registro } = opciones;
   const maxTipos = opciones.maxTiposPorModulo ?? 6;
 
-  const cuerpo: CuerpoAuth = {
-    auth: {
-      pass: { rut: credenciales.rutUsuario, clave: credenciales.claveTributaria },
-    },
-  };
+  // Cuerpo EXACTO exigido por API Gateway: solo `auth.pass.rut` (el RUT del
+  // usuario autorizado, sin puntos y con guion) y `auth.pass.clave`.
+  // El RUT de la empresa jamás reemplaza al del usuario autorizado.
+  const cuerpo: CuerpoAuth = construirCuerpoAuth(
+    credenciales.rutUsuario,
+    credenciales.claveTributaria,
+  );
+
 
   async function pedir<T>(
     modulo: SiiModule | "autenticacion",
