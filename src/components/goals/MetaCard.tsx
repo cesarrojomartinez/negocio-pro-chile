@@ -14,6 +14,8 @@ const TONO = {
   buenDesempeno: "bg-success-soft text-success",
   ritmoAdecuado: "bg-info-soft text-primary",
   necesitaImpulso: "bg-warning-soft text-warning-foreground",
+  metaSuperada: "bg-success-soft text-success",
+  sinDatos: "bg-secondary text-muted-foreground",
 } as const;
 
 export function MetaCard({
@@ -63,16 +65,26 @@ export function MetaCard({
       <div className="mt-4 rounded-2xl bg-secondary/60 p-4">
         <DataRow label="Meta mensual" value={formatCLP(meta.metaMensual)} />
         <DataRow label="Ventas acumuladas" value={formatCLP(meta.ventasAcumuladas)} />
-        <DataRow
-          label="Falta para la meta"
-          value={formatCLP(meta.montoFaltante)}
-          tone={meta.montoFaltante > 0 ? "warning" : "success"}
-        />
+        {meta.metaSuperada ? (
+          <DataRow
+            label="Excedente sobre la meta"
+            value={formatCLP(meta.montoExcedido)}
+            tone="success"
+          />
+        ) : (
+          <DataRow
+            label="Falta para la meta"
+            value={formatCLP(meta.montoFaltante)}
+            tone={meta.montoFaltante > 0 ? "warning" : "success"}
+          />
+        )}
         <DataRow label="Días restantes" value={`${meta.diasRestantes} días`} />
-        <DataRow
-          label="Promedio diario necesario"
-          value={formatCLP(meta.promedioDiarioNecesario)}
-        />
+        {!meta.metaSuperada && (
+          <DataRow
+            label="Promedio diario necesario"
+            value={formatCLP(meta.promedioDiarioNecesario)}
+          />
+        )}
         <DataRow
           label="Proyección de cierre"
           value={formatCLP(meta.proyeccionCierre)}

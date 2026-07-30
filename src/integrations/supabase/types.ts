@@ -452,7 +452,10 @@ export type Database = {
       tax_monthly_summaries: {
         Row: {
           calculated_at: string
+          carryforward_source: string
           company_id: string
+          confidence_level: string
+          confidence_reasons: Json
           created_at: string
           estimated_new_carryforward: number
           estimated_ppm: number
@@ -464,9 +467,16 @@ export type Database = {
           id: string
           invoice_sales: number
           net_purchases: number
+          ppm_rate: number | null
+          ppm_source: string
+          ppm_tax_base: number
           preventive_margin_amount: number
+          preventive_margin_percent: number
           previous_vat_carryforward: number
           projected_sales: number
+          projected_tax_max: number
+          projected_tax_min: number
+          projected_vat_debit: number
           purchases_total: number
           receipt_sales: number
           recommended_reserve: number
@@ -477,11 +487,16 @@ export type Database = {
           tax_period_id: string
           updated_at: string
           vat_credit: number
+          vat_credit_potential: number
           vat_debit: number
+          withholdings_source: string
         }
         Insert: {
           calculated_at?: string
+          carryforward_source?: string
           company_id: string
+          confidence_level?: string
+          confidence_reasons?: Json
           created_at?: string
           estimated_new_carryforward?: number
           estimated_ppm?: number
@@ -493,9 +508,16 @@ export type Database = {
           id?: string
           invoice_sales?: number
           net_purchases?: number
+          ppm_rate?: number | null
+          ppm_source?: string
+          ppm_tax_base?: number
           preventive_margin_amount?: number
+          preventive_margin_percent?: number
           previous_vat_carryforward?: number
           projected_sales?: number
+          projected_tax_max?: number
+          projected_tax_min?: number
+          projected_vat_debit?: number
           purchases_total?: number
           receipt_sales?: number
           recommended_reserve?: number
@@ -506,11 +528,16 @@ export type Database = {
           tax_period_id: string
           updated_at?: string
           vat_credit?: number
+          vat_credit_potential?: number
           vat_debit?: number
+          withholdings_source?: string
         }
         Update: {
           calculated_at?: string
+          carryforward_source?: string
           company_id?: string
+          confidence_level?: string
+          confidence_reasons?: Json
           created_at?: string
           estimated_new_carryforward?: number
           estimated_ppm?: number
@@ -522,9 +549,16 @@ export type Database = {
           id?: string
           invoice_sales?: number
           net_purchases?: number
+          ppm_rate?: number | null
+          ppm_source?: string
+          ppm_tax_base?: number
           preventive_margin_amount?: number
+          preventive_margin_percent?: number
           previous_vat_carryforward?: number
           projected_sales?: number
+          projected_tax_max?: number
+          projected_tax_min?: number
+          projected_vat_debit?: number
           purchases_total?: number
           receipt_sales?: number
           recommended_reserve?: number
@@ -535,7 +569,9 @@ export type Database = {
           tax_period_id?: string
           updated_at?: string
           vat_credit?: number
+          vat_credit_potential?: number
           vat_debit?: number
+          withholdings_source?: string
         }
         Relationships: [
           {
