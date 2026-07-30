@@ -279,9 +279,26 @@ export function RealGatewayPanel() {
         </Button>
       </div>
 
-      {resultado && (
-        <div className="mt-4 rounded-2xl border border-border p-4">
-          <p className="text-sm font-semibold">{resultado.mensaje}</p>
+      {resultado &&
+        (() => {
+          const m = mensajeProveedor({
+            proveedor: "api_gateway",
+            codigo: resultado.errorCodigo,
+            mensaje: resultado.mensaje,
+            productosVerificados,
+          });
+          const estilo =
+            m.tono === "error"
+              ? "border-destructive/40 bg-destructive/5"
+              : m.tono === "warning"
+                ? "border-warning/40 bg-warning-soft"
+                : m.tono === "info"
+                  ? "border-primary/30 bg-info-soft"
+                  : "border-border";
+          return (
+        <div className={`mt-4 rounded-2xl border p-4 ${estilo}`}>
+          <p className="text-sm font-semibold">{m.texto}</p>
+
           <div className="mt-2">
             <DataRow label="Consultas al proveedor" value={String(resultado.consultas)} />
             <DataRow label="Créditos consumidos" value={String(resultado.creditosConsumidos)} />
