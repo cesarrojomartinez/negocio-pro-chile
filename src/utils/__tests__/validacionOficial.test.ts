@@ -19,7 +19,7 @@ describe("validación oficial universal", () => {
   });
 
   it("describe el periodo en español", () => {
-    expect(etiquetaPeriodo("2026-03")).toContain("marzo");
+    expect(etiquetaPeriodo("2026-03")).toContain("arzo de 2026");
   });
 
   it("pide documentos solo cuando el tipo lo requiere", () => {
