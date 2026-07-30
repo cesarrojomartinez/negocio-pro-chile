@@ -339,14 +339,22 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
         log = {
           ...log,
           codigoError: codigo,
-          referenciaTecnica: `${input.modulo}:${respuesta.status}:${codigo}`,
+          // Referencia técnica no sensible: módulo, estado HTTP, tipo de
+          // contenido y código normalizado. Nunca incluye el cuerpo enviado.
+          referenciaTecnica: `${input.modulo}:${respuesta.status}:${
+            respuesta.headers.get("content-type")?.split(";")[0] ?? "sin-tipo"
+          }:${codigo}`,
         };
         input.registro?.agregar(log);
         const error = new SiiProviderError(codigo, moduloError);
-        if (NO_REINTENTABLES.includes(codigo) || intento === MAX_REINTENTOS) throw error;
+        if (!esReintentable(codigo, respuesta.status) || intento === MAX_REINTENTOS)
+          throw error;
         ultimoError = error;
-        await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+        await new Promise((r) =>
+          setTimeout(r, esperaRetryAfter(respuesta.headers) ?? 800 * (intento + 1)),
+        );
         continue;
+
       }
 
       input.registro?.agregar(log);
