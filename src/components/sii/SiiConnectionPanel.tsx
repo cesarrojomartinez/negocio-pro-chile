@@ -21,6 +21,8 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { siiConnectionService } from "@/services/siiConnectionService";
 import type { RegistroSincronizacion } from "@/lib/siiSync.server";
 import { formatFechaHora } from "@/utils/currency";
+import { mensajeProveedor } from "@/utils/mensajesProveedor";
+
 import { formatearRut } from "@/lib/rut";
 
 const ETIQUETA_TIPO: Record<string, string> = {
