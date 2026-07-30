@@ -43,7 +43,7 @@ async function registrarActividad(
   userId: string,
   action: string,
   entityType?: string,
-  metadata: Record<string, unknown> = {},
+  metadata: Record<string, string | number | boolean | null> = {},
 ) {
   await supabaseAdmin
     .from("tax_activity_logs")
@@ -347,7 +347,7 @@ export async function actualizarConfiguracion(
   if (rol === "accountant" && (entrada.metaMensual != null || entrada.dineroReservado != null))
     throw new ErrorNegocio("El contador no puede modificar la meta ni la reserva.");
 
-  const cambios: Record<string, unknown> = {};
+  const cambios: Record<string, number | boolean> = {};
   if (entrada.metaMensual != null) cambios.monthly_sales_goal = Math.round(entrada.metaMensual);
   if (entrada.dineroReservado != null)
     cambios.reserved_amount = Math.round(entrada.dineroReservado);
