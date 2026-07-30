@@ -5,6 +5,7 @@ import { AppShell } from "@/components/shared/AppShell";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
+import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
@@ -105,6 +106,8 @@ function Impuestos() {
                 )}
               </div>
             </div>
+
+            <EstadoCalculo contexto={data.contexto} />
 
             <ResumenTributario
               resumen={data.resumen}
