@@ -4,6 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
+import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
