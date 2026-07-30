@@ -73,37 +73,63 @@ async function documentos(companyId: string, taxPeriodId: string) {
 }
 
 /**
- * Determina el remanente anterior por prioridad:
- * F29 persistido → resumen del periodo anterior → configuración demostrativa → cero.
+ * Antecedentes del periodo anterior: nuevo remanente calculado y si sus
+ * cifras fueron confirmadas por el contador. Un F29 simulado con ceros nunca
+ * se interpreta como remanente confirmado.
  */
-async function remanenteAnterior(
+async function contextoPeriodoPrevio(
   companyId: string,
   periodoPrevioId: string | null,
-  esDemo: boolean,
-): Promise<{ monto: number; fuente: CarryforwardSource }> {
-  if (periodoPrevioId) {
-    const { data: f29 } = await supabaseAdmin
-      .from("tax_f29_history")
-      .select("vat_carryforward, declaration_status")
-      .eq("company_id", companyId)
-      .eq("tax_period_id", periodoPrevioId)
-      .maybeSingle();
-    if (f29 && f29.declaration_status === "filed" && f29.vat_carryforward != null)
-      return { monto: Number(f29.vat_carryforward), fuente: "f29" };
+): Promise<{ remanente: number | null; confirmado: boolean }> {
+  if (!periodoPrevioId) return { remanente: null, confirmado: false };
 
-    const { data: resumen } = await supabaseAdmin
-      .from("tax_monthly_summaries")
-      .select("estimated_new_carryforward")
-      .eq("company_id", companyId)
-      .eq("tax_period_id", periodoPrevioId)
-      .maybeSingle();
-    if (resumen && resumen.estimated_new_carryforward != null)
-      return {
-        monto: Number(resumen.estimated_new_carryforward),
-        fuente: esDemo ? "mock" : "previous_period",
-      };
-  }
-  return { monto: 0, fuente: "unknown" };
+  const { data: f29 } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select(
+      "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodoPrevioId)
+    .maybeSingle();
+  const confirmado = !!interpretarAntecedenteF29(f29)?.confirmado;
+
+  const { data: resumen } = await supabaseAdmin
+    .from("tax_monthly_summaries")
+    .select("estimated_new_carryforward")
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodoPrevioId)
+    .maybeSingle();
+
+  return {
+    remanente:
+      resumen?.estimated_new_carryforward == null
+        ? null
+        : Number(resumen.estimated_new_carryforward),
+    confirmado,
+  };
+}
+
+/** Parámetro tributario vigente de la empresa para el periodo indicado. */
+async function parametroVigente(
+  companyId: string,
+  tipo: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime",
+  periodo: string,
+): Promise<number | null> {
+  const primerDia = `${periodo}-01`;
+  const { data } = await supabaseAdmin
+    .from("tax_company_tax_parameters")
+    .select("value, effective_from, effective_to, confirmed")
+    .eq("company_id", companyId)
+    .eq("parameter_type", tipo)
+    .eq("confirmed", true)
+    .lte("effective_from", primerDia)
+    .order("effective_from", { ascending: false })
+    .limit(5);
+
+  const vigente = (data ?? []).find(
+    (p) => p.effective_to == null || String(p.effective_to) >= primerDia,
+  );
+  return vigente == null ? null : Number(vigente.value);
 }
 
 /** Última tasa de PPM confirmada por el contador en periodos anteriores. */
