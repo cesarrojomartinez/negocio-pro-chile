@@ -380,7 +380,7 @@ export async function actualizarConfiguracion(
   }
 
   await registrarActividad(entrada.companyId, userId, "settings.updated", "tax_company_settings", {
-    campos: Object.keys(cambios),
+    campos: Object.keys(cambios).join(","),
   });
   return { ok: true };
 }
