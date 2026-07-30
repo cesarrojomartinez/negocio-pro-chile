@@ -128,8 +128,19 @@ export function SiiConnectionPanel() {
             value={conexionSii?.expiraEn ? formatFechaHora(conexionSii.expiraEn) : "—"}
           />
           {conexionSii?.ultimoErrorMensaje && (
-            <DataRow label="Último aviso" value={conexionSii.ultimoErrorMensaje} />
+            <DataRow
+              label="Último aviso"
+              value={
+                mensajeProveedor({
+                  proveedor: conexionSii.simulado === false ? "api_gateway" : "mock",
+                  codigo: conexionSii.ultimoErrorCodigo ?? null,
+                  mensaje: conexionSii.ultimoErrorMensaje,
+                  productosVerificados: true,
+                }).texto
+              }
+            />
           )}
+
         </div>
 
         {resumenSincronizacion && (
