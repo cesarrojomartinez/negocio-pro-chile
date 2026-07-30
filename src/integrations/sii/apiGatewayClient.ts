@@ -312,6 +312,8 @@ export async function requestApiGateway<TRequest extends object, TResponse>(
       log = {
         ...log,
         estadoHttp,
+        contentType: respuesta.headers.get("content-type")?.split(";")[0] ?? null,
+
         duracionMs: Date.now() - inicio,
         creditosUsados: numeroCabecera(respuesta.headers, "x-stats-credits-used"),
         creditosDisponibles: numeroCabecera(
