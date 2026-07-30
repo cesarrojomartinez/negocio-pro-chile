@@ -1,4 +1,4 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Calculator,
@@ -10,7 +10,7 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -63,7 +63,13 @@ export function AppShell({ children }: { children: ReactNode }) {
     periodosDisponibles,
     modo,
   } = useTaxDashboard();
-  const { empresas, empresaActiva, seleccionarEmpresa } = useCompany();
+  const { empresas, empresaActiva, seleccionarEmpresa, necesitaOnboarding } =
+    useCompany();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (necesitaOnboarding) void navigate({ to: "/onboarding" });
+  }, [necesitaOnboarding, navigate]);
   const { perfil, user, cerrarSesion } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 

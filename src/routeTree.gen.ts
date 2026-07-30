@@ -16,6 +16,7 @@ import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as MetasRouteImport } from './routes/metas'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as VentasRouteImport } from './routes/ventas'
 
@@ -54,6 +55,11 @@ const MetasRoute = MetasRouteImport.update({
   path: '/metas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
   id: '/recuperar-clave',
   path: '/recuperar-clave',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/configuracion': typeof ConfiguracionRoute
   '/impuestos': typeof ImpuestosRoute
   '/metas': typeof MetasRoute
+  '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/ventas': typeof VentasRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/impuestos'
     | '/metas'
+    | '/onboarding'
     | '/recuperar-clave'
     | '/ventas'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/impuestos'
     | '/metas'
+    | '/onboarding'
     | '/recuperar-clave'
     | '/ventas'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/configuracion'
     | '/impuestos'
     | '/metas'
+    | '/onboarding'
     | '/recuperar-clave'
     | '/ventas'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   ConfiguracionRoute: typeof ConfiguracionRoute
   ImpuestosRoute: typeof ImpuestosRoute
   MetasRoute: typeof MetasRoute
+  OnboardingRoute: typeof OnboardingRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
   VentasRoute: typeof VentasRoute
 }
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MetasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recuperar-clave': {
       id: '/recuperar-clave'
       path: '/recuperar-clave'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfiguracionRoute: ConfiguracionRoute,
   ImpuestosRoute: ImpuestosRoute,
   MetasRoute: MetasRoute,
+  OnboardingRoute: OnboardingRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
   VentasRoute: VentasRoute,
 }
