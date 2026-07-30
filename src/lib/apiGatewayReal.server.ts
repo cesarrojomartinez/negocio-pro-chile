@@ -119,47 +119,16 @@ export async function ejecutarPruebaRealApiGateway(
     proxyUsado: registro.proxyUsado,
   });
 
-  // 1. Validar credenciales contra el proveedor real.
-  let conexionProveedor;
-  try {
-    conexionProveedor = await proveedor.connectCompany({
-      rut: credenciales.rutEmpresa,
-      authMethod: "tax_key",
-    });
-  } catch (error) {
-    const codigo = error instanceof SiiProviderError ? error.code : "INTERNAL";
-    const mensaje =
-      error instanceof SiiProviderError
-        ? error.message
-        : "No pudimos validar la conexión con el proveedor real.";
-    await supabaseAdmin.from("tax_sii_connections").upsert(
-      {
-        company_id: entrada.companyId,
-        provider: "api_gateway",
-        status: "error",
-        last_attempt_at: ahora,
-        last_error_code: codigo,
-        last_error_message: mensaje,
-      },
-      { onConflict: "company_id,provider" },
-    );
-    await registrarActividad(
-      entrada.companyId,
-      userId,
-      "sii.real_test_failed",
-      "tax_sii_connections",
-      { codigo, ...consumo() },
-    );
-    return {
-      conexion: null,
-      sincronizacion: null,
-      ...consumo(),
-      mensaje,
-      errorCodigo: codigo,
-    };
-  }
+  // 1. Preparar la referencia local de conexión. NO consulta al proveedor ni
+  //    gasta créditos: la validación real ocurre en la primera consulta al RCV.
+  const conexionProveedor = await proveedor.connectCompany({
+    rut: credenciales.rutEmpresa,
+    authMethod: "tax_key",
+  });
 
-  // 2. Registrar la conexión real. Nunca se guarda la clave.
+  // 2. Dejar registrada la conexión ANTES de consultar, en estado "stale":
+  //    así la ejecución queda auditable aunque el RCV falle. Nunca se guarda
+  //    la clave.
   const { data: filaConexion, error: errorConexion } = await supabaseAdmin
     .from("tax_sii_connections")
     .upsert(
@@ -168,7 +137,7 @@ export async function ejecutarPruebaRealApiGateway(
         provider: "api_gateway",
         provider_connection_ref: conexionProveedor.providerConnectionRef,
         auth_method: "tax_key",
-        status: "connected",
+        status: "stale",
         authorized_rut: conexionProveedor.authorizedRut,
         connected_at: conexionProveedor.connectedAt,
         session_expires_at: conexionProveedor.sessionExpiresAt,
@@ -190,25 +159,75 @@ export async function ejecutarPruebaRealApiGateway(
   await registrarActividad(
     entrada.companyId,
     userId,
-    "sii.connected_real",
+    "sii.real_test_started",
     "tax_sii_connections",
     { proveedor: "api_gateway", version_consentimiento: VERSION_CONSENTIMIENTO },
   );
 
-  // 3. Sincronizar el periodo con el mismo orquestador de siempre.
-  const sincronizacion = await syncSiiCompanyPeriod(
+  // 3. Sincronizar el periodo empezando directamente por el RCV.
+  let sincronizacion: ResultadoSincronizacion;
+  try {
+    sincronizacion = await syncSiiCompanyPeriod(
+      userId,
+      {
+        companyId: entrada.companyId,
+        periodo: entrada.periodo,
+        triggerType: "manual",
+      },
+      {
+        proveedor,
+        proveedorId: "api_gateway",
+        registro,
+        omitirPoliticaCache: true,
+      },
+    );
+  } catch (error) {
+    const codigo = error instanceof SiiProviderError ? error.code : "INTERNAL";
+    const mensaje =
+      error instanceof SiiProviderError
+        ? error.message
+        : "No pudimos completar la consulta con el proveedor real.";
+    await supabaseAdmin
+      .from("tax_sii_connections")
+      .update({
+        status: "error",
+        last_attempt_at: new Date().toISOString(),
+        last_error_code: codigo,
+        last_error_message: mensaje,
+      })
+      .eq("company_id", entrada.companyId)
+      .eq("provider", "api_gateway");
+    await registrarActividad(
+      entrada.companyId,
+      userId,
+      "sii.real_test_failed",
+      "tax_sii_connections",
+      { codigo, ...consumo() },
+    );
+    return {
+      conexion: null,
+      sincronizacion: null,
+      ...consumo(),
+      mensaje,
+      errorCodigo: codigo,
+    };
+  }
+
+  const exito = sincronizacion.estado !== "failed";
+  if (exito) {
+    await supabaseAdmin
+      .from("tax_sii_connections")
+      .update({ status: "connected", last_error_code: null, last_error_message: null })
+      .eq("company_id", entrada.companyId)
+      .eq("provider", "api_gateway");
+  }
+
+  await registrarActividad(
+    entrada.companyId,
     userId,
-    {
-      companyId: entrada.companyId,
-      periodo: entrada.periodo,
-      triggerType: "manual",
-    },
-    {
-      proveedor,
-      proveedorId: "api_gateway",
-      registro,
-      omitirPoliticaCache: true,
-    },
+    exito ? "sii.connected_real" : "sii.real_test_failed",
+    "tax_sii_connections",
+    { proveedor: "api_gateway", estado: sincronizacion.estado, ...consumo() },
   );
 
   return {
@@ -216,7 +235,7 @@ export async function ejecutarPruebaRealApiGateway(
       id: String(filaConexion.id),
       proveedor: "api_gateway",
       simulado: false,
-      estado: sincronizacion.estado === "failed" ? "stale" : "connected",
+      estado: exito ? "connected" : "stale",
       rutAutorizado: conexionProveedor.authorizedRut,
       conectadaEn: conexionProveedor.connectedAt,
       expiraEn: conexionProveedor.sessionExpiresAt,
@@ -231,6 +250,7 @@ export async function ejecutarPruebaRealApiGateway(
     errorCodigo: sincronizacion.errorCodigo,
   };
 }
+
 
 /** Corta la conexión real y borra la referencia guardada. */
 export async function desconectarPruebaReal(
