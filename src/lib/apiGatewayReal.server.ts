@@ -229,6 +229,12 @@ export async function ejecutarPruebaRealApiGateway(
       conexion: null,
       sincronizacion: null,
       ...consumo(),
+      f29: {
+        estado: "omitido",
+        mensaje: "No se revisó el Formulario 29 en esta actualización.",
+        folio: null,
+        recalculado: false,
+      },
       mensaje,
       errorCodigo: codigo,
     };
@@ -322,6 +328,7 @@ export async function ejecutarPruebaRealApiGateway(
     },
     sincronizacion,
     ...consumo(),
+    f29,
     mensaje: sincronizacion.mensaje,
     errorCodigo: sincronizacion.errorCodigo,
   };
