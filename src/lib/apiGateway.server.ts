@@ -314,10 +314,38 @@ export async function diagnoseApiGatewayConfiguration(opciones?: {
         proxyUsado: ultima?.proxyUsado ?? null,
       });
 
+    if (opciones?.probarProductos) {
+      productos.push(...(await sondearProductos(config, registro)));
+    } else {
+      productos.push(
+        {
+          clave: "rcv",
+          titulo: "Registro de Compras y Ventas",
+          estado: "no_verificado",
+          etiqueta: ETIQUETA_PRODUCTO.no_verificado,
+          contratado: null,
+          recurso: recursoDe("rcv_sales_summary").path,
+          detalle: "Usa «Comprobar productos» para verificarlo contra el servicio.",
+        },
+        {
+          clave: "f29",
+          titulo: "Formulario 29",
+          estado: "no_verificado",
+          etiqueta: ETIQUETA_PRODUCTO.no_verificado,
+          contratado: null,
+          recurso: recursoDe("f29_periods").path,
+          detalle: "Usa «Comprobar productos» para verificarlo contra el servicio.",
+        },
+      );
+    }
+
+    const ultimaTrasSondeo = registro.llamadas[registro.llamadas.length - 1];
     return base("configuracion_valida", {
-      creditosDisponibles: ultima?.creditosDisponibles ?? null,
-      proxyUsado: ultima?.proxyUsado ?? null,
+      creditosDisponibles:
+        ultimaTrasSondeo?.creditosDisponibles ?? ultima?.creditosDisponibles ?? null,
+      proxyUsado: ultimaTrasSondeo?.proxyUsado ?? ultima?.proxyUsado ?? null,
     });
+
   } catch (error) {
     const codigo = error instanceof SiiProviderError ? error.code : "UNKNOWN_ERROR";
     const ultima = registro.llamadas[registro.llamadas.length - 1];
