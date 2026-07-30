@@ -117,3 +117,20 @@ export const RESUMEN_VACIO: ProviderRcvSummary = {
   totalAmount: 0,
   unclassifiedAmount: 0,
 };
+
+/** Une varios resúmenes (por ejemplo, los cuatro estados de compras). */
+export function sumarResumenes(resumenes: ProviderRcvSummary[]): ProviderRcvSummary {
+  const lines = resumenes.flatMap((r) => r.lines);
+  const sumar = (f: (r: ProviderRcvSummary) => number) =>
+    resumenes.reduce((s, r) => s + f(r), 0);
+  return {
+    lines,
+    documentCount: sumar((r) => r.documentCount),
+    netAmount: sumar((r) => r.netAmount),
+    vatAmount: sumar((r) => r.vatAmount),
+    exemptAmount: sumar((r) => r.exemptAmount),
+    totalAmount: sumar((r) => r.totalAmount),
+    unclassifiedAmount: sumar((r) => r.unclassifiedAmount),
+  };
+}
+
