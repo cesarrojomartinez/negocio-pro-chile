@@ -250,7 +250,14 @@ function aRegistro(fila: Record<string, unknown>): RegistroValidacion {
 
 export async function previsualizarValidacion(
   userId: string,
-  entrada: { companyId: string; periodo: string; tipo: TipoValidacion },
+  entrada: {
+    companyId: string;
+    periodo: string;
+    tipo: TipoValidacion;
+    documentoVentaId?: string | null;
+    documentoCompraId?: string | null;
+    archivos?: TipoArchivoDte[];
+  },
 ): Promise<PrevisualizacionValidacion> {
   await exigirDueñoAutorizado(userId, entrada.companyId);
   if (!esPeriodoValido(entrada.periodo))
@@ -264,7 +271,10 @@ export async function previsualizarValidacion(
 
   const { listarDocumentosPeriodo } = await import("@/lib/dteFiles.server");
   const [listado, extraccion, listadoCache, estimacion] = await Promise.all([
-    listarDocumentosPeriodo(userId, entrada),
+    listarDocumentosPeriodo(userId, {
+      companyId: entrada.companyId,
+      periodo: entrada.periodo,
+    }),
     supabaseAdmin
       .from("tax_f29_extractions")
       .select("folio, pdf_sha256, extraction_status")
@@ -335,7 +345,29 @@ export async function previsualizarValidacion(
       tipo: entrada.tipo,
       f29Archivado,
       listadoEnCache: listadoCache,
-      documentos: [],
+      documentos: (() => {
+        const tipos = entrada.archivos?.length ? entrada.archivos : (["pdf"] as TipoArchivoDte[]);
+        const requeridos = documentosRequeridos(entrada.tipo);
+        const elegidos = [
+          requeridos.venta ? entrada.documentoVentaId : null,
+          requeridos.compra ? entrada.documentoCompraId : null,
+        ].filter((id): id is string => Boolean(id));
+        return elegidos.flatMap((id) => {
+          const documento = documentos.find((d) => d.id === id);
+          if (!documento) return [];
+          return [
+            {
+              direccion: documento.direccion,
+              archivos: tipos.map((tipoArchivo) => ({
+                tipoArchivo,
+                yaArchivado:
+                  (tipoArchivo === "pdf" ? documento.estadoPdf : documento.estadoXml) ===
+                  "archived",
+              })),
+            },
+          ];
+        });
+      })(),
     }),
   };
 }
@@ -436,9 +468,32 @@ export async function ejecutarValidacion(
 
       if (seleccionados.length) {
         etapa = "Archivos de documentos";
-        const { descargarArchivoDte } = await import("@/lib/dteFiles.server");
+        const { descargarArchivoDte, codigoDteDeDocumento } = await import(
+          "@/lib/dteFiles.server"
+        );
+        const { data: filasDocumentos } = await supabaseAdmin
+          .from("tax_documents")
+          .select("id, document_direction, document_type, external_id, folio")
+          .eq("company_id", entrada.companyId)
+          .in("id", seleccionados);
+        const fichaDe = (id: string) => {
+          const fila = ((filasDocumentos ?? []) as Record<string, unknown>[]).find(
+            (f) => String(f.id) === id,
+          );
+          return {
+            direccion: (fila?.document_direction as "sale" | "purchase") ?? "sale",
+            dteCode: fila
+              ? codigoDteDeDocumento({
+                  external_id: (fila.external_id as string) ?? null,
+                  document_type: String(fila.document_type),
+                })
+              : 0,
+            folio: Number(fila?.folio ?? 0),
+          };
+        };
 
         for (const documentoId of seleccionados) {
+          const ficha = fichaDe(documentoId);
           for (const tipoArchivo of archivos) {
             const resultado = await descargarArchivoDte(userId, {
               companyId: entrada.companyId,
@@ -473,9 +528,9 @@ export async function ejecutarValidacion(
 
             documentos.push({
               documentoId,
-              direccion: resultado.archivo ? ("sale" as const) : ("sale" as const),
-              dteCode: 0,
-              folio: 0,
+              direccion: ficha.direccion,
+              dteCode: ficha.dteCode,
+              folio: ficha.folio,
               tipoArchivo,
               obtenido: Boolean(resultado.archivo),
               desdeArchivoGuardado: resultado.desdeArchivoGuardado,
