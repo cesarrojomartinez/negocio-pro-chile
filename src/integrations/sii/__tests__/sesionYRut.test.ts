@@ -126,6 +126,7 @@ describe("auth_cache=0", () => {
       sesionNueva: true,
     });
     await adaptador.fetchSalesRcv({ rut: "779762289", period: "2026-03" });
+    await adaptador.fetchSalesRcv({ rut: "779762289", period: "2026-03" });
 
     expect(urls.length).toBeGreaterThan(1);
     const conCache0 = urls.filter((u) => u.includes("auth_cache=0"));
