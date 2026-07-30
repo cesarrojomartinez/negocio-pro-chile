@@ -9,6 +9,13 @@ import {
   estadoDelPeriodo,
   nivelAEspanol,
 } from "@/utils/taxCalculations";
+import {
+  construirContextoTributario,
+  fuenteConceptoPpm,
+  fuenteConceptoRemanente,
+  fuenteConceptoRetenciones,
+} from "@/lib/taxContext";
+import type { ConceptSource } from "@/types/engine";
 import type { Empresa } from "@/types/company";
 import type {
   DashboardData,
