@@ -62,6 +62,8 @@ export interface EntradaDashboard {
   esDemo?: boolean;
   /** El periodo tiene un F29 confirmado por el contador. */
   f29Confirmado?: boolean;
+  /** Hubo sincronización real exitosa o hay resumen real guardado. */
+  sincronizacionReal?: boolean;
   /** Marca de tiempo del cálculo, si el llamador la controla. */
   calculadoEn?: string | null;
 }
