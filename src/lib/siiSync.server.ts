@@ -50,7 +50,9 @@ import {
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { diaCivil } from "@/lib/syncPolicy";
+import { registrarEstadoPeriodo } from "@/lib/periodSyncState.server";
 import { normalizarRut } from "@/lib/rut";
+
 
 
 export const VERSION_CONSENTIMIENTO = "demo-2026-07";
@@ -1157,6 +1159,25 @@ export async function syncSiiCompanyPeriod(
       connection_status: estadoConexion,
     })
     .eq("id", entrada.companyId);
+
+  // Estado de frescura y caché del periodo, para explicar al usuario cuán
+  // reciente es la información que está viendo.
+  await registrarEstadoPeriodo({
+    companyId: entrada.companyId,
+    periodId: periodoRow.id,
+    periodo: entrada.periodo,
+    proveedor: proveedorId,
+    ahora: fin,
+    ejecutada: consultas > 0,
+    exitosa: hubieron,
+    desdeCache: desdeCache.length > 0,
+    syncRunId: run.id,
+    triggerType: tipo,
+    datosHasta,
+    periodoConfirmado: ["confirmed", "closed"].includes(String(periodoRow.status)),
+  });
+
+
 
 
   await registrarActividad(

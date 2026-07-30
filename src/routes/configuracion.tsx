@@ -10,6 +10,8 @@ import { ConnectionBadge } from "@/components/shared/Badges";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
 import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
+import { ModoActualizacionPanel } from "@/components/sii/ModoActualizacionPanel";
+
 
 import { MoneyDialog } from "@/components/shared/MoneyDialog";
 import { Button } from "@/components/ui/button";
@@ -178,9 +180,12 @@ function Configuracion() {
 
         {esCloud ? (
           <>
+            <ModoActualizacionPanel companyId={empresaActiva?.id ?? null} />
             <SiiConnectionPanel />
             <RealGatewayPanel />
           </>
+
+
 
         ) : (
           <SectionCard

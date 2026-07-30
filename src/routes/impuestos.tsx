@@ -7,6 +7,8 @@ import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
 import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemanente";
+import { CierreMensual } from "@/components/tax/CierreMensual";
+
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
@@ -66,8 +68,17 @@ const FACTORES = [
 ];
 
 function Impuestos() {
-  const { data, cargando, margenPorcentaje, setMargenPorcentaje, modo, companyId, periodoId } =
-    useTaxDashboard();
+  const {
+    data,
+    cargando,
+    margenPorcentaje,
+    setMargenPorcentaje,
+    modo,
+    companyId,
+    periodoId,
+    refrescarDatos,
+  } = useTaxDashboard();
+
 
 
   return (
@@ -111,6 +122,13 @@ function Impuestos() {
 
             <EstadoCalculo contexto={data.contexto} />
             <ConciliacionRemanente companyId={companyId} periodo={periodoId} />
+            <CierreMensual
+              companyId={companyId}
+              periodo={periodoId}
+              onCambio={refrescarDatos}
+            />
+
+
 
 
             <ResumenTributario
