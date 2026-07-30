@@ -73,6 +73,11 @@ export function RealGatewayPanel() {
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
+  // Los productos se consideran verificados solo tras un sondeo real.
+  const productosVerificados =
+    diagnostico.productos.length > 0 &&
+    diagnostico.productos.every((p) => p.estado !== "no_verificado");
+
   const ejecutar = async () => {
     if (!empresaActiva) return;
     setEjecutando(true);
@@ -84,8 +89,17 @@ export function RealGatewayPanel() {
         claveTributaria: clave,
       });
       setResultado(r);
-      if (r.errorCodigo) toast.error(r.mensaje);
-      else toast.success(r.mensaje);
+      // La prueba controlada siempre usa API Gateway: nunca textos del mock.
+      const m = mensajeProveedor({
+        proveedor: "api_gateway",
+        codigo: r.errorCodigo,
+        mensaje: r.mensaje,
+        productosVerificados,
+      });
+      if (m.tono === "error") toast.error(m.texto);
+      else if (m.tono === "warning") toast.warning(m.texto);
+      else if (m.tono === "info") toast.info(m.texto);
+      else toast.success(m.texto);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
@@ -96,6 +110,7 @@ export function RealGatewayPanel() {
       setEjecutando(false);
     }
   };
+
 
 
   return (
