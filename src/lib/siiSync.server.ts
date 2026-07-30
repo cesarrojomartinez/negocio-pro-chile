@@ -837,7 +837,7 @@ export async function syncSiiCompanyPeriod(
 
 
 
-  // 1. Ventas del RCV
+  // 1. Ventas del RCV: primero el resumen oficial, después el detalle.
   await ejecutar(["rcv_sales_documents"], async () => {
     const ventas = await proveedor.fetchSalesRcv(consulta);
     await guardarSnapshot({
@@ -846,12 +846,21 @@ export async function syncSiiCompanyPeriod(
       syncRunId: run.id,
       proveedor: proveedorId,
       modulo: "rcv_sales_documents",
+      // El respaldo guarda el resumen, el detalle y el diagnóstico de la forma
+      // de la respuesta: así se puede revisar sin volver a consultar.
       payload: ventas,
     });
+    if (ventas.rcvSummary) {
+      resumenVentas = ventas.rcvSummary;
+      hayResumen = true;
+    }
     const n = normalizarVentas(ventas);
     recibidos += ventas.documents.length;
+    totalesDetalle.ventas += ventas.documents.length;
     categorias.ventas += n.documentos.length;
     descartados += n.descartados.length;
+    anotarDescartes(n.descartados);
+    persistidos += n.documentos.length;
     const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
     creados += r.creados;
     actualizados += r.actualizados;
@@ -876,23 +885,42 @@ export async function syncSiiCompanyPeriod(
           syncRunId: run.id,
           proveedor: proveedorId,
           modulo,
-
-          payload: { period: compras.period, documents: docs },
+          payload: {
+            period: compras.period,
+            documents: docs,
+            summary:
+              compras.rcvSummaryByStatus?.[
+                estado as keyof NonNullable<typeof compras.rcvSummaryByStatus>
+              ] ?? null,
+            diagnostics: compras.diagnostics?.filter((d) => d.modulo === modulo) ?? [],
+          },
         });
       }
+      if (compras.rcvSummaryByStatus) {
+        resumenCompras = sumarResumenes(Object.values(compras.rcvSummaryByStatus));
+        hayResumen = true;
+      }
       const n = normalizarCompras(compras);
-      recibidos += Object.values(compras.byStatus).reduce((s, d) => s + d.length, 0);
+      const recibidosCompras = Object.values(compras.byStatus).reduce(
+        (s, d) => s + d.length,
+        0,
+      );
+      recibidos += recibidosCompras;
+      totalesDetalle.compras += recibidosCompras;
       categorias.comprasRegistro += compras.byStatus.registered.length;
       categorias.comprasPendiente += compras.byStatus.pending.length;
       categorias.comprasReclamado += compras.byStatus.claimed.length;
       categorias.comprasNoIncluir += compras.byStatus.excluded.length;
       descartados += n.descartados.length;
+      anotarDescartes(n.descartados);
+      persistidos += n.documentos.length;
       const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
       creados += r.creados;
       actualizados += r.actualizados;
       datosHasta = datosHasta ?? compras.dataThroughDate;
     },
   );
+
 
   // 3. Historial de F29
   await ejecutar(["f29_periods"], async () => {
