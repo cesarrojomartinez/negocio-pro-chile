@@ -1,0 +1,305 @@
+/**
+ * Cliente HTTP de API Gateway V2.
+ *
+ * Se ejecuta únicamente en el servidor. El token vive en el secreto
+ * `APIGATEWAY_TOKEN` y jamás sale de aquí: no se registra, no se devuelve y no
+ * se guarda. Los cuerpos de autenticación (RUT + Clave Tributaria) tampoco se
+ * registran nunca.
+ *
+ * Comportamiento observado en producción (30-07-2026) con un token válido sin
+ * productos contratados:
+ *   HTTP 403 {"status":"403","code":"error","detail":"La conexión no tiene productos asociados."}
+ *   cabeceras: x-stats-credits-used, x-stats-credits-remaining, x-source-proxy,
+ *              x-ratelimit-limit, x-ratelimit-remaining
+ */
+import { SiiProviderError, type SiiErrorCode, type SiiModule } from "./contracts";
+import { sanitizarProfundo } from "./sanitize";
+
+export const BASE_URL_POR_DEFECTO = "https://app.apigateway.cl/api/v2/";
+export const TIEMPO_MAXIMO_MS = 45_000;
+export const MAX_REAL_PROVIDER_REQUESTS_PER_SYNC = 24;
+const MAX_REINTENTOS = 2;
+
+export interface ApiGatewayConfig {
+  baseUrl: string;
+  token: string;
+  timeoutMs: number;
+}
+
+export interface ApiGatewayCallLog {
+  modulo: SiiModule | "diagnostico" | "autenticacion";
+  metodo: string;
+  recurso: string;
+  estadoHttp: number | null;
+  duracionMs: number;
+  creditosUsados: number | null;
+  creditosDisponibles: number | null;
+  proxyUsado: boolean | null;
+  limiteRestante: number | null;
+  codigoError: SiiErrorCode | null;
+  referenciaTecnica: string | null;
+}
+
+/** Acumulador de consumo de una sincronización. Nunca contiene credenciales. */
+export class RegistroConsumo {
+  readonly llamadas: ApiGatewayCallLog[] = [];
+  readonly limite: number;
+
+  constructor(limite: number = MAX_REAL_PROVIDER_REQUESTS_PER_SYNC) {
+    this.limite = limite;
+  }
+
+  get consultas(): number {
+    return this.llamadas.length;
+  }
+
+  get creditosUsados(): number {
+    return this.llamadas.reduce((s, l) => s + (l.creditosUsados ?? 0), 0);
+  }
+
+  get creditosDisponibles(): number | null {
+    for (let i = this.llamadas.length - 1; i >= 0; i -= 1) {
+      const v = this.llamadas[i].creditosDisponibles;
+      if (v != null) return v;
+    }
+    return null;
+  }
+
+  get proxyUsado(): boolean | null {
+    return this.llamadas.some((l) => l.proxyUsado) ? true : this.llamadas.length ? false : null;
+  }
+
+  agregar(log: ApiGatewayCallLog) {
+    this.llamadas.push(log);
+  }
+
+  /** Corta la operación antes de seguir consumiendo créditos. */
+  exigirPresupuesto(modulo: SiiModule | null) {
+    if (this.consultas >= this.limite)
+      throw new SiiProviderError("REQUEST_BUDGET_REACHED", modulo);
+  }
+}
+
+function numeroCabecera(headers: Headers, nombre: string): number | null {
+  const v = headers.get(nombre);
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Traduce una respuesta real de API Gateway a un código interno. */
+export function mapearError(
+  estado: number,
+  detalle: string,
+  esJson: boolean,
+): SiiErrorCode {
+  const texto = detalle.toLowerCase();
+
+  if (!esJson && estado >= 200 && estado < 300) return "INVALID_PROVIDER_RESPONSE";
+
+  if (texto.includes("productos asociados") || texto.includes("no tiene producto"))
+    return "PRODUCT_NOT_ENABLED";
+  if (texto.includes("crédito") || texto.includes("credito") || texto.includes("saldo"))
+    return "INSUFFICIENT_CREDITS";
+  if (texto.includes("proxy") && texto.includes("no disponible")) return "PROXY_UNAVAILABLE";
+  if (texto.includes("proxy")) return "PROXY_REQUIRED";
+  if (texto.includes("bloquead")) return "ACCOUNT_BLOCKED";
+  if (
+    texto.includes("clave") ||
+    texto.includes("contraseña") ||
+    texto.includes("credenciales")
+  )
+    return "INVALID_CREDENTIALS";
+  if (texto.includes("mantencion") || texto.includes("mantención") || texto.includes("mantenimiento"))
+    return texto.includes("sii") ? "SII_MAINTENANCE" : "PROVIDER_MAINTENANCE";
+  if (texto.includes("sesion") || texto.includes("sesión")) return "SESSION_EXPIRED";
+
+  switch (estado) {
+    case 400:
+      return "MALFORMED_RESPONSE";
+    case 401:
+      return "INVALID_CREDENTIALS";
+    case 402:
+      return "INSUFFICIENT_CREDITS";
+    case 403:
+      return "NOT_AUTHORIZED";
+    case 404:
+      return "PERIOD_NOT_AVAILABLE";
+    case 408:
+      return "TIMEOUT";
+    case 429:
+      return "RATE_LIMITED";
+    case 502:
+    case 503:
+    case 504:
+      return "PROVIDER_UNAVAILABLE";
+    default:
+      return estado >= 500 ? "PROVIDER_UNAVAILABLE" : "UNKNOWN_ERROR";
+  }
+}
+
+const NO_REINTENTABLES: SiiErrorCode[] = [
+  "INVALID_CREDENTIALS",
+  "ACCOUNT_BLOCKED",
+  "NOT_AUTHORIZED",
+  "PRODUCT_NOT_ENABLED",
+  "INSUFFICIENT_CREDITS",
+  "PROXY_REQUIRED",
+];
+
+export interface ApiGatewayRequestInput<TRequest extends object> {
+  config: ApiGatewayConfig;
+  modulo: SiiModule | "diagnostico" | "autenticacion";
+  metodo: "GET" | "POST";
+  /** Ruta ya resuelta, relativa a la base. Nunca debe contener credenciales. */
+  ruta: string;
+  query?: Record<string, string>;
+  body?: TRequest;
+  registro?: RegistroConsumo;
+}
+
+export interface ApiGatewayRespuesta<TResponse> {
+  datos: TResponse;
+  log: ApiGatewayCallLog;
+}
+
+export function construirUrl(
+  baseUrl: string,
+  ruta: string,
+  query?: Record<string, string>,
+): string {
+  const base = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  const url = new URL(ruta.replace(/^\//, ""), base);
+  if (url.protocol !== "https:")
+    throw new SiiProviderError("PROVIDER_NOT_CONFIGURED", null);
+  for (const [k, v] of Object.entries(query ?? {})) url.searchParams.set(k, v);
+  return url.toString();
+}
+
+/**
+ * Llamada genérica y tipada. Aplica timeout, reintentos acotados, lectura de
+ * consumo y normalización de errores.
+ */
+export async function requestApiGateway<TRequest extends object, TResponse>(
+  input: ApiGatewayRequestInput<TRequest>,
+): Promise<ApiGatewayRespuesta<TResponse>> {
+  const moduloError = typeof input.modulo === "string" && input.modulo.startsWith("rcv")
+    ? (input.modulo as SiiModule)
+    : null;
+
+  input.registro?.exigirPresupuesto(moduloError);
+
+  const url = construirUrl(input.config.baseUrl, input.ruta, input.query);
+  let ultimoError: SiiProviderError | null = null;
+
+  for (let intento = 0; intento <= MAX_REINTENTOS; intento += 1) {
+    const inicio = Date.now();
+    const controlador = new AbortController();
+    const temporizador = setTimeout(() => controlador.abort(), input.config.timeoutMs);
+
+    let estadoHttp: number | null = null;
+    let log: ApiGatewayCallLog = {
+      modulo: input.modulo,
+      metodo: input.metodo,
+      recurso: input.ruta,
+      estadoHttp: null,
+      duracionMs: 0,
+      creditosUsados: null,
+      creditosDisponibles: null,
+      proxyUsado: null,
+      limiteRestante: null,
+      codigoError: null,
+      referenciaTecnica: null,
+    };
+
+    try {
+      const respuesta = await fetch(url, {
+        method: input.metodo,
+        headers: {
+          // El token nunca se registra ni se devuelve.
+          Authorization: `Token ${input.config.token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: input.body ? JSON.stringify(input.body) : undefined,
+        signal: controlador.signal,
+      });
+      estadoHttp = respuesta.status;
+
+      const proxy = respuesta.headers.get("x-source-proxy");
+      log = {
+        ...log,
+        estadoHttp,
+        duracionMs: Date.now() - inicio,
+        creditosUsados: numeroCabecera(respuesta.headers, "x-stats-credits-used"),
+        creditosDisponibles: numeroCabecera(
+          respuesta.headers,
+          "x-stats-credits-remaining",
+        ),
+        proxyUsado: proxy == null ? null : proxy !== "0",
+        limiteRestante: numeroCabecera(respuesta.headers, "x-ratelimit-remaining"),
+      };
+
+      const texto = await respuesta.text();
+      let cuerpo: unknown = null;
+      let esJson = true;
+      try {
+        cuerpo = texto ? JSON.parse(texto) : null;
+      } catch {
+        esJson = false;
+      }
+
+      if (!respuesta.ok || !esJson) {
+        const detalle =
+          esJson && cuerpo && typeof cuerpo === "object"
+            ? String(
+                (cuerpo as { detail?: unknown; message?: unknown }).detail ??
+                  (cuerpo as { message?: unknown }).message ??
+                  "",
+              )
+            : "";
+        const codigo = mapearError(respuesta.status, detalle, esJson);
+        log = {
+          ...log,
+          codigoError: codigo,
+          referenciaTecnica: `${input.modulo}:${respuesta.status}:${codigo}`,
+        };
+        input.registro?.agregar(log);
+        const error = new SiiProviderError(codigo, moduloError);
+        if (NO_REINTENTABLES.includes(codigo) || intento === MAX_REINTENTOS) throw error;
+        ultimoError = error;
+        await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+        continue;
+      }
+
+      input.registro?.agregar(log);
+      return { datos: cuerpo as TResponse, log };
+    } catch (error) {
+      if (error instanceof SiiProviderError) throw error;
+      const esTimeout =
+        error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
+      const codigo: SiiErrorCode = esTimeout ? "TIMEOUT" : "PROVIDER_UNAVAILABLE";
+      log = {
+        ...log,
+        estadoHttp,
+        duracionMs: Date.now() - inicio,
+        codigoError: codigo,
+        referenciaTecnica: `${input.modulo}:red:${codigo}`,
+      };
+      input.registro?.agregar(log);
+      const normalizado = new SiiProviderError(codigo, moduloError);
+      if (intento === MAX_REINTENTOS) throw normalizado;
+      ultimoError = normalizado;
+      await new Promise((r) => setTimeout(r, 800 * (intento + 1)));
+    } finally {
+      clearTimeout(temporizador);
+    }
+  }
+
+  throw ultimoError ?? new SiiProviderError("UNKNOWN_ERROR", moduloError);
+}
+
+/** Respaldo seguro: cuerpo de respuesta sin credenciales ni cabeceras. */
+export function respaldoSeguro(payload: unknown): unknown {
+  return sanitizarProfundo(payload);
+}

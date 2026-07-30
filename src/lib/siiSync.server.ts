@@ -28,9 +28,27 @@ import {
   type SiiProviderId,
 } from "@/integrations/sii/contracts";
 import { mockSiiProviderAdapter } from "@/integrations/sii/mockSiiProviderAdapter";
-import { apiGatewaySiiProviderAdapter } from "@/integrations/sii/apiGatewaySiiProviderAdapter";
+import {
+  apiGatewaySiiProviderAdapter,
+  crearAdaptadorApiGateway,
+  type CredencialesTemporales,
+} from "@/integrations/sii/apiGatewaySiiProviderAdapter";
+import {
+  RegistroConsumo,
+  MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
+} from "@/integrations/sii/apiGatewayClient";
+import { sanitizarProfundo } from "@/integrations/sii/sanitize";
+import {
+  diagnoseApiGatewayConfiguration,
+  empresaAutorizadaParaPruebaReal,
+  leerConfiguracion,
+  modoPruebaRealHabilitado,
+} from "@/lib/apiGateway.server";
+import { diaCivil } from "@/lib/syncPolicy";
+import { normalizarRut } from "@/lib/rut";
 
-const VERSION_CONSENTIMIENTO = "demo-2026-07";
+
+export const VERSION_CONSENTIMIENTO = "demo-2026-07";
 const MESES_F29 = 6;
 
 /** Errores que invalidan la sesión: no tiene sentido seguir pidiendo módulos. */
@@ -38,17 +56,30 @@ const ERRORES_DE_SESION = ["AUTH_EXPIRED", "INVALID_CREDENTIALS", "NOT_AUTHORIZE
 
 /**
  * Opciones internas del servidor. No se exponen en las server functions:
- * existen para pruebas controladas (reloj y proveedor inyectables).
+ * existen para pruebas controladas (reloj y proveedor inyectables) y para la
+ * prueba real con API Gateway.
  */
 export interface OpcionesInternas {
   ahora?: Date;
   proveedor?: SiiProviderAdapter;
+  /** Proveedor con el que se trabaja la conexión y la fuente de los datos. */
+  proveedorId?: SiiProviderId;
+  /** Acumulador de consumo real (consultas, créditos, proxy). */
+  registro?: RegistroConsumo;
+  /** Omite la política de caché: la prueba real la controla su propio límite. */
+  omitirPoliticaCache?: boolean;
 }
 
-/** Selecciona el proveedor activo. Hoy siempre el simulado. */
+/** Selecciona el proveedor activo. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
   return id === "api_gateway" ? apiGatewaySiiProviderAdapter : mockSiiProviderAdapter;
 }
+
+/** Fuente de datos que corresponde a cada proveedor. */
+function fuenteDe(id: SiiProviderId): "mock_gateway" | "api_gateway" {
+  return id === "api_gateway" ? "api_gateway" : "mock_gateway";
+}
+
 
 
 export interface ConexionSii {
@@ -91,15 +122,16 @@ async function empresaDe(companyId: string) {
   return data;
 }
 
-async function conexionDe(companyId: string) {
+async function conexionDe(companyId: string, proveedor: SiiProviderId = "mock") {
   const { data } = await supabaseAdmin
     .from("tax_sii_connections")
     .select("*")
     .eq("company_id", companyId)
-    .eq("provider", "mock")
+    .eq("provider", proveedor)
     .maybeSingle();
   return data ?? null;
 }
+
 
 /** Asegura la existencia del periodo y devuelve su id. */
 async function asegurarPeriodo(companyId: string, periodo: string) {
@@ -140,6 +172,10 @@ function periodoYaCerrado(periodo: string, ahora: Date): boolean {
 // Conexión / desconexión
 // ---------------------------------------------------------------------------
 
+/**
+ * Devuelve la conexión vigente de la empresa. Si existe una conexión real de
+ * prueba con API Gateway, tiene prioridad sobre la demostrativa.
+ */
 export async function obtenerConexionSii(
   userId: string,
   companyId: string,
@@ -150,9 +186,13 @@ export async function obtenerConexionSii(
     "accountant",
     "viewer",
   ]);
+  const real = await conexionDe(companyId, "api_gateway");
+  if (real && ["connected", "stale", "error"].includes(String(real.status)))
+    return mapConexion(real);
   const fila = await conexionDe(companyId);
-  return fila ? mapConexion(fila) : null;
+  return fila ? mapConexion(fila) : real ? mapConexion(real) : null;
 }
+
 
 /**
  * Activa la conexión demostrativa. Solo el dueño de la empresa puede
@@ -298,6 +338,8 @@ export interface ResultadoSincronizacion {
   modulosFallidos: SiiModule[];
   /** Módulos que no se volvieron a consultar porque seguían vigentes. */
   modulosDesdeCache: SiiModule[];
+  /** Módulos sin recurso oficial disponible en esta etapa. */
+  modulosNoDisponibles: SiiModule[];
 
   documentosRecibidos: number;
   documentosCreados: number;
@@ -310,6 +352,10 @@ export interface ResultadoSincronizacion {
   errorCodigo: string | null;
   mensaje: string;
   simulado: boolean;
+  fuente: "mock_gateway" | "api_gateway";
+  creditosConsumidos: number | null;
+  creditosDisponibles: number | null;
+  proxyUsado: boolean | null;
 }
 
 async function guardarSnapshot(entrada: {
@@ -318,14 +364,16 @@ async function guardarSnapshot(entrada: {
   syncRunId: string | null;
   modulo: SiiModule;
   payload: unknown;
+  proveedor: SiiProviderId;
 }) {
   await supabaseAdmin.from("tax_provider_snapshots").insert({
     company_id: entrada.companyId,
     tax_period_id: entrada.periodId,
     sync_run_id: entrada.syncRunId,
-    provider: "mock",
+    provider: entrada.proveedor,
     module: entrada.modulo,
-    payload: entrada.payload as never,
+    // Barrera dura: ninguna clave, token ni cookie llega a la base.
+    payload: sanitizarProfundo(entrada.payload) as never,
     received_at: new Date().toISOString(),
     normalized_at: new Date().toISOString(),
   });
@@ -335,6 +383,7 @@ async function upsertDocumentos(
   companyId: string,
   periodId: string,
   filas: FilaDocumentoNormalizada[],
+  fuente: "mock_gateway" | "api_gateway",
 ) {
   if (!filas.length) return { creados: 0, actualizados: 0 };
 
@@ -342,7 +391,7 @@ async function upsertDocumentos(
     .from("tax_documents")
     .select("external_id")
     .eq("company_id", companyId)
-    .eq("source", "mock_gateway")
+    .eq("source", fuente)
     .in(
       "external_id",
       filas.map((f) => f.external_id),
@@ -353,7 +402,7 @@ async function upsertDocumentos(
     filas.map((f) => ({
       company_id: companyId,
       tax_period_id: periodId,
-      source: "mock_gateway" as const,
+      source: fuente,
       ...f,
     })),
     { onConflict: "company_id,source,external_id" },
@@ -364,10 +413,11 @@ async function upsertDocumentos(
   return { creados: filas.length - actualizados, actualizados };
 }
 
+
 /**
- * Sincroniza un periodo completo contra el proveedor simulado:
- * consulta, guarda el respaldo crudo, normaliza, deduplica, recalcula y
- * deja registro del uso.
+ * Sincroniza un periodo completo contra el proveedor activo (simulado o real):
+ * consulta, guarda el respaldo crudo sanitizado, normaliza, deduplica,
+ * recalcula y deja registro del uso y del consumo.
  */
 export async function syncSiiCompanyPeriod(
   userId: string,
@@ -382,14 +432,25 @@ export async function syncSiiCompanyPeriod(
   await exigirRol(userId, entrada.companyId, ["owner", "business_user", "accountant"]);
 
   const tipo: TipoActivacion = entrada.triggerType ?? "manual";
+  const proveedorId: SiiProviderId = opciones.proveedorId ?? "mock";
+  const fuente = fuenteDe(proveedorId);
+  const esReal = proveedorId === "api_gateway";
+  const registro = opciones.registro ?? null;
   const empresa = await empresaDe(entrada.companyId);
-  const conexionFila = await conexionDe(entrada.companyId);
-
+  const conexionFila = await conexionDe(entrada.companyId, proveedorId);
 
   if (!conexionFila || !["connected", "stale"].includes(String(conexionFila.status)))
     throw new ErrorNegocio(
-      "Primero necesitas activar la conexión demostrativa de esta empresa.",
+      esReal
+        ? "Primero necesitas autorizar la conexión real de esta empresa."
+        : "Primero necesitas activar la conexión demostrativa de esta empresa.",
     );
+
+  const consumo = () => ({
+    creditosConsumidos: registro ? Number(registro.creditosUsados.toFixed(4)) : null,
+    creditosDisponibles: registro?.creditosDisponibles ?? null,
+    proxyUsado: registro?.proxyUsado ?? null,
+  });
 
   // Idempotencia: la misma clave nunca ejecuta dos veces.
   if (entrada.idempotencyKey) {
@@ -409,6 +470,7 @@ export async function syncSiiCompanyPeriod(
         modulosCompletados: (previo.modules_completed ?? []) as SiiModule[],
         modulosFallidos: (previo.modules_failed ?? []) as SiiModule[],
         modulosDesdeCache: (previo.modules_from_cache ?? []) as SiiModule[],
+        modulosNoDisponibles: [],
         documentosRecibidos: 0,
         documentosCreados: 0,
         documentosActualizados: 0,
@@ -419,18 +481,27 @@ export async function syncSiiCompanyPeriod(
         proximaActualizacion: null,
         errorCodigo: null,
         mensaje: "Esta actualización ya se había procesado.",
-        simulado: true,
+        simulado: !esReal,
+        fuente,
+        ...consumo(),
       };
   }
 
   const ahora = opciones.ahora ?? new Date();
   const periodoRow = await asegurarPeriodo(entrada.companyId, entrada.periodo);
-  const decision = decidirSincronizacion({
-    ahora,
-    ultimaSincronizacionExitosa: conexionFila.last_successful_sync_at,
-    tipo,
-    periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
-  });
+  const decision = opciones.omitirPoliticaCache
+    ? {
+        debeConsultar: true,
+        motivo: "solicitud_manual" as const,
+        proximaActualizacion: null,
+        minutosDesdeUltima: null,
+      }
+    : decidirSincronizacion({
+        ahora,
+        ultimaSincronizacionExitosa: conexionFila.last_successful_sync_at,
+        tipo,
+        periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
+      });
 
   if (!decision.debeConsultar) {
     const { data: omitido } = await supabaseAdmin
@@ -441,7 +512,7 @@ export async function syncSiiCompanyPeriod(
         sync_type: tipo === "manual" ? "manual" : "scheduled",
         trigger_type: tipo,
         status: "skipped",
-        source: "mock_gateway",
+        source: fuente,
         cache_hit: true,
         completed_at: ahora.toISOString(),
         modules_requested: MODULOS_SINCRONIZACION,
@@ -460,6 +531,7 @@ export async function syncSiiCompanyPeriod(
       modulosCompletados: [],
       modulosFallidos: [],
       modulosDesdeCache: MODULOS_SINCRONIZACION.slice(),
+      modulosNoDisponibles: [],
       documentosRecibidos: 0,
       documentosCreados: 0,
       documentosActualizados: 0,
@@ -473,9 +545,12 @@ export async function syncSiiCompanyPeriod(
         decision.motivo === "espera_minima_manual"
           ? "Actualizaste hace muy poco. Espera unos minutos antes de volver a intentar."
           : "Ya tienes información reciente, no fue necesario volver a consultar.",
-      simulado: true,
+      simulado: !esReal,
+      fuente,
+      ...consumo(),
     };
   }
+
 
   const inicio = Date.now();
   const { data: run, error: errorRun } = await supabaseAdmin
@@ -486,7 +561,7 @@ export async function syncSiiCompanyPeriod(
       sync_type: tipo === "manual" ? "manual" : "scheduled",
       trigger_type: tipo,
       status: "running",
-      source: "mock_gateway",
+      source: fuente,
       modules_requested: MODULOS_SINCRONIZACION,
       idempotency_key: entrada.idempotencyKey ?? null,
       triggered_by: userId,
@@ -594,13 +669,14 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "rcv_sales_documents",
       payload: ventas,
     });
     const n = normalizarVentas(ventas);
     recibidos += ventas.documents.length;
     descartados += n.descartados.length;
-    const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos);
+    const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
     creados += r.creados;
     actualizados += r.actualizados;
     datosHasta = ventas.dataThroughDate;
@@ -622,14 +698,16 @@ export async function syncSiiCompanyPeriod(
           companyId: entrada.companyId,
           periodId: periodoRow.id,
           syncRunId: run.id,
+          proveedor: proveedorId,
           modulo,
+
           payload: { period: compras.period, documents: docs },
         });
       }
       const n = normalizarCompras(compras);
       recibidos += Object.values(compras.byStatus).reduce((s, d) => s + d.length, 0);
       descartados += n.descartados.length;
-      const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos);
+      const r = await upsertDocumentos(entrada.companyId, periodoRow.id, n.documentos, fuente);
       creados += r.creados;
       actualizados += r.actualizados;
       datosHasta = datosHasta ?? compras.dataThroughDate;
@@ -643,6 +721,7 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "f29_periods",
       payload: historial,
     });
@@ -677,6 +756,7 @@ export async function syncSiiCompanyPeriod(
       companyId: entrada.companyId,
       periodId: periodoRow.id,
       syncRunId: run.id,
+      proveedor: proveedorId,
       modulo: "withholdings",
       payload: ret,
     });
@@ -708,7 +788,7 @@ export async function syncSiiCompanyPeriod(
   if (hubieron) {
     await supabaseAdmin
       .from("tax_periods")
-      .update({ data_source: "mock_gateway" })
+      .update({ data_source: fuente })
       .eq("id", periodoRow.id);
     await recalculateTaxPeriod(userId, {
       companyId: entrada.companyId,
@@ -728,8 +808,13 @@ export async function syncSiiCompanyPeriod(
       modules_failed: fallidos,
       modules_from_cache: desdeCache,
       cache_hit: desdeCache.length > 0,
-      provider_request_count: consultas,
+      provider_request_count: registro?.consultas ?? consultas,
       estimated_credits: consultas,
+      actual_credits: registro ? Number(registro.creditosUsados.toFixed(4)) : null,
+      credits_balance: registro?.creditosDisponibles ?? null,
+      proxy_used: registro?.proxyUsado ?? null,
+      pages_requested: registro?.consultas ?? undefined,
+
       data_through_date: datosHasta,
       duration_ms: Date.now() - inicio,
       error_code: errorCodigo,
@@ -778,24 +863,30 @@ export async function syncSiiCompanyPeriod(
   await registrarActividad(
     entrada.companyId,
     userId,
-    "sii.sync_demo",
+    esReal ? "sii.sync_real" : "sii.sync_demo",
     "tax_sync_runs",
     {
       periodo: entrada.periodo,
       estado,
       consultas,
       modulos_fallidos: fallidos.length,
+      fuente,
     },
   );
 
+  const noDisponibles: SiiModule[] =
+    errorCodigo === "RESOURCE_NOT_DOCUMENTED" ? fallidos.slice() : [];
+
   const mensaje =
     estado === "success"
-      ? "Actualizamos la información demostrativa de este periodo."
+      ? esReal
+        ? "Actualizamos la información de este periodo con el proveedor real."
+        : "Actualizamos la información demostrativa de este periodo."
       : estado === "partial"
         ? "Trajimos solo una parte de la información. Los cálculos quedan como estimación parcial."
         : primerError
           ? (primerError as SiiProviderError).message
-          : "No pudimos completar la actualización demostrativa.";
+          : "No pudimos completar la actualización.";
 
   return {
     ejecutada: true,
@@ -806,6 +897,7 @@ export async function syncSiiCompanyPeriod(
     modulosCompletados: completados,
     modulosFallidos: fallidos,
     modulosDesdeCache: desdeCache,
+    modulosNoDisponibles: noDisponibles,
     documentosRecibidos: recibidos,
     documentosCreados: creados,
     documentosActualizados: actualizados,
@@ -818,9 +910,13 @@ export async function syncSiiCompanyPeriod(
     proximaActualizacion: decision.proximaActualizacion,
     errorCodigo,
     mensaje,
-    simulado: true,
+    simulado: !esReal,
+    fuente,
+    ...consumo(),
   };
 }
+
+
 
 export interface RegistroSincronizacion {
   id: string;

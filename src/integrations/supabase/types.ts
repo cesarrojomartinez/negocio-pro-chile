@@ -831,10 +831,12 @@ export type Database = {
       }
       tax_sync_runs: {
         Row: {
+          actual_credits: number | null
           cache_hit: boolean
           company_id: string
           completed_at: string | null
           created_at: string
+          credits_balance: number | null
           data_through_date: string | null
           duration_ms: number | null
           error_code: string | null
@@ -847,7 +849,9 @@ export type Database = {
           modules_from_cache: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested: string[]
           next_retry_at: string | null
+          pages_requested: number
           provider_request_count: number
+          proxy_used: boolean | null
           records_created: number
           records_received: number
           records_updated: number
@@ -861,10 +865,12 @@ export type Database = {
           triggered_by: string | null
         }
         Insert: {
+          actual_credits?: number | null
           cache_hit?: boolean
           company_id: string
           completed_at?: string | null
           created_at?: string
+          credits_balance?: number | null
           data_through_date?: string | null
           duration_ms?: number | null
           error_code?: string | null
@@ -877,7 +883,9 @@ export type Database = {
           modules_from_cache?: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested?: string[]
           next_retry_at?: string | null
+          pages_requested?: number
           provider_request_count?: number
+          proxy_used?: boolean | null
           records_created?: number
           records_received?: number
           records_updated?: number
@@ -891,10 +899,12 @@ export type Database = {
           triggered_by?: string | null
         }
         Update: {
+          actual_credits?: number | null
           cache_hit?: boolean
           company_id?: string
           completed_at?: string | null
           created_at?: string
+          credits_balance?: number | null
           data_through_date?: string | null
           duration_ms?: number | null
           error_code?: string | null
@@ -907,7 +917,9 @@ export type Database = {
           modules_from_cache?: Database["public"]["Enums"]["sii_snapshot_module"][]
           modules_requested?: string[]
           next_retry_at?: string | null
+          pages_requested?: number
           provider_request_count?: number
+          proxy_used?: boolean | null
           records_created?: number
           records_received?: number
           records_updated?: number
@@ -982,6 +994,7 @@ export type Database = {
         | "sii"
         | "accountant"
         | "mock_gateway"
+        | "api_gateway"
       tax_document_direction: "sale" | "purchase"
       tax_f29_status:
         | "not_available"
@@ -1180,6 +1193,7 @@ export const Constants = {
         "sii",
         "accountant",
         "mock_gateway",
+        "api_gateway",
       ],
       tax_document_direction: ["sale", "purchase"],
       tax_f29_status: [
