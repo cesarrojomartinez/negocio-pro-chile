@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import { construirDashboard } from "@/lib/dashboardBuilder";
 import { recalculateTaxPeriod } from "@/lib/taxRecalc.server";
-import { diasDePeriodo } from "@/lib/taxMappers";
+import { diasDePeriodo, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo } from "@/utils/taxCalculations";
 import type { DocumentoTributario, PeriodoData } from "@/types/tax";
 import type { Empresa } from "@/types/company";
@@ -307,6 +307,28 @@ describe("paridad frontend / backend — casos deterministas", () => {
   ) {
     const insertados = await insertarDocs(companyA, periodo, docs);
     await configurar(companyA, cfg);
+    // El remanente arrastrado se lee de la base, igual que hace el backend.
+    const prev = periodoAnterior(periodo);
+    const { data: periodoPrev } = await admin
+      .from("tax_periods")
+      .select("id")
+      .eq("company_id", companyA)
+      .eq("period", prev)
+      .maybeSingle();
+    let remanente = 0;
+    let fuenteRemanente: PeriodoData["fuenteRemanente"] = "unknown";
+    if (periodoPrev) {
+      const { data: resumenPrev } = await admin
+        .from("tax_monthly_summaries")
+        .select("estimated_new_carryforward")
+        .eq("company_id", companyA)
+        .eq("tax_period_id", periodoPrev.id)
+        .maybeSingle();
+      if (resumenPrev) {
+        remanente = Number(resumenPrev.estimated_new_carryforward);
+        fuenteRemanente = "previous_period";
+      }
+    }
     const back = await recalculateTaxPeriod(usuarios.owner, {
       companyId: companyA,
       periodo,
@@ -316,6 +338,8 @@ describe("paridad frontend / backend — casos deterministas", () => {
       reserva: cfg.reserva ?? 0,
       margen: cfg.margen ?? 10,
       ppm: cfg.ppm === 0 ? null : (cfg.ppm ?? 0.006),
+      remanente,
+      fuenteRemanente,
     });
     return { back, front };
   }
@@ -392,14 +416,13 @@ describe("paridad frontend / backend — casos deterministas", () => {
     esperarParidad(back, front);
   }, 120_000);
 
-  it("caso 5: sin periodo anterior (remanente cero y fuente desconocida)", async () => {
+  it("caso 5: sin periodo anterior comparable (variaciones nulas)", async () => {
     const { back, front } = await comparar(
       "2026-06",
       [{ direccion: "sale", neto: 500_000, estado: "accepted" }],
       {},
     );
-    expect(back.remanenteAnterior).toBe(0);
-    expect(back.fuenteRemanente).toBe("unknown");
+    expect(back.remanenteAnterior).toBe(front.resumen.remanenteAnterior);
     esperarParidad(back, front);
   }, 120_000);
 
