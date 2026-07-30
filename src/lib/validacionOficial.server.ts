@@ -222,7 +222,7 @@ function aRegistro(fila: Record<string, unknown>): RegistroValidacion {
     f29Confianza: (fila.f29_confidence as string) ?? null,
     codigosEncontrados: (fila.codes_found ?? []) as string[],
     codigosFaltantes: (fila.codes_missing ?? []) as string[],
-    codigos: ((extra.codigos ?? {}) as MapaCodigos) ?? {},
+    codigos: (extra.codigos ?? {}) as MapaCodigos,
     campos: (extra.campos as CamposNormalizadosF29) ?? null,
     totalOficial: fila.declared_total == null ? null : Number(fila.declared_total),
     comparacion: {
@@ -258,7 +258,7 @@ export async function previsualizarValidacion(
 
   const { data: empresa } = await supabaseAdmin
     .from("tax_companies")
-    .select("legal_name, rut")
+    .select("business_name, rut")
     .eq("id", entrada.companyId)
     .maybeSingle();
 
@@ -284,7 +284,7 @@ export async function previsualizarValidacion(
       ["success", "needs_review", "partial"].includes(String(filaF29.extraction_status)),
   );
 
-  const razonEmpresa = String(empresa?.legal_name ?? "");
+  const razonEmpresa = String(empresa?.business_name ?? "");
   const rutEmpresa = String(empresa?.rut ?? "");
   const proveedorHabilitado = listado.descargaDisponible;
 
