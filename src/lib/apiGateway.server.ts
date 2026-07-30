@@ -214,6 +214,8 @@ async function sondearProductos(
         .path.replace("{emisor}", RUT_SONDEO)
         .replace("{periodo}", periodoCompacto),
       query: { formato: "json" },
+      detalleHabilitado:
+        "El servicio respondió correctamente y alcanzó el SII. La lectura de información se validará al ejecutar la consulta con tus credenciales.",
     },
     {
       clave: "f29" as const,
@@ -221,6 +223,8 @@ async function sondearProductos(
       modulo: "f29_periods" as const,
       ruta: recursoDe("f29_periods").path.replace("{periodo}", periodoAnual),
       query: undefined,
+      detalleHabilitado:
+        "El servicio respondió correctamente y alcanzó el SII. La lectura de declaraciones se validará al ejecutar la consulta con tus credenciales.",
     },
   ];
 
@@ -243,11 +247,16 @@ async function sondearProductos(
         etiqueta: ETIQUETA_PRODUCTO.habilitado,
         contratado: true,
         recurso: d.ruta,
-        detalle: "El recurso respondió correctamente.",
+        detalle: d.detalleHabilitado,
       });
     } catch (error) {
       const codigo = error instanceof SiiProviderError ? error.code : "UNKNOWN_ERROR";
-      const estado = estadoProductoDesdeCodigo(codigo);
+      const bruto = estadoProductoDesdeCodigo(codigo);
+      // Diagnóstico de disponibilidad: el sondeo NO usa credenciales reales, así
+      // que un rechazo de autenticación del SII prueba que el producto está
+      // habilitado. Nunca se presenta como error de integración.
+      const estado: EstadoProducto =
+        bruto === "error_autenticacion" ? "habilitado" : bruto;
       const contratado = ESTADOS_QUE_PRUEBAN_CONTRATO.includes(estado);
       salida.push({
         clave: d.clave,
@@ -256,14 +265,18 @@ async function sondearProductos(
         etiqueta: ETIQUETA_PRODUCTO[estado],
         contratado,
         recurso: d.ruta,
-        detalle: contratado
-          ? "El servicio ejecutó la consulta y llegó al SII: el producto está contratado. Con credenciales válidas entrega información."
-          : `El sondeo terminó con el código interno ${codigo}.`,
+        detalle:
+          estado === "habilitado"
+            ? d.detalleHabilitado
+            : contratado
+              ? "El servicio ejecutó la consulta y llegó al SII: el producto está contratado."
+              : `El sondeo terminó con el código interno ${codigo}.`,
       });
     }
   }
   return salida;
 }
+
 
 
 
