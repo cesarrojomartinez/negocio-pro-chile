@@ -514,6 +514,99 @@ export type Database = {
           },
         ]
       }
+      tax_f29_extractions: {
+        Row: {
+          code_values: Json
+          company_id: string
+          confidence_level: string
+          created_at: string
+          declaration_date: string | null
+          declaration_status: string | null
+          extraction_status: string
+          folio: string
+          id: string
+          is_rectification: boolean
+          normalized_fields: Json
+          parser_version: string
+          pdf_page_count: number | null
+          pdf_sha256: string | null
+          pdf_storage_path: string | null
+          period: string
+          source: string
+          superseded: boolean
+          supersedes_folio: string | null
+          tax_period_id: string | null
+          updated_at: string
+          validation_results: Json
+          warnings: Json
+        }
+        Insert: {
+          code_values?: Json
+          company_id: string
+          confidence_level?: string
+          created_at?: string
+          declaration_date?: string | null
+          declaration_status?: string | null
+          extraction_status?: string
+          folio: string
+          id?: string
+          is_rectification?: boolean
+          normalized_fields?: Json
+          parser_version: string
+          pdf_page_count?: number | null
+          pdf_sha256?: string | null
+          pdf_storage_path?: string | null
+          period: string
+          source?: string
+          superseded?: boolean
+          supersedes_folio?: string | null
+          tax_period_id?: string | null
+          updated_at?: string
+          validation_results?: Json
+          warnings?: Json
+        }
+        Update: {
+          code_values?: Json
+          company_id?: string
+          confidence_level?: string
+          created_at?: string
+          declaration_date?: string | null
+          declaration_status?: string | null
+          extraction_status?: string
+          folio?: string
+          id?: string
+          is_rectification?: boolean
+          normalized_fields?: Json
+          parser_version?: string
+          pdf_page_count?: number | null
+          pdf_sha256?: string | null
+          pdf_storage_path?: string | null
+          period?: string
+          source?: string
+          superseded?: boolean
+          supersedes_folio?: string | null
+          tax_period_id?: string | null
+          updated_at?: string
+          validation_results?: Json
+          warnings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_f29_extractions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_f29_extractions_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_f29_history: {
         Row: {
           company_id: string
@@ -1390,6 +1483,7 @@ export type Database = {
         | "f29_periods"
         | "f29_detail"
         | "withholdings"
+        | "f29_compact_pdf"
       tax_alert_severity: "info" | "success" | "warning" | "critical"
       tax_alert_type:
         | "reserve_insufficient"
@@ -1412,6 +1506,7 @@ export type Database = {
         | "accountant"
         | "mock_gateway"
         | "api_gateway"
+        | "f29_pdf_extracted"
       tax_document_direction: "sale" | "purchase"
       tax_f29_status:
         | "not_available"
@@ -1598,6 +1693,7 @@ export const Constants = {
         "f29_periods",
         "f29_detail",
         "withholdings",
+        "f29_compact_pdf",
       ],
       tax_alert_severity: ["info", "success", "warning", "critical"],
       tax_alert_type: [
@@ -1622,6 +1718,7 @@ export const Constants = {
         "accountant",
         "mock_gateway",
         "api_gateway",
+        "f29_pdf_extracted",
       ],
       tax_document_direction: ["sale", "purchase"],
       tax_f29_status: [

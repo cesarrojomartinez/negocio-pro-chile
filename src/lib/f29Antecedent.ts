@@ -12,6 +12,9 @@ import type { FuentePeriodo } from "@/types/tax";
 /** Marca usada en `tax_f29_history.raw_data` para el F29 confirmado. */
 export const ORIGEN_F29_CONTADOR = "accountant_confirmed_f29";
 
+/** Marca del F29 oficial descargado del SII y leído desde el PDF compacto. */
+export const ORIGEN_F29_PDF = "f29_pdf_extracted";
+
 export interface FilaF29Persistida {
   declaration_status: string | null;
   declared_vat: number | null;
@@ -50,7 +53,10 @@ export function interpretarAntecedenteF29(
   const bruto = (fila.raw_data ?? {}) as Record<string, unknown>;
   const confirmado =
     fila.declaration_status === "filed" &&
-    (fila.source === "accountant" || bruto.origin === ORIGEN_F29_CONTADOR);
+    (fila.source === "accountant" ||
+      fila.source === "f29_pdf_extracted" ||
+      bruto.origin === ORIGEN_F29_CONTADOR ||
+      bruto.origin === ORIGEN_F29_PDF);
 
   return {
     confirmado,

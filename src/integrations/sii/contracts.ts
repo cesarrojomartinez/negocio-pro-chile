@@ -22,6 +22,7 @@ export type SiiModule =
   | "rcv_purchases_excluded"
   | "f29_periods"
   | "f29_detail"
+  | "f29_compact_pdf"
   | "withholdings";
 
 export const MODULOS_SINCRONIZACION: SiiModule[] = [
@@ -43,6 +44,7 @@ export const ETIQUETA_MODULO: Record<SiiModule, string> = {
   rcv_purchases_excluded: "Compras no incluidas",
   f29_periods: "Historial de F29",
   f29_detail: "Detalle de F29",
+  f29_compact_pdf: "Formulario 29 compacto (PDF)",
   withholdings: "Retenciones",
 };
 

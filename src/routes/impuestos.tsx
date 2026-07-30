@@ -8,6 +8,7 @@ import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
 import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemanente";
 import { CierreMensual } from "@/components/tax/CierreMensual";
+import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
@@ -122,6 +123,11 @@ function Impuestos() {
 
             <EstadoCalculo contexto={data.contexto} />
             <ConciliacionRemanente companyId={companyId} periodo={periodoId} />
+            <F29OficialPanel
+              companyId={companyId}
+              periodo={periodoId}
+              onCambio={refrescarDatos}
+            />
             <CierreMensual
               companyId={companyId}
               periodo={periodoId}
