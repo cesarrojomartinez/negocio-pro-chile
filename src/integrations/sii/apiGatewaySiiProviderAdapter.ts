@@ -53,6 +53,22 @@ interface CuerpoAuth {
   auth: { pass: { rut: string; clave: string } };
 }
 
+/**
+ * Construye el cuerpo de autenticación exigido por API Gateway.
+ * Sin envoltorios adicionales (`credentials`, `authorizedRut`, `taxKey`, etc.).
+ */
+export function construirCuerpoAuth(
+  rutUsuarioAutorizado: string,
+  claveTributaria: string,
+): CuerpoAuth {
+  return {
+    auth: {
+      pass: { rut: rutConGuion(rutUsuarioAutorizado), clave: claveTributaria },
+    },
+  };
+}
+
+
 interface FilaResumen {
   rsmnTipoDocInteger?: number;
   rsmnTotDoc?: number;
