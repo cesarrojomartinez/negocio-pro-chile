@@ -252,7 +252,6 @@ export async function recalculateTaxPeriod(
     .maybeSingle();
 
   const esDemo = !!empresaRow.is_demo;
-  const remanente = await remanenteAnterior(entrada.companyId, previoRow?.id ?? null, esDemo);
 
   const tasaPpmCruda = settings?.estimated_ppm_rate;
   const tasaPpmConfigurada =
@@ -268,29 +267,48 @@ export async function recalculateTaxPeriod(
     .eq("tax_period_id", periodoRow.id)
     .maybeSingle();
   const antecedente = interpretarAntecedenteF29(f29Periodo);
+  const confirmado = !!antecedente?.confirmado;
+
+  const previo = await contextoPeriodoPrevio(entrada.companyId, previoRow?.id ?? null);
+  const remanente = resolverRemanenteAnterior({
+    esDemo,
+    antecedentePeriodo: antecedente,
+    remanenteCalculadoPrevio: previo.remanente,
+    periodoAnteriorConfirmado: previo.confirmado,
+  });
 
   const tasaPrevia = esDemo
     ? null
     : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
+  const tasaParametro = esDemo
+    ? null
+    : await parametroVigente(entrada.companyId, "ppm_rate", entrada.periodo);
   const tasaResuelta = resolverTasaPpm({
     esDemo,
     antecedentePeriodo: antecedente,
+    tasaParametroVigente: tasaParametro,
     tasaConfigurada: tasaPpmConfigurada,
     configuracionConfirmada: !!settings?.ppm_rate_confirmed,
     tasaConfirmadaPrevia: tasaPrevia,
   });
 
-  const retencionesBase = Number(resumenActual?.estimated_withholdings ?? 0);
+  const retencionesParametro = esDemo
+    ? null
+    : await parametroVigente(entrada.companyId, "usual_withholdings", entrada.periodo);
+  const retencionesBase =
+    retencionesParametro ?? Number(resumenActual?.estimated_withholdings ?? 0);
   const parametros = aplicarAntecedenteF29(
     {
-      remanenteAnterior: remanente.monto,
-      fuenteRemanente: remanente.fuente,
+      remanenteAnterior: remanente.remanenteAnterior,
+      fuenteRemanente: remanente.fuenteRemanente,
       tasaPpm: tasaResuelta.tasaPpm,
       fuentePpm: tasaResuelta.fuentePpm,
       retenciones: retencionesBase,
       fuenteRetenciones: (retencionesBase > 0
-        ? ((resumenActual?.withholdings_source as WithholdingsSource) ??
-          (esDemo ? "mock" : "configured"))
+        ? retencionesParametro != null
+          ? "configured"
+          : ((resumenActual?.withholdings_source as WithholdingsSource) ??
+            (esDemo ? "mock" : "configured"))
         : "unknown") as WithholdingsSource,
     },
     antecedente,
@@ -313,10 +331,17 @@ export async function recalculateTaxPeriod(
     documentosCompra: docs.compra,
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
+    remanenteConocido:
+      remanente.conocido || parametros.fuenteRemanente !== remanente.fuenteRemanente,
     tasaPpm,
     fuentePpm,
+    basePpmConfirmada: confirmado ? antecedente?.basePpmDeclarada : null,
     retencionesEstimadas: retenciones,
     fuenteRetenciones,
+    ivaDeclarado: confirmado ? antecedente?.ivaDeclarado : null,
+    ppmDeclarado: confirmado ? antecedente?.ppmDeclarado : null,
+    retencionesDeclaradas: confirmado ? antecedente?.retenciones : null,
+    totalDeclarado: confirmado ? antecedente?.totalDeclarado : null,
     metaMensual,
     dineroReservado: reservado,
     diasTranscurridos: dias.diasTranscurridos,
