@@ -759,6 +759,17 @@ export async function syncSiiCompanyPeriod(
   let datosHasta: string | null = null;
   let primerError: SiiProviderError | null = null;
   let sesionInvalida = false;
+  // Trazabilidad resumen → detalle → persistencia.
+  let resumenVentas: ProviderRcvSummary = RESUMEN_VACIO;
+  let resumenCompras: ProviderRcvSummary = RESUMEN_VACIO;
+  let hayResumen = false;
+  let persistidos = 0;
+  const motivos = new Map<string, number>();
+  const anotarDescartes = (lista: { motivo: string }[]) => {
+    for (const d of lista) motivos.set(d.motivo, (motivos.get(d.motivo) ?? 0) + 1);
+  };
+  const totalesDetalle = { ventas: 0, compras: 0 };
+
 
   const marcar = (modulos: SiiModule[], estado: EstadoModulo, motivo: string | null) => {
     for (const m of modulos) detalle.set(m, { modulo: m, estado, motivo });
