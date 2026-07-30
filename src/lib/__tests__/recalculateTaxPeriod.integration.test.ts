@@ -233,8 +233,8 @@ beforeAll(async () => {
     suspendido: await crearUsuario("suspendido"),
     ajeno: await crearUsuario("ajeno"),
   };
-  companyA = await crearEmpresa(`76${marca % 1000000}-1`, "Empresa QA A", usuarios.owner);
-  companyB = await crearEmpresa(`77${marca % 1000000}-2`, "Empresa QA B", usuarios.ajeno);
+  companyA = await crearEmpresa(`76${marca % 1000000}1`, "Empresa QA A", usuarios.owner);
+  companyB = await crearEmpresa(`77${marca % 1000000}2`, "Empresa QA B", usuarios.ajeno);
   await agregarMiembro(companyA, usuarios.owner, "owner");
   await agregarMiembro(companyA, usuarios.business, "business_user");
   await agregarMiembro(companyA, usuarios.accountant, "accountant");
