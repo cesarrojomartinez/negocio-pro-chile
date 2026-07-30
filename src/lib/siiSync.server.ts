@@ -338,6 +338,8 @@ export interface ResultadoSincronizacion {
   modulosFallidos: SiiModule[];
   /** Módulos que no se volvieron a consultar porque seguían vigentes. */
   modulosDesdeCache: SiiModule[];
+  /** Módulos sin recurso oficial disponible en esta etapa. */
+  modulosNoDisponibles: SiiModule[];
 
   documentosRecibidos: number;
   documentosCreados: number;
@@ -350,6 +352,10 @@ export interface ResultadoSincronizacion {
   errorCodigo: string | null;
   mensaje: string;
   simulado: boolean;
+  fuente: "mock_gateway" | "api_gateway";
+  creditosConsumidos: number | null;
+  creditosDisponibles: number | null;
+  proxyUsado: boolean | null;
 }
 
 async function guardarSnapshot(entrada: {
@@ -358,14 +364,16 @@ async function guardarSnapshot(entrada: {
   syncRunId: string | null;
   modulo: SiiModule;
   payload: unknown;
+  proveedor: SiiProviderId;
 }) {
   await supabaseAdmin.from("tax_provider_snapshots").insert({
     company_id: entrada.companyId,
     tax_period_id: entrada.periodId,
     sync_run_id: entrada.syncRunId,
-    provider: "mock",
+    provider: entrada.proveedor,
     module: entrada.modulo,
-    payload: entrada.payload as never,
+    // Barrera dura: ninguna clave, token ni cookie llega a la base.
+    payload: sanitizarProfundo(entrada.payload) as never,
     received_at: new Date().toISOString(),
     normalized_at: new Date().toISOString(),
   });
@@ -375,6 +383,7 @@ async function upsertDocumentos(
   companyId: string,
   periodId: string,
   filas: FilaDocumentoNormalizada[],
+  fuente: "mock_gateway" | "api_gateway",
 ) {
   if (!filas.length) return { creados: 0, actualizados: 0 };
 
@@ -382,7 +391,7 @@ async function upsertDocumentos(
     .from("tax_documents")
     .select("external_id")
     .eq("company_id", companyId)
-    .eq("source", "mock_gateway")
+    .eq("source", fuente)
     .in(
       "external_id",
       filas.map((f) => f.external_id),
@@ -393,7 +402,7 @@ async function upsertDocumentos(
     filas.map((f) => ({
       company_id: companyId,
       tax_period_id: periodId,
-      source: "mock_gateway" as const,
+      source: fuente,
       ...f,
     })),
     { onConflict: "company_id,source,external_id" },
@@ -403,6 +412,7 @@ async function upsertDocumentos(
   const actualizados = filas.filter((f) => yaEstaban.has(f.external_id)).length;
   return { creados: filas.length - actualizados, actualizados };
 }
+
 
 /**
  * Sincroniza un periodo completo contra el proveedor simulado:
