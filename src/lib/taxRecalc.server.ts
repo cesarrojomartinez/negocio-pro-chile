@@ -106,6 +106,41 @@ async function remanenteAnterior(
   return { monto: 0, fuente: "unknown" };
 }
 
+/** Última tasa de PPM confirmada por el contador en periodos anteriores. */
+async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
+  const { data: periodos } = await supabaseAdmin
+    .from("tax_periods")
+    .select("id, period")
+    .eq("company_id", companyId)
+    .lt("period", periodo)
+    .order("period", { ascending: false })
+    .limit(12);
+  const lista = periodos ?? [];
+  if (lista.length === 0) return null;
+
+  const { data: filas } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select(
+      "tax_period_id, declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .in(
+      "tax_period_id",
+      lista.map((p) => p.id),
+    );
+
+  for (const p of lista) {
+    const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
+    if (!fila) continue;
+    const antecedente = interpretarAntecedenteF29(fila);
+    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      return antecedente.tasaPpm;
+  }
+  return null;
+}
+
+
+
 export interface ResultadoRecalculo {
   periodo: string;
   ivaDebito: number;
