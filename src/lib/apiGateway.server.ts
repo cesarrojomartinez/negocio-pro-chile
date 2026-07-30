@@ -16,7 +16,9 @@ import {
   MODULOS_REALES_HABILITADOS,
   RECURSOS_API_GATEWAY,
   RECURSO_DIAGNOSTICO,
+  recursoDe,
 } from "@/integrations/sii/apiGatewayResourceMap";
+
 import { SiiProviderError } from "@/integrations/sii/contracts";
 
 export type ResultadoDiagnostico =
