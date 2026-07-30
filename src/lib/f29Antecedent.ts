@@ -139,6 +139,8 @@ export interface EntradaTasaPpm {
   esDemo: boolean;
   /** Antecedente del F29 del propio periodo. */
   antecedentePeriodo: AntecedenteF29 | null;
+  /** Parámetro tributario vigente de la empresa para el periodo. */
+  tasaParametroVigente?: number | null;
   /** Tasa guardada en la configuración de la empresa. */
   tasaConfigurada: number | null;
   /** La tasa guardada fue confirmada (no es el valor por omisión). */
@@ -149,8 +151,8 @@ export interface EntradaTasaPpm {
 
 /**
  * Prioridad de la tasa de PPM por periodo:
- * 1) F29 confirmado del periodo, 2) configuración confirmada vigente,
- * 3) F29 confirmado anterior, 4) desconocida.
+ * 1) F29 confirmado del periodo, 2) parámetro tributario vigente de la empresa,
+ * 3) configuración confirmada, 4) F29 confirmado anterior, 5) desconocida.
  * En una empresa real nunca se usa la tasa demostrativa por omisión.
  */
 export function resolverTasaPpm(entrada: EntradaTasaPpm): {
@@ -166,6 +168,9 @@ export function resolverTasaPpm(entrada: EntradaTasaPpm): {
       ? { tasaPpm: entrada.tasaConfigurada, fuentePpm: "mock" }
       : { tasaPpm: null, fuentePpm: "unknown" };
 
+  if (entrada.tasaParametroVigente != null && entrada.tasaParametroVigente > 0)
+    return { tasaPpm: entrada.tasaParametroVigente, fuentePpm: "configured" };
+
   if (
     entrada.configuracionConfirmada &&
     entrada.tasaConfigurada != null &&
@@ -177,6 +182,46 @@ export function resolverTasaPpm(entrada: EntradaTasaPpm): {
     return { tasaPpm: entrada.tasaConfirmadaPrevia, fuentePpm: "previous_f29" };
 
   return { tasaPpm: null, fuentePpm: "unknown" };
+}
+
+export interface EntradaRemanente {
+  esDemo: boolean;
+  /** F29 confirmado del propio periodo: declara el remanente anterior. */
+  antecedentePeriodo: AntecedenteF29 | null;
+  /** Nuevo remanente calculado en el periodo anterior, si existe resumen. */
+  remanenteCalculadoPrevio: number | null;
+  /** El periodo anterior tiene antecedentes confirmados. */
+  periodoAnteriorConfirmado: boolean;
+}
+
+/**
+ * Prioridad del remanente anterior:
+ * 1) F29 confirmado del periodo, 2) resumen del periodo anterior,
+ * 3) datos demostrativos, 4) desconocido.
+ * Un remanente desconocido nunca se presenta como cero confirmado: se calcula
+ * con cero y el periodo queda marcado como incompleto.
+ */
+export function resolverRemanenteAnterior(entrada: EntradaRemanente): {
+  remanenteAnterior: number;
+  fuenteRemanente: CarryforwardSource;
+  conocido: boolean;
+} {
+  const propio = entrada.antecedentePeriodo;
+  if (propio?.confirmado && propio.remanenteAnterior != null)
+    return {
+      remanenteAnterior: Math.max(0, propio.remanenteAnterior),
+      fuenteRemanente: ORIGEN_F29_CONTADOR,
+      conocido: true,
+    };
+
+  if (entrada.remanenteCalculadoPrevio != null)
+    return {
+      remanenteAnterior: Math.max(0, entrada.remanenteCalculadoPrevio),
+      fuenteRemanente: entrada.esDemo ? "mock" : "previous_period",
+      conocido: entrada.esDemo || entrada.periodoAnteriorConfirmado,
+    };
+
+  return { remanenteAnterior: 0, fuenteRemanente: "unknown", conocido: false };
 }
 
 /** Etiqueta breve del origen del periodo, para el encabezado. */

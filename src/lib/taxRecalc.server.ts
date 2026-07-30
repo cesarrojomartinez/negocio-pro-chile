@@ -4,6 +4,7 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
+  resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
 
@@ -73,37 +74,63 @@ async function documentos(companyId: string, taxPeriodId: string) {
 }
 
 /**
- * Determina el remanente anterior por prioridad:
- * F29 persistido → resumen del periodo anterior → configuración demostrativa → cero.
+ * Antecedentes del periodo anterior: nuevo remanente calculado y si sus
+ * cifras fueron confirmadas por el contador. Un F29 simulado con ceros nunca
+ * se interpreta como remanente confirmado.
  */
-async function remanenteAnterior(
+async function contextoPeriodoPrevio(
   companyId: string,
   periodoPrevioId: string | null,
-  esDemo: boolean,
-): Promise<{ monto: number; fuente: CarryforwardSource }> {
-  if (periodoPrevioId) {
-    const { data: f29 } = await supabaseAdmin
-      .from("tax_f29_history")
-      .select("vat_carryforward, declaration_status")
-      .eq("company_id", companyId)
-      .eq("tax_period_id", periodoPrevioId)
-      .maybeSingle();
-    if (f29 && f29.declaration_status === "filed" && f29.vat_carryforward != null)
-      return { monto: Number(f29.vat_carryforward), fuente: "f29" };
+): Promise<{ remanente: number | null; confirmado: boolean }> {
+  if (!periodoPrevioId) return { remanente: null, confirmado: false };
 
-    const { data: resumen } = await supabaseAdmin
-      .from("tax_monthly_summaries")
-      .select("estimated_new_carryforward")
-      .eq("company_id", companyId)
-      .eq("tax_period_id", periodoPrevioId)
-      .maybeSingle();
-    if (resumen && resumen.estimated_new_carryforward != null)
-      return {
-        monto: Number(resumen.estimated_new_carryforward),
-        fuente: esDemo ? "mock" : "previous_period",
-      };
-  }
-  return { monto: 0, fuente: "unknown" };
+  const { data: f29 } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select(
+      "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodoPrevioId)
+    .maybeSingle();
+  const confirmado = !!interpretarAntecedenteF29(f29)?.confirmado;
+
+  const { data: resumen } = await supabaseAdmin
+    .from("tax_monthly_summaries")
+    .select("estimated_new_carryforward")
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodoPrevioId)
+    .maybeSingle();
+
+  return {
+    remanente:
+      resumen?.estimated_new_carryforward == null
+        ? null
+        : Number(resumen.estimated_new_carryforward),
+    confirmado,
+  };
+}
+
+/** Parámetro tributario vigente de la empresa para el periodo indicado. */
+async function parametroVigente(
+  companyId: string,
+  tipo: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime",
+  periodo: string,
+): Promise<number | null> {
+  const primerDia = `${periodo}-01`;
+  const { data } = await supabaseAdmin
+    .from("tax_company_tax_parameters")
+    .select("value, effective_from, effective_to, confirmed")
+    .eq("company_id", companyId)
+    .eq("parameter_type", tipo)
+    .eq("confirmed", true)
+    .lte("effective_from", primerDia)
+    .order("effective_from", { ascending: false })
+    .limit(5);
+
+  const vigente = (data ?? []).find(
+    (p) => p.effective_to == null || String(p.effective_to) >= primerDia,
+  );
+  return vigente == null ? null : Number(vigente.value);
 }
 
 /** Última tasa de PPM confirmada por el contador en periodos anteriores. */
@@ -226,7 +253,6 @@ export async function recalculateTaxPeriod(
     .maybeSingle();
 
   const esDemo = !!empresaRow.is_demo;
-  const remanente = await remanenteAnterior(entrada.companyId, previoRow?.id ?? null, esDemo);
 
   const tasaPpmCruda = settings?.estimated_ppm_rate;
   const tasaPpmConfigurada =
@@ -242,29 +268,48 @@ export async function recalculateTaxPeriod(
     .eq("tax_period_id", periodoRow.id)
     .maybeSingle();
   const antecedente = interpretarAntecedenteF29(f29Periodo);
+  const confirmado = !!antecedente?.confirmado;
+
+  const previo = await contextoPeriodoPrevio(entrada.companyId, previoRow?.id ?? null);
+  const remanente = resolverRemanenteAnterior({
+    esDemo,
+    antecedentePeriodo: antecedente,
+    remanenteCalculadoPrevio: previo.remanente,
+    periodoAnteriorConfirmado: previo.confirmado,
+  });
 
   const tasaPrevia = esDemo
     ? null
     : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
+  const tasaParametro = esDemo
+    ? null
+    : await parametroVigente(entrada.companyId, "ppm_rate", entrada.periodo);
   const tasaResuelta = resolverTasaPpm({
     esDemo,
     antecedentePeriodo: antecedente,
+    tasaParametroVigente: tasaParametro,
     tasaConfigurada: tasaPpmConfigurada,
     configuracionConfirmada: !!settings?.ppm_rate_confirmed,
     tasaConfirmadaPrevia: tasaPrevia,
   });
 
-  const retencionesBase = Number(resumenActual?.estimated_withholdings ?? 0);
+  const retencionesParametro = esDemo
+    ? null
+    : await parametroVigente(entrada.companyId, "usual_withholdings", entrada.periodo);
+  const retencionesBase =
+    retencionesParametro ?? Number(resumenActual?.estimated_withholdings ?? 0);
   const parametros = aplicarAntecedenteF29(
     {
-      remanenteAnterior: remanente.monto,
-      fuenteRemanente: remanente.fuente,
+      remanenteAnterior: remanente.remanenteAnterior,
+      fuenteRemanente: remanente.fuenteRemanente,
       tasaPpm: tasaResuelta.tasaPpm,
       fuentePpm: tasaResuelta.fuentePpm,
       retenciones: retencionesBase,
       fuenteRetenciones: (retencionesBase > 0
-        ? ((resumenActual?.withholdings_source as WithholdingsSource) ??
-          (esDemo ? "mock" : "configured"))
+        ? retencionesParametro != null
+          ? "configured"
+          : ((resumenActual?.withholdings_source as WithholdingsSource) ??
+            (esDemo ? "mock" : "configured"))
         : "unknown") as WithholdingsSource,
     },
     antecedente,
@@ -287,10 +332,17 @@ export async function recalculateTaxPeriod(
     documentosCompra: docs.compra,
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
+    remanenteConocido:
+      remanente.conocido || parametros.fuenteRemanente !== remanente.fuenteRemanente,
     tasaPpm,
     fuentePpm,
+    basePpmConfirmada: confirmado ? antecedente?.basePpmDeclarada : null,
     retencionesEstimadas: retenciones,
     fuenteRetenciones,
+    ivaDeclarado: confirmado ? antecedente?.ivaDeclarado : null,
+    ppmDeclarado: confirmado ? antecedente?.ppmDeclarado : null,
+    retencionesDeclaradas: confirmado ? antecedente?.retenciones : null,
+    totalDeclarado: confirmado ? antecedente?.totalDeclarado : null,
     metaMensual,
     dineroReservado: reservado,
     diasTranscurridos: dias.diasTranscurridos,
@@ -345,6 +397,7 @@ export async function recalculateTaxPeriod(
   });
 
   const r = dashboard.resumen;
+  const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
   const nivel = nivelDesdeEspanol(dashboard.confiabilidad);
 
@@ -352,6 +405,21 @@ export async function recalculateTaxPeriod(
     {
       company_id: entrada.companyId,
       tax_period_id: periodoRow.id,
+      sales_source: ctx.sources.sales_source,
+      vat_debit_source: ctx.sources.vat_debit_source,
+      vat_credit_source: ctx.sources.vat_credit_source,
+      ppm_base_source: ctx.sources.ppm_base_source,
+      special_adjustments_source: ctx.sources.special_adjustments_source,
+      carryforward_known: ctx.carryforward_known,
+      other_vat_debits: ctx.other_vat_debits,
+      other_vat_credits: ctx.other_vat_credits,
+      special_debits: ctx.special_debits,
+      special_credits: ctx.special_credits,
+      total_vat_credits: ctx.total_vat_credits,
+      gross_vat_position: ctx.gross_vat_position,
+      declared_tax_total: ctx.declared_tax_total,
+      calculation_status: ctx.calculation_status,
+      missing_components: ctx.missing_components.map((c) => ({ ...c })),
       sales_total: r.ventasTotales,
       invoice_sales: r.ventasFacturas,
       receipt_sales: r.ventasBoletas,

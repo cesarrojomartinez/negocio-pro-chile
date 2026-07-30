@@ -846,9 +846,17 @@ export function construirResumenMensual(
   const compras = construirResumenCompras(data.documentosCompra);
 
   const debito = calculateVatDebit(data.documentosVenta);
+  const otrosDebitos = Math.max(
+    0,
+    redondear((data.otrosDebitosIva ?? 0) + (data.debitosEspeciales ?? 0)),
+  );
+  const otrosCreditos = Math.max(
+    0,
+    redondear((data.otrosCreditosIva ?? 0) + (data.creditosEspeciales ?? 0)),
+  );
   const posicion = calculateVatPosition({
-    vatDebit: debito.vatDebit,
-    vatCreditUsable: compras.ivaCredito,
+    vatDebit: debito.vatDebit + otrosDebitos,
+    vatCreditUsable: compras.ivaCredito + otrosCreditos,
     previousCarryforward: data.remanenteAnterior,
   });
 
@@ -857,10 +865,14 @@ export function construirResumenMensual(
   const fuenteRetenciones: WithholdingsSource = data.fuenteRetenciones ?? "unknown";
 
   /**
-   * Base del PPM: neto de ventas con el efecto tributario ya aplicado (las
-   * notas de crédito rebajan la base) más las ventas exentas.
+   * Base del PPM: la base confirmada en el F29 tiene prioridad. Si no existe,
+   * se usa el neto de ventas con el efecto tributario ya aplicado (las notas
+   * de crédito rebajan la base) más las ventas exentas.
    */
-  const basePpm = Math.max(0, redondear(ventas.ventasNetas + ventas.ventasExentas));
+  const basePpm =
+    data.basePpmConfirmada != null && data.basePpmConfirmada > 0
+      ? Math.max(0, redondear(data.basePpmConfirmada))
+      : Math.max(0, redondear(ventas.ventasNetas + ventas.ventasExentas));
 
   const ppm = calculatePpm({
     ppmTaxBase: basePpm,

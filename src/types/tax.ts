@@ -159,10 +159,27 @@ export interface PeriodoData {
   documentosCompra: DocumentoTributario[];
   remanenteAnterior: number;
   fuenteRemanente?: CarryforwardSource;
+  /**
+   * Falso cuando el remanente anterior no está confirmado. Se calcula con
+   * cero, pero el periodo queda marcado como incompleto.
+   */
+  remanenteConocido?: boolean;
   tasaPpm: number | null;
   fuentePpm?: PpmSource;
+  /** Base del PPM confirmada en el F29; reemplaza a la base calculada. */
+  basePpmConfirmada?: number | null;
   retencionesEstimadas: number;
   fuenteRetenciones?: WithholdingsSource;
+  /** Ajustes de IVA distintos del RCV (créditos y débitos especiales). */
+  otrosDebitosIva?: number;
+  otrosCreditosIva?: number;
+  debitosEspeciales?: number;
+  creditosEspeciales?: number;
+  /** Cifras declaradas en el F29 del periodo, cuando existen. */
+  ivaDeclarado?: number | null;
+  ppmDeclarado?: number | null;
+  retencionesDeclaradas?: number | null;
+  totalDeclarado?: number | null;
   metaMensual: number;
   dineroReservado: number;
   diasTranscurridos: number;
@@ -190,6 +207,8 @@ export type FuentePeriodo =
 export interface DashboardData {
   /** Origen de la información del periodo mostrado. */
   fuentePeriodo: FuentePeriodo;
+  /** Contexto tributario con la procedencia de cada componente. */
+  contexto: import("@/lib/taxContext").ContextoTributario;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
   meta: MetaComercial;
