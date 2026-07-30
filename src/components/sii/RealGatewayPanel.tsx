@@ -193,13 +193,11 @@ export function RealGatewayPanel() {
       </div>
 
       <div className="mt-3 space-y-2">
-        {diagnostico.productos.map((p) => (
+        {productos.map((p) => (
           <div
             key={p.clave}
             className={`rounded-2xl border px-3 py-2 text-sm ${
-              p.estado === "no_verificado"
-                ? "border-primary/30 bg-info-soft"
-                : "border-border bg-card"
+              ESTILO_PRODUCTO[p.estado] ?? "border-border bg-card"
             }`}
           >
             <p className="font-medium">
@@ -213,6 +211,12 @@ export function RealGatewayPanel() {
           </div>
         ))}
 
+        {sondeo && (
+          <p className="text-xs text-muted-foreground">
+            Productos verificados el {formatFechaHora(sondeo.verificadoEn)}.
+          </p>
+        )}
+
         <Button
           type="button"
           variant="outline"
@@ -225,9 +229,10 @@ export function RealGatewayPanel() {
           ) : (
             <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
           )}
-          Comprobar productos contratados
+          {sondeo ? "Comprobar nuevamente" : "Comprobar productos contratados"}
         </Button>
       </div>
+
 
 
       {diagnostico.modulosPendientes.length > 0 && (
