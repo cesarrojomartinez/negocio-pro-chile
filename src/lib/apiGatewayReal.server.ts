@@ -126,9 +126,10 @@ export async function ejecutarPruebaRealApiGateway(
     authMethod: "tax_key",
   });
 
-  // 2. Dejar registrada la conexión ANTES de consultar, en estado "stale":
-  //    así la ejecución queda auditable aunque el RCV falle. Nunca se guarda
-  //    la clave.
+  // 2. Dejar registrada la conexión ANTES de consultar, en estado
+  //    "connecting": la ejecución queda auditable aunque el RCV falle, y
+  //    "stale" se reserva para conexiones que ya tuvieron una sincronización
+  //    exitosa. Nunca se guarda la clave.
   const { data: filaConexion, error: errorConexion } = await supabaseAdmin
     .from("tax_sii_connections")
     .upsert(
@@ -137,7 +138,8 @@ export async function ejecutarPruebaRealApiGateway(
         provider: "api_gateway",
         provider_connection_ref: conexionProveedor.providerConnectionRef,
         auth_method: "tax_key",
-        status: "stale",
+        status: "connecting",
+
         authorized_rut: conexionProveedor.authorizedRut,
         connected_at: conexionProveedor.connectedAt,
         session_expires_at: conexionProveedor.sessionExpiresAt,
@@ -235,7 +237,14 @@ export async function ejecutarPruebaRealApiGateway(
       id: String(filaConexion.id),
       proveedor: "api_gateway",
       simulado: false,
-      estado: exito ? "connected" : "stale",
+      // Primera conexión: éxito -> connected; parcial -> stale; falla -> error.
+      estado:
+        sincronizacion.estado === "failed"
+          ? "error"
+          : sincronizacion.estado === "success"
+            ? "connected"
+            : "stale",
+
       rutAutorizado: conexionProveedor.authorizedRut,
       conectadaEn: conexionProveedor.connectedAt,
       expiraEn: conexionProveedor.sessionExpiresAt,
