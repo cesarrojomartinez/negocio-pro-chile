@@ -47,17 +47,54 @@ export interface ComprobacionDiagnostico {
   detalle: string;
 }
 
+/** Estados posibles de un producto contratado en el proveedor. */
+export type EstadoProducto =
+  | "habilitado"
+  | "no_contratado"
+  | "recurso_no_disponible"
+  | "sin_informacion_periodo"
+  | "error_autenticacion"
+  | "saldo_insuficiente"
+  | "proxy_requerido"
+  | "mantenimiento"
+  | "no_verificado";
+
+export const ETIQUETA_PRODUCTO: Record<EstadoProducto, string> = {
+  habilitado: "Producto habilitado",
+  no_contratado: "Producto no contratado",
+  recurso_no_disponible: "Producto habilitado, pero el recurso no está disponible",
+  sin_informacion_periodo: "Recurso contratado, sin información para el periodo",
+  error_autenticacion: "Error de autenticación ante el SII",
+  saldo_insuficiente: "Saldo insuficiente",
+  proxy_requerido: "Requiere salida dedicada (proxy)",
+  mantenimiento: "Mantenimiento temporal",
+  no_verificado: "No verificado en esta ejecución",
+};
+
+export interface ProductoDiagnostico {
+  clave: "rcv" | "f29";
+  titulo: string;
+  estado: EstadoProducto;
+  etiqueta: string;
+  /** Verdadero solo si la consulta llegó realmente al portal del SII. */
+  contratado: boolean | null;
+  recurso: string;
+  detalle: string;
+}
+
 export interface DiagnosticoApiGateway {
   resultado: ResultadoDiagnostico;
   etiqueta: string;
   puedeConsultar: boolean;
   modoPruebaHabilitado: boolean;
   comprobaciones: ComprobacionDiagnostico[];
+  productos: ProductoDiagnostico[];
   creditosDisponibles: number | null;
   proxyUsado: boolean | null;
   modulosHabilitados: string[];
   modulosPendientes: { modulo: string; motivo: string }[];
   verificadoEn: string;
+
 }
 
 /** Lee la configuración desde secretos del backend. Nunca expone el token. */
