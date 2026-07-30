@@ -24,6 +24,53 @@ export type WithholdingsSource =
   | "unknown";
 
 
+/**
+ * Procedencia individual de cada componente tributario.
+ * La fuente general del periodo no reemplaza a esta clasificación: un periodo
+ * puede tener el IVA débito tomado del RCV y el remanente aún desconocido.
+ */
+export type ConceptSource =
+  | "rcv"
+  | "f29_confirmed"
+  | "accountant_confirmed"
+  | "previous_confirmed_period"
+  | "company_tax_profile"
+  | "calculated"
+  | "estimated"
+  | "unknown"
+  | "mock";
+
+/** Estado de completitud del cálculo de un periodo. */
+export type CalculationStatus =
+  | "complete"
+  | "estimated_complete"
+  | "incomplete"
+  | "confirmed"
+  | "closed";
+
+/** Procedencia declarada de cada concepto del periodo. */
+export interface ConceptSources {
+  sales_source: ConceptSource;
+  vat_debit_source: ConceptSource;
+  vat_credit_source: ConceptSource;
+  carryforward_source: ConceptSource;
+  ppm_rate_source: ConceptSource;
+  ppm_base_source: ConceptSource;
+  withholdings_source: ConceptSource;
+  special_adjustments_source: ConceptSource;
+  total_source: ConceptSource;
+}
+
+/** Parámetro tributario vigente de la empresa. */
+export interface CompanyTaxParameter {
+  parameterType: "ppm_rate" | "usual_withholdings" | "preventive_margin" | "taxpayer_regime";
+  value: number;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  source: string;
+  confirmed: boolean;
+}
+
 export type ConfidenceLevel = "high" | "medium" | "low" | "unknown";
 
 /** Estado del semáforo de reserva. */
