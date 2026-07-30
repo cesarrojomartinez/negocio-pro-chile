@@ -20,7 +20,12 @@ import type { DocumentoTributario } from "@/types/tax";
 
 type Rol = "owner" | "business_user" | "accountant" | "viewer";
 
-export class ErrorNegocio extends Error {}
+export class ErrorNegocio extends Error {
+  constructor(mensaje: string) {
+    super(mensaje);
+    this.name = "ErrorNegocio";
+  }
+}
 
 /** Verifica que el usuario pertenezca a la empresa con un rol suficiente. */
 async function exigirRol(userId: string, companyId: string, roles: Rol[]) {
@@ -347,7 +352,13 @@ export async function actualizarConfiguracion(
   if (rol === "accountant" && (entrada.metaMensual != null || entrada.dineroReservado != null))
     throw new ErrorNegocio("El contador no puede modificar la meta ni la reserva.");
 
-  const cambios: Record<string, number | boolean> = {};
+  const cambios: {
+    monthly_sales_goal?: number;
+    reserved_amount?: number;
+    preventive_margin_percent?: number;
+    estimated_ppm_rate?: number;
+    alerts_enabled?: boolean;
+  } = {};
   if (entrada.metaMensual != null) cambios.monthly_sales_goal = Math.round(entrada.metaMensual);
   if (entrada.dineroReservado != null)
     cambios.reserved_amount = Math.round(entrada.dineroReservado);
