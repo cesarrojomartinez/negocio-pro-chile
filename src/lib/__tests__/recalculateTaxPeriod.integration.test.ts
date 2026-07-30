@@ -164,6 +164,10 @@ async function configurar(
       reserved_amount: cfg.reserva ?? 0,
       preventive_margin_percent: cfg.margen ?? 10,
       estimated_ppm_rate: cfg.ppm ?? 0.006,
+      // La tasa de la prueba se considera confirmada; una empresa real nunca
+      // debe heredar la tasa demostrativa por omisión.
+      ppm_rate_confirmed: true,
+
     },
     { onConflict: "company_id" },
   );
