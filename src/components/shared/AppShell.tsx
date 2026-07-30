@@ -33,6 +33,7 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { formatFechaHora } from "@/utils/currency";
+import { formatearRut } from "@/lib/rut";
 import { cn } from "@/lib/utils";
 import { ConnectionBadge, DemoBadge } from "./Badges";
 
