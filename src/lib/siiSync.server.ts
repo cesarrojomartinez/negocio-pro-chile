@@ -172,6 +172,10 @@ function periodoYaCerrado(periodo: string, ahora: Date): boolean {
 // Conexión / desconexión
 // ---------------------------------------------------------------------------
 
+/**
+ * Devuelve la conexión vigente de la empresa. Si existe una conexión real de
+ * prueba con API Gateway, tiene prioridad sobre la demostrativa.
+ */
 export async function obtenerConexionSii(
   userId: string,
   companyId: string,
@@ -182,9 +186,13 @@ export async function obtenerConexionSii(
     "accountant",
     "viewer",
   ]);
+  const real = await conexionDe(companyId, "api_gateway");
+  if (real && ["connected", "stale", "error"].includes(String(real.status)))
+    return mapConexion(real);
   const fila = await conexionDe(companyId);
-  return fila ? mapConexion(fila) : null;
+  return fila ? mapConexion(fila) : real ? mapConexion(real) : null;
 }
+
 
 /**
  * Activa la conexión demostrativa. Solo el dueño de la empresa puede
