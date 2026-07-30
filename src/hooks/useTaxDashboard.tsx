@@ -93,6 +93,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [refrescoInicial, setRefrescoInicial] = useState<string | null>(null);
+  const [solicitudActualizacionReal, setSolicitudActualizacionReal] = useState(0);
 
   const esCloud = modo === "cloud";
   const companyId = empresaActiva?.id ?? null;
