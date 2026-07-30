@@ -12,7 +12,9 @@ import { MetaCard } from "@/components/goals/MetaCard";
 import { ProyeccionCard } from "@/components/projections/ProyeccionCard";
 import { SimuladorVentas } from "@/components/projections/SimuladorVentas";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
-import { PERIODOS } from "@/data/mockTaxData";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompany } from "@/hooks/useCompany";
+import { EMPRESA_DEMO, PERIODOS } from "@/data/mockTaxData";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
