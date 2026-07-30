@@ -245,8 +245,39 @@ export const cloudTaxDataService: TaxDataService & {
   connectDemo(companyId: string): Promise<string | null>;
   disconnectDemo(companyId: string): Promise<void>;
   getConnectionStatus(companyId: string): Promise<EstadoConexionSii>;
+  getConciliacionRemanente(
+    companyId: string,
+    periodo: string,
+  ): Promise<ConciliacionRemanenteCloud | null>;
 } = {
   esDemo: false,
+
+  async getConciliacionRemanente(companyId, periodo) {
+    const { data: periodRow } = await supabase
+      .from("tax_periods")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("period", periodo)
+      .maybeSingle();
+    if (!periodRow) return null;
+    const { data } = await supabase
+      .from("tax_carryforward_reconciliations")
+      .select(
+        "previous_period, calculated_previous_carryforward, declared_previous_carryforward, difference, status",
+      )
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodRow.id)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      periodoAnterior: data.previous_period,
+      remanenteCalculadoPrevio: Number(data.calculated_previous_carryforward),
+      remanenteDeclarado: Number(data.declared_previous_carryforward),
+      diferencia: Number(data.difference),
+      estado: data.status,
+    };
+  },
+
 
   async getCompanies() {
     const { data, error } = await supabase
