@@ -425,6 +425,19 @@ export interface ResultadoSincronizacion {
   documentosCreados: number;
   documentosActualizados: number;
   documentosDescartados: number;
+  /** Documentos que el RESUMEN oficial del RCV declara para el periodo. */
+  documentosInformadosResumen: number;
+  /** Documentos efectivamente guardados en la base tras normalizar. */
+  documentosPersistidos: number;
+  /** Motivos agrupados por los que se descartó una fila del detalle. */
+  motivosRechazo: { motivo: string; cantidad: number }[];
+  /** Totales del resumen oficial (ventas y compras) tal como los informa el SII. */
+  totalesResumen: TotalesResumenRcv | null;
+  /** Diferencias detectadas entre el resumen oficial y el detalle importado. */
+  inconsistencias: string[];
+  /** De dónde salen las cifras que ve el usuario en el panel. */
+  fuenteTotales: "documents" | "rcv_summary";
+
   consultasProveedor: number;
   datosHasta: string | null;
   ultimaSincronizacion: string | null;
