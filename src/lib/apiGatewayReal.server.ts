@@ -49,6 +49,14 @@ export interface EntradaPruebaReal {
   consentimiento: boolean;
 }
 
+/** Resultado de la lectura automática del F29 dentro de la actualización. */
+export interface ResultadoF29Automatico {
+  estado: "leido" | "no_declarado" | "revisar" | "omitido";
+  mensaje: string;
+  folio: string | null;
+  recalculado: boolean;
+}
+
 export interface ResultadoPruebaReal {
   conexion: ConexionSii | null;
   sincronizacion: ResultadoSincronizacion | null;
@@ -58,7 +66,10 @@ export interface ResultadoPruebaReal {
   proxyUsado: boolean | null;
   mensaje: string;
   errorCodigo: string | null;
+  /** Lectura automática del Formulario 29 oficial del mismo periodo. */
+  f29: ResultadoF29Automatico;
 }
+
 
 /** Verificaciones previas comunes a toda operación real. */
 async function exigirPruebaRealPermitida(userId: string, companyId: string) {
