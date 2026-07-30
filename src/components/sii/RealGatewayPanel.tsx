@@ -194,6 +194,15 @@ export function RealGatewayPanel() {
             onChange={(e) => setClave(e.target.value)}
           />
         </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="periodo-real">Periodo a consultar</Label>
+          <Input
+            id="periodo-real"
+            type="month"
+            value={periodo}
+            onChange={(e) => setPeriodo(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="mt-3 flex items-start gap-2">
@@ -204,9 +213,10 @@ export function RealGatewayPanel() {
         />
         <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
           Autorizo esta consulta puntual a mi información del SII para el periodo{" "}
-          {periodoId}.
+          {periodo}.
         </Label>
       </div>
+
 
       <div className="mt-4 flex flex-wrap gap-2">
         <Button
