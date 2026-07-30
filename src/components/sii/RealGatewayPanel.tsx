@@ -28,6 +28,7 @@ export function RealGatewayPanel() {
   const [cargando, setCargando] = useState(true);
   const [rutUsuario, setRutUsuario] = useState("");
   const [clave, setClave] = useState("");
+  const [periodo, setPeriodo] = useState(periodoId);
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
