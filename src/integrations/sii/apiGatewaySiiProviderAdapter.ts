@@ -243,23 +243,18 @@ export function crearAdaptadorApiGateway(
     esSimulado: false,
 
     /**
-     * API Gateway no entrega una sesión reutilizable del SII: la conexión se
-     * valida consultando los datos del contribuyente con las credenciales.
+     * NO hay validación previa contra `misii/contribuyente/datos`: ese recurso
+     * fue retirado del flujo real porque devolvía HTTP 400 y bloqueaba el RCV
+     * sin aportar nada al MVP. La primera consulta real es el resumen de
+     * ventas del RCV, y es ella la que confirma si las credenciales sirven.
+     * Aquí solo se prepara una referencia local, sin gastar créditos.
      */
     async connectCompany({ rut }): Promise<ProviderConnection> {
-      await requestApiGateway<CuerpoAuth, unknown>({
-        config,
-        modulo: "autenticacion",
-        metodo: RECURSO_VALIDACION.method,
-        ruta: RECURSO_VALIDACION.path,
-        body: cuerpo,
-        registro,
-      });
       const ahora = new Date();
       return {
         // Referencia no sensible: no contiene clave ni token.
         providerConnectionRef: `apigw:${rut}:${ahora.getTime()}`,
-        authorizedRut: rut,
+        authorizedRut: credenciales.rutUsuario,
         authMethod: "tax_key",
         connectedAt: ahora.toISOString(),
         // El proveedor exige credenciales en cada consulta: la "sesión" solo
@@ -268,15 +263,8 @@ export function crearAdaptadorApiGateway(
       };
     },
 
+    /** Sin sesión reutilizable: no se consulta nada ni se consumen créditos. */
     async authenticateCompany() {
-      await requestApiGateway<CuerpoAuth, unknown>({
-        config,
-        modulo: "autenticacion",
-        metodo: RECURSO_VALIDACION.method,
-        ruta: RECURSO_VALIDACION.path,
-        body: cuerpo,
-        registro,
-      });
       return {
         sessionExpiresAt: new Date(Date.now() + 15 * 60_000).toISOString(),
       };
@@ -289,7 +277,8 @@ export function crearAdaptadorApiGateway(
 
     async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
       const periodo = periodoCompacto(query.period);
-      const emisor = query.rut;
+      const emisor = rutConGuion(query.rut);
+
       const resumenRecurso = recursoDe("rcv_sales_summary");
       const detalleRecurso = recursoDe("rcv_sales_documents");
 
