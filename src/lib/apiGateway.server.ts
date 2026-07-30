@@ -16,7 +16,9 @@ import {
   MODULOS_REALES_HABILITADOS,
   RECURSOS_API_GATEWAY,
   RECURSO_DIAGNOSTICO,
+  recursoDe,
 } from "@/integrations/sii/apiGatewayResourceMap";
+
 import { SiiProviderError } from "@/integrations/sii/contracts";
 
 export type ResultadoDiagnostico =
@@ -47,17 +49,54 @@ export interface ComprobacionDiagnostico {
   detalle: string;
 }
 
+/** Estados posibles de un producto contratado en el proveedor. */
+export type EstadoProducto =
+  | "habilitado"
+  | "no_contratado"
+  | "recurso_no_disponible"
+  | "sin_informacion_periodo"
+  | "error_autenticacion"
+  | "saldo_insuficiente"
+  | "proxy_requerido"
+  | "mantenimiento"
+  | "no_verificado";
+
+export const ETIQUETA_PRODUCTO: Record<EstadoProducto, string> = {
+  habilitado: "Producto habilitado",
+  no_contratado: "Producto no contratado",
+  recurso_no_disponible: "Producto habilitado, pero el recurso no está disponible",
+  sin_informacion_periodo: "Recurso contratado, sin información para el periodo",
+  error_autenticacion: "Error de autenticación ante el SII",
+  saldo_insuficiente: "Saldo insuficiente",
+  proxy_requerido: "Requiere salida dedicada (proxy)",
+  mantenimiento: "Mantenimiento temporal",
+  no_verificado: "No verificado en esta ejecución",
+};
+
+export interface ProductoDiagnostico {
+  clave: "rcv" | "f29";
+  titulo: string;
+  estado: EstadoProducto;
+  etiqueta: string;
+  /** Verdadero solo si la consulta llegó realmente al portal del SII. */
+  contratado: boolean | null;
+  recurso: string;
+  detalle: string;
+}
+
 export interface DiagnosticoApiGateway {
   resultado: ResultadoDiagnostico;
   etiqueta: string;
   puedeConsultar: boolean;
   modoPruebaHabilitado: boolean;
   comprobaciones: ComprobacionDiagnostico[];
+  productos: ProductoDiagnostico[];
   creditosDisponibles: number | null;
   proxyUsado: boolean | null;
   modulosHabilitados: string[];
   modulosPendientes: { modulo: string; motivo: string }[];
   verificadoEn: string;
+
 }
 
 /** Lee la configuración desde secretos del backend. Nunca expone el token. */
@@ -107,13 +146,141 @@ export function empresaAutorizadaParaPruebaReal(companyId: string): boolean {
   return lista.includes(companyId);
 }
 
+/** Traduce el código interno de un sondeo a un estado de producto. */
+export function estadoProductoDesdeCodigo(codigo: string): EstadoProducto {
+  switch (codigo) {
+    case "PRODUCT_NOT_ENABLED":
+      return "no_contratado";
+    case "RESOURCE_NOT_DOCUMENTED":
+      return "recurso_no_disponible";
+    case "PERIOD_NOT_AVAILABLE":
+      return "sin_informacion_periodo";
+    case "INVALID_CREDENTIALS":
+    case "SESSION_EXPIRED":
+    case "AUTH_EXPIRED":
+    case "ACCOUNT_BLOCKED":
+      return "error_autenticacion";
+    case "INSUFFICIENT_CREDITS":
+      return "saldo_insuficiente";
+    case "PROXY_REQUIRED":
+    case "PROXY_UNAVAILABLE":
+      return "proxy_requerido";
+    case "SII_MAINTENANCE":
+    case "PROVIDER_MAINTENANCE":
+    case "PROVIDER_UNAVAILABLE":
+    case "TIMEOUT":
+      return "mantenimiento";
+    default:
+      return "no_verificado";
+  }
+}
+
+/**
+ * Un sondeo que llega a la autenticación del SII demuestra que el producto está
+ * contratado: el proveedor solo intenta la lectura cuando el producto existe.
+ */
+const ESTADOS_QUE_PRUEBAN_CONTRATO: EstadoProducto[] = [
+  "habilitado",
+  "sin_informacion_periodo",
+  "error_autenticacion",
+  "mantenimiento",
+];
+
+/** RUT genérico de sondeo: nunca corresponde a un contribuyente real. */
+const RUT_SONDEO = "11111111-1";
+
+/**
+ * Sondea un recurso de cada producto para distinguir con evidencia real entre
+ * producto no contratado, recurso inexistente, periodo sin datos, error de
+ * autenticación, saldo insuficiente, proxy requerido y mantenimiento.
+ * Nunca usa credenciales reales: la clave enviada es un valor de descarte.
+ */
+async function sondearProductos(
+  config: ApiGatewayConfig,
+  registro: RegistroConsumo,
+): Promise<ProductoDiagnostico[]> {
+  const ahora = new Date();
+  const anterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+  const periodoCompacto = `${anterior.getFullYear()}${String(anterior.getMonth() + 1).padStart(2, "0")}`;
+  const periodoAnual = String(anterior.getFullYear());
+  const cuerpo = { auth: { pass: { rut: RUT_SONDEO, clave: "sondeo-sin-valor" } } };
+
+  const definiciones = [
+    {
+      clave: "rcv" as const,
+      titulo: "Registro de Compras y Ventas",
+      modulo: "rcv_sales_summary" as const,
+      ruta: recursoDe("rcv_sales_summary")
+        .path.replace("{emisor}", RUT_SONDEO)
+        .replace("{periodo}", periodoCompacto),
+      query: { formato: "json" },
+    },
+    {
+      clave: "f29" as const,
+      titulo: "Formulario 29",
+      modulo: "f29_periods" as const,
+      ruta: recursoDe("f29_periods").path.replace("{periodo}", periodoAnual),
+      query: undefined,
+    },
+  ];
+
+  const salida: ProductoDiagnostico[] = [];
+  for (const d of definiciones) {
+    try {
+      await requestApiGateway<typeof cuerpo, unknown>({
+        config,
+        modulo: d.modulo,
+        metodo: "POST",
+        ruta: d.ruta,
+        query: d.query,
+        body: cuerpo,
+        registro,
+      });
+      salida.push({
+        clave: d.clave,
+        titulo: d.titulo,
+        estado: "habilitado",
+        etiqueta: ETIQUETA_PRODUCTO.habilitado,
+        contratado: true,
+        recurso: d.ruta,
+        detalle: "El recurso respondió correctamente.",
+      });
+    } catch (error) {
+      const codigo = error instanceof SiiProviderError ? error.code : "UNKNOWN_ERROR";
+      const estado = estadoProductoDesdeCodigo(codigo);
+      const contratado = ESTADOS_QUE_PRUEBAN_CONTRATO.includes(estado);
+      salida.push({
+        clave: d.clave,
+        titulo: d.titulo,
+        estado,
+        etiqueta: ETIQUETA_PRODUCTO[estado],
+        contratado,
+        recurso: d.ruta,
+        detalle: contratado
+          ? "El servicio ejecutó la consulta y llegó al SII: el producto está contratado. Con credenciales válidas entrega información."
+          : `El sondeo terminó con el código interno ${codigo}.`,
+      });
+    }
+  }
+  return salida;
+}
+
+
+
 /**
  * Comprueba la configuración antes de cualquier consulta real.
  * Usa un recurso documentado que NO requiere credenciales del SII.
+ *
+ * `probarProductos` agrega un sondeo por producto (RCV y F29) con un RUT de
+ * prueba y sin clave válida: sirve para distinguir "producto no contratado" de
+ * "producto contratado que pide credenciales". Consume unos pocos créditos.
  */
-export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiGateway> {
+export async function diagnoseApiGatewayConfiguration(opciones?: {
+  probarProductos?: boolean;
+}): Promise<DiagnosticoApiGateway> {
   const verificadoEn = new Date().toISOString();
   const comprobaciones: ComprobacionDiagnostico[] = [];
+  const productos: ProductoDiagnostico[] = [];
   const { config, baseUrl, tieneToken, baseUrlValida, https } = leerConfiguracion();
   const modoPrueba = modoPruebaRealHabilitado();
 
@@ -122,12 +289,16 @@ export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiG
     motivo: r.nota ?? (r.documented ? "Recurso desactivado." : "Recurso no documentado."),
   }));
 
-  const base = (resultado: ResultadoDiagnostico, extra?: Partial<DiagnosticoApiGateway>) => ({
+  const base = (
+    resultado: ResultadoDiagnostico,
+    extra?: Partial<DiagnosticoApiGateway>,
+  ): DiagnosticoApiGateway => ({
     resultado,
     etiqueta: ETIQUETA_DIAGNOSTICO[resultado],
     puedeConsultar: resultado === "configuracion_valida",
     modoPruebaHabilitado: modoPrueba,
     comprobaciones,
+    productos,
     creditosDisponibles: null,
     proxyUsado: null,
     modulosHabilitados: MODULOS_REALES_HABILITADOS,
@@ -135,6 +306,7 @@ export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiG
     verificadoEn,
     ...extra,
   });
+
 
   comprobaciones.push({
     clave: "token",
@@ -225,10 +397,38 @@ export async function diagnoseApiGatewayConfiguration(): Promise<DiagnosticoApiG
         proxyUsado: ultima?.proxyUsado ?? null,
       });
 
+    if (opciones?.probarProductos) {
+      productos.push(...(await sondearProductos(config, registro)));
+    } else {
+      productos.push(
+        {
+          clave: "rcv",
+          titulo: "Registro de Compras y Ventas",
+          estado: "no_verificado",
+          etiqueta: ETIQUETA_PRODUCTO.no_verificado,
+          contratado: null,
+          recurso: recursoDe("rcv_sales_summary").path,
+          detalle: "Usa «Comprobar productos» para verificarlo contra el servicio.",
+        },
+        {
+          clave: "f29",
+          titulo: "Formulario 29",
+          estado: "no_verificado",
+          etiqueta: ETIQUETA_PRODUCTO.no_verificado,
+          contratado: null,
+          recurso: recursoDe("f29_periods").path,
+          detalle: "Usa «Comprobar productos» para verificarlo contra el servicio.",
+        },
+      );
+    }
+
+    const ultimaTrasSondeo = registro.llamadas[registro.llamadas.length - 1];
     return base("configuracion_valida", {
-      creditosDisponibles: ultima?.creditosDisponibles ?? null,
-      proxyUsado: ultima?.proxyUsado ?? null,
+      creditosDisponibles:
+        ultimaTrasSondeo?.creditosDisponibles ?? ultima?.creditosDisponibles ?? null,
+      proxyUsado: ultimaTrasSondeo?.proxyUsado ?? ultima?.proxyUsado ?? null,
     });
+
   } catch (error) {
     const codigo = error instanceof SiiProviderError ? error.code : "UNKNOWN_ERROR";
     const ultima = registro.llamadas[registro.llamadas.length - 1];

@@ -31,6 +31,24 @@ export function RealGatewayPanel() {
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   const [resultado, setResultado] = useState<ResultadoPruebaReal | null>(null);
+  const [comprobandoProductos, setComprobandoProductos] = useState(false);
+
+  /** Sondeo opcional: verifica productos contratados y consume pocos créditos. */
+  const comprobarProductos = async () => {
+    setComprobandoProductos(true);
+    try {
+      setDiagnostico(await apiGatewayService.diagnosticar(true));
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "No pudimos comprobar los productos contratados.",
+      );
+    } finally {
+      setComprobandoProductos(false);
+    }
+  };
+
 
   const esDueno = empresaActiva?.rol === "owner";
 
@@ -112,6 +130,35 @@ export function RealGatewayPanel() {
         />
         <DataRow label="Verificado" value={formatFechaHora(diagnostico.verificadoEn)} />
       </div>
+
+      <div className="mt-3 space-y-2">
+        {diagnostico.productos.map((p) => (
+          <div
+            key={p.clave}
+            className="rounded-2xl border border-border bg-card px-3 py-2 text-sm"
+          >
+            <p className="font-medium">
+              {p.titulo}: <span className="font-normal">{p.etiqueta}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">{p.detalle}</p>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={comprobandoProductos}
+          onClick={comprobarProductos}
+        >
+          {comprobandoProductos ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Stethoscope className="mr-2 h-4 w-4" aria-hidden />
+          )}
+          Comprobar productos contratados
+        </Button>
+      </div>
+
 
       {diagnostico.modulosPendientes.length > 0 && (
         <ul className="mt-3 space-y-1 text-xs text-muted-foreground">
