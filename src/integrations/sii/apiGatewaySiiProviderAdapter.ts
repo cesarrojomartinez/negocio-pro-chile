@@ -30,7 +30,6 @@ import {
 import {
   ESTADOS_RCV_COMPRAS,
   RECURSO_RESUMEN_COMPRAS,
-  RECURSO_VALIDACION,
   recursoDe,
 } from "./apiGatewayResourceMap";
 import {
@@ -38,6 +37,8 @@ import {
   RegistroConsumo,
   type ApiGatewayConfig,
 } from "./apiGatewayClient";
+import { rutConGuion } from "@/lib/rut";
+
 
 export interface CredencialesTemporales {
   /** RUT de la empresa consultada (emisor/receptor en el RCV). */
