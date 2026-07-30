@@ -1,6 +1,10 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import { construirDashboard } from "@/lib/dashboardBuilder";
+import {
+  aplicarAntecedenteF29,
+  interpretarAntecedenteF29,
+} from "@/lib/f29Antecedent";
 import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
@@ -187,15 +191,43 @@ export async function recalculateTaxPeriod(
   const remanente = await remanenteAnterior(entrada.companyId, previoRow?.id ?? null, esDemo);
 
   const tasaPpmCruda = settings?.estimated_ppm_rate;
-  const tasaPpm =
+  const tasaPpmConfigurada =
     tasaPpmCruda == null || Number(tasaPpmCruda) <= 0 ? null : Number(tasaPpmCruda);
-  const fuentePpm: PpmSource = tasaPpm == null ? "unknown" : esDemo ? "mock" : "configured";
 
-  const retenciones = Number(resumenActual?.estimated_withholdings ?? 0);
-  const fuenteRetenciones: WithholdingsSource =
-    retenciones > 0
-      ? ((resumenActual?.withholdings_source as WithholdingsSource) ?? (esDemo ? "mock" : "configured"))
-      : "unknown";
+  // Antecedente del F29 del propio periodo confirmado por el contador.
+  const { data: f29Periodo } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select(
+      "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", entrada.companyId)
+    .eq("tax_period_id", periodoRow.id)
+    .maybeSingle();
+  const antecedente = interpretarAntecedenteF29(f29Periodo);
+
+  const retencionesBase = Number(resumenActual?.estimated_withholdings ?? 0);
+  const parametros = aplicarAntecedenteF29(
+    {
+      remanenteAnterior: remanente.monto,
+      fuenteRemanente: remanente.fuente,
+      tasaPpm: tasaPpmConfigurada,
+      fuentePpm: (tasaPpmConfigurada == null
+        ? "unknown"
+        : esDemo
+          ? "mock"
+          : "configured") as PpmSource,
+      retenciones: retencionesBase,
+      fuenteRetenciones: (retencionesBase > 0
+        ? ((resumenActual?.withholdings_source as WithholdingsSource) ??
+          (esDemo ? "mock" : "configured"))
+        : "unknown") as WithholdingsSource,
+    },
+    antecedente,
+  );
+  const tasaPpm = parametros.tasaPpm;
+  const fuentePpm = parametros.fuentePpm;
+  const retenciones = parametros.retenciones;
+  const fuenteRetenciones = parametros.fuenteRetenciones;
 
   const dias = diasDePeriodo(entrada.periodo);
   const diasPrev = diasDePeriodo(previoNombre);
@@ -207,8 +239,8 @@ export async function recalculateTaxPeriod(
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
     documentosCompra: docs.compra,
-    remanenteAnterior: remanente.monto,
-    fuenteRemanente: remanente.fuente,
+    remanenteAnterior: parametros.remanenteAnterior,
+    fuenteRemanente: parametros.fuenteRemanente,
     tasaPpm,
     fuentePpm,
     retencionesEstimadas: retenciones,

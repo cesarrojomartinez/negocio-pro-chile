@@ -12,6 +12,10 @@ import {
   periodoAnterior,
 } from "@/lib/taxMappers";
 import { construirDashboard } from "@/lib/dashboardBuilder";
+import {
+  aplicarAntecedenteF29,
+  interpretarAntecedenteF29,
+} from "@/lib/f29Antecedent";
 import { estadoDelPeriodo, simulateAdditionalSale } from "@/utils/taxCalculations";
 import type { ConsultaDashboard, TaxDataService } from "./taxDataService";
 import type { Empresa, EstadoConexionSii } from "@/types/company";
@@ -125,6 +129,27 @@ async function resumenGuardado(companyId: string, periodo: string) {
     .maybeSingle();
   return data;
 }
+
+/** Antecedente del F29 del periodo, cuando el contador ya lo confirmó. */
+async function antecedenteF29De(companyId: string, periodo: string) {
+  const { data: periodRow } = await supabase
+    .from("tax_periods")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("period", periodo)
+    .maybeSingle();
+  if (!periodRow) return null;
+  const { data } = await supabase
+    .from("tax_f29_history")
+    .select(
+      "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+    )
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodRow.id)
+    .maybeSingle();
+  return interpretarAntecedenteF29(data);
+}
+
 
 export const cloudTaxDataService: TaxDataService & {
   getCompanies(): Promise<EmpresaCloud[]>;
@@ -346,19 +371,34 @@ export const cloudTaxDataService: TaxDataService & {
     const dineroReservado = consulta.dineroReservado ?? settings?.dineroReservado ?? 0;
     const margenPorcentaje = consulta.margenPorcentaje;
 
-    const remanente = Number(resumenAnteriorGuardado?.estimated_new_carryforward ?? 0);
-    const retenciones = Number(resumenActualGuardado?.estimated_withholdings ?? 0);
+    const antecedenteF29 = await antecedenteF29De(companyId, consulta.periodoId);
+    const parametros = aplicarAntecedenteF29(
+      {
+        remanenteAnterior: Number(
+          resumenAnteriorGuardado?.estimated_new_carryforward ?? 0,
+        ),
+        fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
+        tasaPpm,
+        fuentePpm: tasaPpm == null ? "unknown" : "configured",
+        retenciones: Number(resumenActualGuardado?.estimated_withholdings ?? 0),
+        fuenteRetenciones:
+          Number(resumenActualGuardado?.estimated_withholdings ?? 0) > 0
+            ? "configured"
+            : "unknown",
+      },
+      antecedenteF29,
+    );
 
     const periodoData: PeriodoData = {
       periodo: consulta.periodoId,
       documentosVenta: docs.venta,
       documentosCompra: docs.compra,
-      remanenteAnterior: remanente,
-      fuenteRemanente: resumenAnteriorGuardado ? "previous_period" : "unknown",
-      tasaPpm,
-      fuentePpm: tasaPpm == null ? "unknown" : "configured",
-      retencionesEstimadas: retenciones,
-      fuenteRetenciones: retenciones > 0 ? "configured" : "unknown",
+      remanenteAnterior: parametros.remanenteAnterior,
+      fuenteRemanente: parametros.fuenteRemanente,
+      tasaPpm: parametros.tasaPpm,
+      fuentePpm: parametros.fuentePpm,
+      retencionesEstimadas: parametros.retenciones,
+      fuenteRetenciones: parametros.fuenteRetenciones,
       metaMensual,
       dineroReservado,
       diasTranscurridos: dias.diasTranscurridos,
