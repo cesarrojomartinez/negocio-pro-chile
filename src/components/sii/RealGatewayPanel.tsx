@@ -333,7 +333,9 @@ export function RealGatewayPanel() {
             ser confirmado por tu contador.
           </p>
         </div>
-      )}
+          );
+        })()}
+
     </SectionCard>
   );
 }
