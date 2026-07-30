@@ -79,13 +79,11 @@ export function RealGatewayPanel() {
     try {
       const r = await apiGatewayService.ejecutarPrueba({
         companyId: empresaActiva.id,
-        periodo: periodoId,
+        periodo,
         rutUsuario,
         claveTributaria: clave,
       });
       setResultado(r);
-      // La clave se descarta inmediatamente después de usarla.
-      setClave("");
       if (r.errorCodigo) toast.error(r.mensaje);
       else toast.success(r.mensaje);
     } catch (error) {
@@ -93,9 +91,12 @@ export function RealGatewayPanel() {
         error instanceof Error ? error.message : "No pudimos completar la prueba.",
       );
     } finally {
+      // La clave se descarta siempre, funcione o falle la consulta.
+      setClave("");
       setEjecutando(false);
     }
   };
+
 
   return (
     <SectionCard
