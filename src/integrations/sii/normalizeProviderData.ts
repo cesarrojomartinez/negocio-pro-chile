@@ -118,7 +118,9 @@ function normalizarDocumento(
       raw_metadata: {
         ivaInferido: m.inferido,
         efectoTributario: efecto,
+        emitidoEnOtroMes: deOtroMes,
       },
+
     },
   };
 }
