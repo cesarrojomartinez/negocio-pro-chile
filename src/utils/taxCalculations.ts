@@ -38,6 +38,7 @@ import type {
   ResumenCompras,
   ResumenMensual,
   ResumenVentas,
+  VentasAgregadasResumen,
 } from "@/types/tax";
 
 /* ------------------------------------------------------------------ */
