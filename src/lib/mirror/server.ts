@@ -1,10 +1,17 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+import {
+  evaluarCertezaPeriodo,
+  valoresTributarios,
+  type PeriodCalculationCertainty,
+  type TaxComponentValue,
+} from "./certainty";
 import { compararMotores, type ComparacionMotores } from "./comparison";
 import { ejecutarMotorEspejo, montoDe } from "./engine";
 import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
 import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
+import { auditarCeros } from "./zeroPolicy";
 import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
 import type { HistoricalOfficialContext } from "./types";
 
@@ -150,11 +157,46 @@ async function guardarCorrida(
   return runId;
 }
 
+/** Guarda la certeza del periodo. Tabla espejo: no la lee ninguna pantalla. */
+async function guardarCerteza(
+  companyId: string,
+  taxPeriodId: string,
+  runId: string | null,
+  resultado: MirrorEngineResult,
+  certeza: PeriodCalculationCertainty,
+  valores: TaxComponentValue[],
+): Promise<void> {
+  await supabaseAdmin.from("tax_period_calculation_certainty").upsert(
+    {
+      company_id: companyId,
+      tax_period_id: taxPeriodId,
+      period: resultado.period,
+      run_id: runId,
+      engine_version: resultado.engineVersion,
+      completeness: certeza.completeness,
+      confidence: certeza.confidence,
+      can_present_total: certeza.canPresentTotal,
+      reason: certeza.reason,
+      blocking_concepts: certeza.blockingConcepts,
+      estimated_concepts: certeza.estimatedConcepts,
+      conflicting_concepts: certeza.conflictingConcepts,
+      unsupported_concepts: certeza.unsupportedConcepts,
+      not_applicable_concepts: certeza.notApplicableConcepts,
+      missing_inputs: certeza.missingInputs,
+      zero_audit: JSON.parse(JSON.stringify(auditarCeros(valores))),
+      component_values: JSON.parse(JSON.stringify(valores)),
+      calculated_at: new Date().toISOString(),
+    },
+    { onConflict: "company_id,period,engine_version" },
+  );
+}
+
 export interface ResultadoSombraPeriodo {
   period: string;
   runId: string | null;
   resultado: MirrorEngineResult;
   comparacion: ComparacionMotores;
+  certeza: PeriodCalculationCertainty;
 }
 
 /**
@@ -242,7 +284,10 @@ export async function ejecutarSombraPeriodo(
     officialTotal: official ? leerCodigo(official, CODIGO.totalAPagar) : null,
   });
 
-  if (!persistir) return { period, runId: null, resultado, comparacion };
+  const valores = [...valoresTributarios(resultado).values()];
+  const certeza = evaluarCertezaPeriodo(period, valores);
+
+  if (!persistir) return { period, runId: null, resultado, comparacion, certeza };
 
   await guardarHechos(companyId, periodoRow.id, hechos);
   const runId = await guardarCorrida(companyId, periodoRow.id, resultado);
@@ -266,7 +311,9 @@ export async function ejecutarSombraPeriodo(
     { onConflict: "company_id,period,run_id" },
   );
 
-  return { period, runId, resultado, comparacion };
+  await guardarCerteza(companyId, periodoRow.id, runId, resultado, certeza, valores);
+
+  return { period, runId, resultado, comparacion, certeza };
 }
 
 /** Ejecuta el modo sombra sobre varios periodos, en orden cronológico. */

@@ -196,7 +196,7 @@ const VAT_TOTAL_PURCHASES: VersionedTaxRule = {
   validFrom: "2020-01",
   validTo: null,
   requiredInputs: ["rcv_purchases_summary | f29:520"],
-  optionalInputs: [],
+  optionalInputs: ["rcv_common_use_vat", "rcv_non_recoverable_vat"],
   roundingRule: "round_to_peso",
   legalBasisReference: "DL825-art23",
   supportsEstimation: true,
@@ -216,12 +216,18 @@ const VAT_TOTAL_PURCHASES: VersionedTaxRule = {
     const noRec = sumaConSigno(lineas, (l) => l.vatNonRecoverable);
     if (iva == null) return sinFuente("El resumen de compras no informa IVA.", ["rcv_purchases_vat"]);
     return {
+      // TAX_ZERO_JUSTIFIED: uso común y no recuperable son sumandos opcionales
+      // declarados en optionalInputs; su ausencia se registra como omisión.
       amount: peso(iva + (usoComun ?? 0) + (noRec ?? 0)),
       status: "estimated",
       sources: ["rcv:purchases_summary"],
       calculationDescription:
         "IVA de compras registradas más IVA de uso común y no recuperable informados por el SII.",
       inputValues: { iva: iva, uso_comun: usoComun, no_recuperable: noRec },
+      warnings: [
+        ...(usoComun == null ? ["uso_comun_no_informado"] : []),
+        ...(noRec == null ? ["no_recuperable_no_informado"] : []),
+      ],
       confidence: "medium",
     };
   },
@@ -311,12 +317,16 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
     const total = monto(ctx, "vat_total_purchases");
     if (total == null)
       return sinFuente("Sin IVA total de compras.", ["vat_total_purchases"]);
-    const noRec = monto(ctx, "vat_non_recoverable") ?? 0;
+    const noRecuperable = monto(ctx, "vat_non_recoverable");
+    // TAX_ZERO_JUSTIFIED: sustraendo opcional. Cuando el SII no informa IVA no
+    // recuperable no hay nada que restar, y la omisión queda registrada.
+    const noRec = noRecuperable ?? 0;
+    const avisosBase = noRecuperable == null ? ["no_recuperable_no_informado"] : [];
     const usoComun = monto(ctx, "vat_common_use");
     const ratio = ctx.commonUseRecoveryRatio ?? null;
     const inputValues = {
       iva_total_compras: total,
-      no_recuperable: monto(ctx, "vat_non_recoverable"),
+      no_recuperable: noRecuperable,
       uso_comun: usoComun,
       proporcion_uso_comun: ratio,
     };
@@ -330,19 +340,21 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
           "IVA total de compras menos el no recuperable. El IVA de uso común queda fuera porque no hay proporción confirmada: no se asume recuperación completa.",
         inputValues,
         missingInputs: ["common_use_recovery_ratio"],
-        warnings: ["uso_comun_sin_proporcion_confirmada"],
+        warnings: ["uso_comun_sin_proporcion_confirmada", ...avisosBase],
         confidence: "low",
       };
     }
 
     const recuperableUsoComun = usoComun != null && ratio != null ? usoComun * ratio : 0;
     return {
+      // TAX_ZERO_JUSTIFIED: el uso común ausente no aporta ni descuenta.
       amount: peso(total - noRec - (usoComun ?? 0) + recuperableUsoComun),
       status: usoComun != null && usoComun > 0 ? "confirmed" : "estimated",
       sources: ["rcv:purchases_summary"],
       calculationDescription:
         "IVA total de compras menos el no recuperable, más la parte recuperable del IVA de uso común según la proporción confirmada.",
       inputValues,
+      warnings: avisosBase,
       confidence: usoComun != null && usoComun > 0 ? "high" : "medium",
     };
   },
@@ -624,6 +636,33 @@ const PPM_RATE: VersionedTaxRule = {
     }
     const anterior = leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm);
     if (anterior != null) {
+      // Una tasa incoherente en el F29 anterior no se propaga al periodo
+      // siguiente: se marca como antecedente contradictorio y queda sin monto.
+      const baseAnterior = leerCodigo(ctx.previousOfficial, CODIGO.basePpm);
+      const ppmAnterior = leerCodigo(ctx.previousOfficial, CODIGO.ppm);
+      const incoherente =
+        baseAnterior != null &&
+        ppmAnterior != null &&
+        baseAnterior > 0 &&
+        Math.abs(baseAnterior * anterior - ppmAnterior) >
+          Math.max(1000, ppmAnterior * 0.05);
+      if (incoherente) {
+        return {
+          amount: null,
+          status: "requires_confirmation",
+          sources: [`previous_f29:${CODIGO.tasaPpm}`],
+          calculationDescription:
+            "La tasa del F29 anterior es incoherente con su base y su monto, por lo que no se arrastra a este periodo.",
+          inputValues: {
+            tasa_anterior: anterior,
+            codigo_563_anterior: baseAnterior,
+            codigo_62_anterior: ppmAnterior,
+          },
+          missingInputs: ["ppm_rate"],
+          warnings: ["tasa_ppm_anterior_incoherente"],
+          confidence: "unknown",
+        };
+      }
       return {
         amount: anterior,
         status: "estimated",
@@ -799,6 +838,8 @@ const VAT_ADVANCE_CHANGE_OF_SUBJECT: VersionedTaxRule = {
       };
     }
     return {
+      // TAX_ZERO_JUSTIFIED: sumandos opcionales de una estimación declarada;
+      // el caso en que ambos faltan ya retornó sin monto más arriba.
       amount: peso((remanente ?? 0) + (mediana ?? 0)),
       status: "estimated",
       sources: ["f29_history:573", "f29_history:556"],
@@ -851,9 +892,9 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
         confidence: "unknown",
       };
     }
-    // Única excepción justificada a la prohibición de `?? 0`: cuando el F29
-    // del periodo existe y no trae el código 598, no hubo imputación de
-    // anticipo. Cubierto por la prueba "anticipo ausente no resta".
+    // TAX_ZERO_JUSTIFIED: cuando el F29 del periodo existe y no trae el código
+    // 598, no hubo imputación de anticipo. Cubierto por la prueba
+    // "anticipo ausente no resta".
     const anticipoImputado = anticipo ?? 0;
     const total = (iva as number) - anticipoImputado + (ppm as number) + (retenciones as number);
     const derivadoDeOficiales =

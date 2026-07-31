@@ -1310,6 +1310,97 @@ export type Database = {
           },
         ]
       }
+      tax_period_calculation_certainty: {
+        Row: {
+          blocking_concepts: string[]
+          calculated_at: string
+          can_present_total: boolean
+          company_id: string
+          completeness: string
+          component_values: Json
+          confidence: string
+          conflicting_concepts: string[]
+          created_at: string
+          engine_version: string
+          estimated_concepts: string[]
+          id: string
+          missing_inputs: string[]
+          not_applicable_concepts: string[]
+          period: string
+          reason: string | null
+          run_id: string | null
+          tax_period_id: string
+          unsupported_concepts: string[]
+          zero_audit: Json
+        }
+        Insert: {
+          blocking_concepts?: string[]
+          calculated_at?: string
+          can_present_total: boolean
+          company_id: string
+          completeness: string
+          component_values?: Json
+          confidence: string
+          conflicting_concepts?: string[]
+          created_at?: string
+          engine_version: string
+          estimated_concepts?: string[]
+          id?: string
+          missing_inputs?: string[]
+          not_applicable_concepts?: string[]
+          period: string
+          reason?: string | null
+          run_id?: string | null
+          tax_period_id: string
+          unsupported_concepts?: string[]
+          zero_audit?: Json
+        }
+        Update: {
+          blocking_concepts?: string[]
+          calculated_at?: string
+          can_present_total?: boolean
+          company_id?: string
+          completeness?: string
+          component_values?: Json
+          confidence?: string
+          conflicting_concepts?: string[]
+          created_at?: string
+          engine_version?: string
+          estimated_concepts?: string[]
+          id?: string
+          missing_inputs?: string[]
+          not_applicable_concepts?: string[]
+          period?: string
+          reason?: string | null
+          run_id?: string | null
+          tax_period_id?: string
+          unsupported_concepts?: string[]
+          zero_audit?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_period_calculation_certainty_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_period_calculation_certainty_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "tax_mirror_calculation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_period_calculation_certainty_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_period_comparisons: {
         Row: {
           company_id: string
