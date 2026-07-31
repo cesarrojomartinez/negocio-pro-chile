@@ -81,7 +81,7 @@ describe("lectura determinística del F29", () => {
       periodoDocumento: "2026-06",
       folioListado: "1234567890",
       folioDocumento: "1234567890",
-    });
+    }, codigos);
     expect(validaciones.filter((v) => v.estado === "error")).toHaveLength(0);
     const evaluacion = evaluarExtraccion({ codigos, campos, validaciones });
     expect(evaluacion.estado).toBe("success");
@@ -124,7 +124,7 @@ describe("lectura determinística del F29", () => {
         periodoDocumento: "2026-06",
         folioListado: "1234567890",
         folioDocumento: "1234567890",
-      }),
+      }, codigos),
     });
     expect(evaluacion.estado).toBe("success");
     expect(campos.declared_total_payable).toBe(80000);

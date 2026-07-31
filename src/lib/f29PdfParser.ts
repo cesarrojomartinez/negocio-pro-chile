@@ -335,6 +335,7 @@ const TOLERANCIA = 1;
 export function validarF29(
   campos: CamposNormalizadosF29,
   contexto: ContextoValidacion,
+  codigos: MapaCodigos = {},
 ): ValidacionF29[] {
   const validaciones: ValidacionF29[] = [];
 

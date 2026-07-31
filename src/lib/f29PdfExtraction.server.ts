@@ -581,7 +581,7 @@ export async function extraerF29Compacto(
       periodoDocumento: detectarPeriodo(lectura.texto),
       folioListado: elegida.folio,
       folioDocumento: detectarFolio(lectura.texto),
-    });
+    }, codigos);
     const evaluacion = evaluarExtraccion({ codigos, campos, validaciones });
 
     const rutDistinto = validaciones.some((v) => v.id === "rut" && v.estado === "error");
