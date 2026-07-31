@@ -53,6 +53,12 @@ export interface AntecedenteF29 {
   incoherencias: string[];
   /** El bloque de PPM del formulario es aritméticamente consistente. */
   ppmCoherente: boolean;
+  /**
+   * La tasa de PPM no se leyó del código 115 sino que se dedujo dividiendo el
+   * PPM declarado (62) por su base (563). Ocurre cuando el formulario informa
+   * la tasa en una unidad ilegible o mal extraída del PDF.
+   */
+  tasaPpmDerivada: boolean;
 }
 
 /**
