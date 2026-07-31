@@ -88,7 +88,53 @@ export interface OpcionesInternas {
   registro?: RegistroConsumo;
   /** Omite la política de caché: la prueba real la controla su propio límite. */
   omitirPoliticaCache?: boolean;
+  /**
+   * Evalúa la caché periodo por periodo (frescura del propio mes, F29 vigente,
+   * periodo cerrado). Es lo que usa la actualización real: seleccionar varios
+   * meses no invalida la caché de todos.
+   */
+  politicaPorPeriodo?: boolean;
 }
+
+/**
+ * Decisión económica para UN periodo: mira su propia última sincronización
+ * exitosa, si ya tiene F29 leído y si está cerrado. No consulta al proveedor.
+ */
+async function decisionPorPeriodo(
+  companyId: string,
+  periodo: string,
+  ahora: Date,
+): Promise<DecisionPeriodo> {
+  const [{ data: ultima }, { data: f29 }] = await Promise.all([
+    supabaseAdmin
+      .from("tax_sync_runs")
+      .select("completed_at")
+      .eq("company_id", companyId)
+      .eq("status", "success")
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("tax_f29_extractions")
+      .select("extraction_status")
+      .eq("company_id", companyId)
+      .eq("period", periodo)
+      .eq("superseded", false)
+      .in("extraction_status", ["success", "needs_review", "partial"])
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return decidirActualizacionPeriodo({
+    periodo,
+    periodoActual: periodoEnCurso(ahora),
+    ahora,
+    ultimaSincronizacionRcv: (ultima?.completed_at as string | null) ?? null,
+    tieneF29Vigente: !!f29,
+    periodoCerrado: periodoYaCerrado(periodo, ahora),
+  });
+}
+
 
 /** Selecciona el proveedor activo. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
