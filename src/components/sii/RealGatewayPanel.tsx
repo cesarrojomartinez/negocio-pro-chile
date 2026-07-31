@@ -20,6 +20,7 @@ import {
   normalizarPeriodo,
   periodoSiguiente,
 } from "@/lib/periodo";
+import { periodoEnCurso } from "@/lib/syncEconomica";
 
 /** Máximo de periodos por trabajo, para no saturar al proveedor. */
 const MAX_PERIODOS = 12;
@@ -34,6 +35,19 @@ function rangoPeriodos(desde: string, hasta: string): string[] {
   }
   return lista;
 }
+
+/**
+ * Meses de un año, sin pasarse del mes en curso. Sirve para los atajos
+ * "Todo 2025" / "Todo 2026": un año completo cabe justo en un trabajo.
+ */
+function mesesDelAnio(anio: number, mesEnCurso: string): string[] {
+  const meses = Array.from(
+    { length: 12 },
+    (_, i) => `${anio}-${String(i + 1).padStart(2, "0")}`,
+  );
+  return meses.filter((p) => p <= mesEnCurso);
+}
+
 
 /**
  * Actualización con la información real del SII.
