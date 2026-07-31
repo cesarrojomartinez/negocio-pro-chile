@@ -103,10 +103,40 @@ export function construirResumenRcv(filas: FilaResumenRcv[]): ProviderRcvSummary
   };
 }
 
-/** Tipos de DTE que el resumen declara con documentos: guía del detalle. */
+/**
+ * Tipos que el SII informa SOLO como total mensual agregado, sin detalle
+ * documento por documento (boletas electrónicas, boletas exentas y
+ * comprobantes de pago electrónico). Pedirles el detalle devuelve vacío y
+ * gasta créditos, y su cantidad NO debe compararse con lo guardado.
+ */
+export const TIPOS_SOLO_RESUMEN_MENSUAL = new Set([39, 41, 48]);
+
+/**
+ * Tipos de DTE que el resumen declara con documentos Y tienen detalle
+ * disponible en el RCV: guía del detalle.
+ */
 export function tiposConDocumentos(resumen: ProviderRcvSummary): number[] {
-  return resumen.lines.filter((l) => l.documentCount > 0).map((l) => l.documentTypeCode);
+  return resumen.lines
+    .filter(
+      (l) => l.documentCount > 0 && !TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode),
+    )
+    .map((l) => l.documentTypeCode);
 }
+
+/** Documentos informados que sí deberían llegar uno a uno en el detalle. */
+export function documentosConDetalleEsperados(resumen: ProviderRcvSummary): number {
+  return resumen.lines
+    .filter((l) => !TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce((s, l) => s + l.documentCount, 0);
+}
+
+/** Documentos que el SII solo entrega como total del mes (boletas y similares). */
+export function documentosSoloResumenMensual(resumen: ProviderRcvSummary): number {
+  return resumen.lines
+    .filter((l) => TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce((s, l) => s + l.documentCount, 0);
+}
+
 
 export const RESUMEN_VACIO: ProviderRcvSummary = {
   lines: [],
