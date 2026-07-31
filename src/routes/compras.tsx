@@ -160,9 +160,6 @@ function Compras() {
                 monto={formatNumero(data.compras.documentosRegistrados)}
                 descripcion="Compras incluidas en el cálculo."
               />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-3">
               <StatCard
                 titulo="Pendientes"
                 monto={formatNumero(data.compras.documentosPendientes)}
