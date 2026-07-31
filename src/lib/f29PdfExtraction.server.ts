@@ -559,18 +559,24 @@ export async function extraerF29Compacto(
     });
     if (!decodificado.ok) throw new ErrorF29("F29_INVALID_PDF");
 
-    const sha256 = await huellaSha256(decodificado.bytes);
+    // Copia inmediata y exclusiva del archivo: el lector de PDF puede
+    // "transferir" (y dejar inservible) el búfer que recibe, por lo que se
+    // conserva un respaldo propio para el almacenamiento privado.
+    const bytesArchivo = new Uint8Array(decodificado.bytes.length);
+    bytesArchivo.set(decodificado.bytes);
+
+    const sha256 = await huellaSha256(bytesArchivo);
 
     // ---------- 4. Lectura determinística ----------
     let lectura: Awaited<ReturnType<typeof leerPdf>>;
     try {
-      // Algunos lectores PDF transfieren (y separan) el ArrayBuffer recibido.
-      // Se entrega una copia exclusiva al parser para conservar intactos los
-      // bytes que luego deben archivarse en almacenamiento privado.
-      lectura = await leerPdf(Uint8Array.from(decodificado.bytes));
+      const copiaParser = new Uint8Array(bytesArchivo.length);
+      copiaParser.set(bytesArchivo);
+      lectura = await leerPdf(copiaParser);
     } catch {
       throw new ErrorF29("F29_TEXT_EXTRACTION_FAILED");
     }
+
 
     const codigos = extraerCodigos({ items: lectura.items, texto: lectura.texto });
     const campos = construirCamposNormalizados(codigos);
