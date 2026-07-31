@@ -33,6 +33,21 @@ export const Route = createFileRoute("/compras")({
 function Compras() {
   const { data, cargando } = useTaxDashboard();
 
+  /**
+   * Residuo entre el total bruto informado y la suma de neto + IVA + exento.
+   * Corresponde a impuestos específicos u otras partidas del documento.
+   */
+  const otrosMontosCompras = data
+    ? Math.round(
+        data.compras.comprasTotales -
+          data.compras.comprasNetas -
+          data.compras.ivaCredito -
+          data.compras.ivaNoRecuperableDetalle.comprasSinIva,
+      )
+    : 0;
+
+
+
   return (
     <AppShell>
       <div className="space-y-5">
