@@ -45,7 +45,15 @@ export interface AntecedenteF29 {
   nuevoRemanenteDeclarado: number | null;
   /** Todos los códigos leídos del formulario oficial, cuando existen. */
   codigos: Record<string, number>;
-}
+  /**
+   * Incoherencias detectadas en el propio formulario (por ejemplo, un PPM que
+   * no cuadra con su base y su tasa). Un F29 incoherente sigue guardándose,
+   * pero no se usa como parámetro de cálculo.
+   */
+  incoherencias: string[];
+  /** El bloque de PPM del formulario es aritméticamente consistente. */
+  ppmCoherente: boolean;
+
 
 function numero(valor: unknown): number | null {
   if (valor == null) return null;
