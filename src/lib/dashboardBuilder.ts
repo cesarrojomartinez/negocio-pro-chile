@@ -101,7 +101,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     },
     { margenPorcentaje: entrada.margenPorcentaje },
   );
-  const ventas = construirResumenVentas(data.documentosVenta);
+  const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
   const compras = construirResumenCompras(data.documentosCompra);
   const meta = construirMeta(data, resumen.ventasTotales, entrada.metaMensual);
 
@@ -114,7 +114,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
         margenPorcentaje: entrada.margenPorcentaje,
         dineroReservado: prev.dineroReservado,
       }),
-      ventas: construirResumenVentas(prev.documentosVenta),
+      ventas: construirResumenVentas(prev.documentosVenta, prev.ventasAgregadasResumen),
     };
   }
 

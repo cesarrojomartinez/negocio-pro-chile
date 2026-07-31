@@ -103,10 +103,40 @@ export function construirResumenRcv(filas: FilaResumenRcv[]): ProviderRcvSummary
   };
 }
 
-/** Tipos de DTE que el resumen declara con documentos: guía del detalle. */
+/**
+ * Tipos que el SII informa SOLO como total mensual agregado, sin detalle
+ * documento por documento (boletas electrónicas, boletas exentas y
+ * comprobantes de pago electrónico). Pedirles el detalle devuelve vacío y
+ * gasta créditos, y su cantidad NO debe compararse con lo guardado.
+ */
+export const TIPOS_SOLO_RESUMEN_MENSUAL = new Set([39, 41, 48]);
+
+/**
+ * Tipos de DTE que el resumen declara con documentos Y tienen detalle
+ * disponible en el RCV: guía del detalle.
+ */
 export function tiposConDocumentos(resumen: ProviderRcvSummary): number[] {
-  return resumen.lines.filter((l) => l.documentCount > 0).map((l) => l.documentTypeCode);
+  return resumen.lines
+    .filter(
+      (l) => l.documentCount > 0 && !TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode),
+    )
+    .map((l) => l.documentTypeCode);
 }
+
+/** Documentos informados que sí deberían llegar uno a uno en el detalle. */
+export function documentosConDetalleEsperados(resumen: ProviderRcvSummary): number {
+  return resumen.lines
+    .filter((l) => !TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce((s, l) => s + l.documentCount, 0);
+}
+
+/** Documentos que el SII solo entrega como total del mes (boletas y similares). */
+export function documentosSoloResumenMensual(resumen: ProviderRcvSummary): number {
+  return resumen.lines
+    .filter((l) => TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce((s, l) => s + l.documentCount, 0);
+}
+
 
 export const RESUMEN_VACIO: ProviderRcvSummary = {
   lines: [],
@@ -134,3 +164,60 @@ export function sumarResumenes(resumenes: ProviderRcvSummary[]): ProviderRcvSumm
   };
 }
 
+
+/** Totales de las líneas que el SII solo informa como agregado mensual. */
+export interface TotalesAgregadosMensuales {
+  cantidadDocumentos: number;
+  neto: number;
+  iva: number;
+  exento: number;
+  total: number;
+}
+
+/**
+ * Suma las líneas del resumen que NO tienen detalle documento por documento
+ * (boletas electrónicas, boletas exentas y comprobantes de pago electrónico).
+ * Son cifras oficiales del SII: se usan para completar los totales del periodo
+ * sin inventar documentos individuales.
+ */
+export function totalesSoloResumenMensual(
+  resumen: ProviderRcvSummary | null | undefined,
+): TotalesAgregadosMensuales {
+  const vacio: TotalesAgregadosMensuales = {
+    cantidadDocumentos: 0,
+    neto: 0,
+    iva: 0,
+    exento: 0,
+    total: 0,
+  };
+  if (!resumen || !Array.isArray(resumen.lines)) return vacio;
+  return resumen.lines
+    .filter((l) => TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce(
+      (acc, l) => ({
+        cantidadDocumentos: acc.cantidadDocumentos + l.documentCount,
+        neto: acc.neto + l.taxEffect * l.netAmount,
+        iva: acc.iva + l.taxEffect * l.vatAmount,
+        exento: acc.exento + l.taxEffect * l.exemptAmount,
+        total: acc.total + l.taxEffect * l.totalAmount,
+      }),
+      vacio,
+    );
+}
+
+/**
+ * Lee el resumen guardado del periodo (`tax_periods.rcv_summary`) y devuelve
+ * las ventas informadas solo como total del mes. Devuelve `null` cuando no hay
+ * agregados, para no alterar los totales de periodos con detalle completo.
+ */
+export function ventasAgregadasDeResumenGuardado(
+  rcvSummary: unknown,
+): TotalesAgregadosMensuales | null {
+  const ventas =
+    rcvSummary && typeof rcvSummary === "object"
+      ? (rcvSummary as { ventas?: unknown }).ventas
+      : null;
+  if (!ventas || typeof ventas !== "object") return null;
+  const t = totalesSoloResumenMensual(ventas as ProviderRcvSummary);
+  return t.total === 0 && t.iva === 0 && t.cantidadDocumentos === 0 ? null : t;
+}

@@ -18,6 +18,7 @@ import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
 import type { DocumentoTributario, PeriodoData } from "@/types/tax";
+import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
 import type { Empresa } from "@/types/company";
 
 interface FilaDocumento {
@@ -56,12 +57,13 @@ function mapear(fila: FilaDocumento): DocumentoTributario {
 async function periodoId(companyId: string, periodo: string) {
   const { data } = await supabaseAdmin
     .from("tax_periods")
-    .select("id, status")
+    .select("id, status, rcv_summary")
     .eq("company_id", companyId)
     .eq("period", periodo)
     .maybeSingle();
   return data ?? null;
 }
+
 
 async function documentos(companyId: string, taxPeriodId: string) {
   const { data } = await supabaseAdmin
@@ -339,6 +341,7 @@ export async function recalculateTaxPeriod(
   const periodoData: PeriodoData = {
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
+    ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodoRow.rcv_summary),
     documentosCompra: docs.compra,
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
@@ -391,6 +394,9 @@ export async function recalculateTaxPeriod(
             periodo: previoNombre,
             documentosVenta: docsPrevios.venta,
             documentosCompra: docsPrevios.compra,
+            ventasAgregadasResumen: previoRow
+              ? ventasAgregadasDeResumenGuardado(previoRow.rcv_summary)
+              : null,
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
             diasTranscurridos: diasPrev.diasTranscurridos,

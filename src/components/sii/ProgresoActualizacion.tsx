@@ -11,8 +11,18 @@ import { etiquetaPeriodo } from "@/lib/periodo";
  * cuando se cierra con la equis.
  */
 export function ProgresoActualizacion() {
-  const { items, enCurso, terminado, visible, periodoActual, totales, cerrar, version } =
-    useActualizacionMasiva();
+  const {
+    items,
+    enCurso,
+    terminado,
+    visible,
+    periodoActual,
+    totales,
+    cerrar,
+    version,
+    creditosUsados,
+    creditosDisponibles,
+  } = useActualizacionMasiva();
   const { refrescarDatos } = useTaxDashboard();
   const ultimaVersion = useRef(0);
 
@@ -92,6 +102,21 @@ export function ProgresoActualizacion() {
           </li>
         ))}
       </ul>
+
+      <p className="mt-3 border-t border-border pt-2 text-[11px] text-muted-foreground">
+        Créditos usados en esta actualización:{" "}
+        <span className="font-semibold text-foreground">
+          {creditosUsados.toLocaleString("es-CL", { maximumFractionDigits: 2 })}
+        </span>
+        {creditosDisponibles != null && (
+          <>
+            {" · Créditos disponibles: "}
+            <span className="font-semibold text-foreground">
+              {creditosDisponibles.toLocaleString("es-CL", { maximumFractionDigits: 2 })}
+            </span>
+          </>
+        )}
+      </p>
 
       {terminado && (
         <p className="mt-3 text-[11px] text-muted-foreground">

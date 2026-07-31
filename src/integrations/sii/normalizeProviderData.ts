@@ -38,9 +38,14 @@ export interface ResultadoNormalizacion {
   inferidos: number;
 }
 
-function esFechaDelPeriodo(fecha: string, periodo: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha.slice(0, 7) === periodo;
+function esFechaValida(fecha: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha);
 }
+
+function esFechaDelPeriodo(fecha: string, periodo: string): boolean {
+  return esFechaValida(fecha) && fecha.slice(0, 7) === periodo;
+}
+
 
 function normalizarMontos(doc: ProviderDocument): {
   neto: number;
@@ -72,12 +77,19 @@ function normalizarDocumento(
   periodo: string,
 ): { fila: FilaDocumentoNormalizada; inferido: boolean } | { motivo: string } {
   if (!doc.externalId) return { motivo: "Sin identificador del proveedor" };
-  if (!esFechaDelPeriodo(doc.issueDate, periodo))
-    return { motivo: "Fecha fuera del periodo consultado" };
+  /**
+   * El RCV agrupa por periodo de REGISTRO, no por fecha de emisión: una factura
+   * del último día del mes anterior aparece legítimamente en el registro de
+   * este mes. Descartarla perdía documentos y montos reales, así que solo se
+   * exige que la fecha sea válida y se deja anotado si es de otro mes.
+   */
+  if (!esFechaValida(doc.issueDate)) return { motivo: "Fecha inválida o ausente" };
   if (!Number.isFinite(doc.totalAmount) || doc.totalAmount < 0)
     return { motivo: "Monto total inválido" };
   if (!Number.isFinite(doc.folio) || doc.folio <= 0)
     return { motivo: "Folio inválido" };
+  const deOtroMes = !esFechaDelPeriodo(doc.issueDate, periodo);
+
 
   const m = normalizarMontos(doc);
   /**
@@ -106,7 +118,9 @@ function normalizarDocumento(
       raw_metadata: {
         ivaInferido: m.inferido,
         efectoTributario: efecto,
+        emitidoEnOtroMes: deOtroMes,
       },
+
     },
   };
 }
