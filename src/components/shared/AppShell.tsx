@@ -205,11 +205,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {periodosDisponibles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.etiqueta}
-                    </SelectItem>
+                <SelectContent className="max-h-[320px]">
+                  {periodosPorAnio.map(([anio, lista]) => (
+                    <SelectGroup key={anio}>
+                      <SelectLabel>{anio}</SelectLabel>
+                      {lista.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.etiqueta}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
