@@ -13,6 +13,7 @@ import { MAX_REAL_PROVIDER_REQUESTS_PER_SYNC } from "@/integrations/sii/apiGatew
 import { ErrorNegocio, exigirRol } from "@/lib/companies.server";
 import { normalizarPeriodo } from "@/lib/periodo";
 import {
+  CODIGO_AMPLIACION_RECHAZADA,
   construirPropuestaAmpliacionF29,
   evaluarAmpliacion,
 } from "@/lib/planAmendment";
@@ -483,7 +484,7 @@ export async function solicitarAmpliacionF29(
   });
 
   const aprobada = evaluacion.aprobada;
-  await supabaseAdmin.from("tax_sync_plan_amendments").insert({
+  const filaAmpliacion = {
     plan_id: entrada.planId,
     company_id: entrada.companyId,
     requested_by: entrada.userId,
@@ -498,18 +499,46 @@ export async function solicitarAmpliacionF29(
     status: aprobada ? "approved" : "rejected",
     rejection_code: aprobada ? null : evaluacion.codigo,
     rejection_detail: aprobada ? null : evaluacion.motivo,
-  });
+  };
 
-  if (!aprobada)
+  if (!aprobada) {
+    await supabaseAdmin.from("tax_sync_plan_amendments").insert(filaAmpliacion);
     return {
       autorizada: false,
       codigo: evaluacion.codigo,
       motivo: evaluacion.motivo,
       mensajeUsuario: evaluacion.mensajeUsuario,
     };
+  }
+
+  /*
+   * Atomicidad: el índice único parcial (plan_id, period, new_folio) sobre las
+   * filas aprobadas hace que, ante dos solicitudes simultáneas del mismo folio,
+   * solo una pueda insertar la aprobación. La perdedora se rechaza como
+   * duplicada y no amplía el plan, así que nunca hay dos descargas.
+   */
+  const insercion = await supabaseAdmin
+    .from("tax_sync_plan_amendments")
+    .insert(filaAmpliacion)
+    .select("id")
+    .maybeSingle();
+
+  if (insercion.error) {
+    const duplicada = insercion.error.code === "23505";
+    const rechazo = duplicada ? "ampliacion_duplicada" : "bloqueo_no_vigente";
+    return {
+      autorizada: false,
+      codigo: CODIGO_AMPLIACION_RECHAZADA,
+      motivo: rechazo,
+      mensajeUsuario: duplicada
+        ? "Esta nueva declaración ya se había considerado."
+        : "No pudimos autorizar la descarga de la nueva declaración.",
+    };
+  }
 
   // Recién aquí el recurso existe para el portero.
   entrada.control.aplicarAmpliacion(propuesta);
+
 
   await supabaseAdmin
     .from("tax_sync_plans")
