@@ -275,15 +275,24 @@ export function RealGatewayPanel() {
 
         {resumen && (
           <div className={`mt-4 rounded-2xl border p-4 text-sm ${estilo}`}>
-            <p className="font-semibold">Última actualización · {resumen.periodo}</p>
+            <p className="font-semibold">
+              Última actualización · {etiquetaPeriodo(resumen.periodo)}
+            </p>
             <p className="mt-1">{resumen.texto}</p>
-            <p className="mt-1 text-muted-foreground">{resumen.f29}</p>
+            <p
+              className={`mt-1 ${
+                resumen.f29Pendiente ? "text-amber-700" : "text-muted-foreground"
+              }`}
+            >
+              {resumen.f29}
+            </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {formatFechaHora(resumen.fecha)}. Estimación informativa: no reemplaza a
               tu contador.
             </p>
           </div>
         )}
+
       </SectionCard>
     </div>
   );
