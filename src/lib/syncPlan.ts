@@ -389,6 +389,11 @@ export class ControlPlanEjecucion {
     return this.cupos.has(recursoId);
   }
 
+  /** Llamadas ya autorizadas para un recurso concreto. */
+  consumoDeRecurso(recursoId: string): number {
+    return this.usos.get(recursoId) ?? 0;
+  }
+
   /** Autoriza una llamada real. Lanza `ErrorPlanEjecucion` si no corresponde. */
   autorizar(recursoId: string): void {
     const cupo = this.cupos.get(recursoId);
