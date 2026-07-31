@@ -132,7 +132,7 @@ async function documentosDe(companyId: string, periodo: string) {
       "id, document_direction, document_type, folio, document_date, counterparty_name, counterparty_rut, net_amount, vat_amount, exempt_amount, total_amount, rcv_status",
     )
     .eq("company_id", companyId)
-    .eq("tax_period_id", periodRow.id)
+    .eq("tax_period_id", periodId)
     .order("document_date", { ascending: true });
   if (error) throw new ErrorDatosCloud("No pudimos cargar los documentos del periodo.");
 
@@ -144,18 +144,13 @@ async function documentosDe(companyId: string, periodo: string) {
 }
 
 async function resumenGuardado(companyId: string, periodo: string) {
-  const { data: periodRow } = await supabase
-    .from("tax_periods")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("period", periodo)
-    .maybeSingle();
-  if (!periodRow) return null;
+  const periodId = await periodoIdDe(companyId, periodo);
+  if (!periodId) return null;
   const { data } = await supabase
     .from("tax_monthly_summaries")
     .select("estimated_new_carryforward, estimated_withholdings")
     .eq("company_id", companyId)
-    .eq("tax_period_id", periodRow.id)
+    .eq("tax_period_id", periodId)
     .maybeSingle();
   return data;
 }
@@ -185,20 +180,15 @@ async function hayInformacionRealDe(companyId: string, periodo: string) {
 
 /** Antecedente del F29 del periodo, cuando el contador ya lo confirmó. */
 async function antecedenteF29De(companyId: string, periodo: string) {
-  const { data: periodRow } = await supabase
-    .from("tax_periods")
-    .select("id")
-    .eq("company_id", companyId)
-    .eq("period", periodo)
-    .maybeSingle();
-  if (!periodRow) return null;
+  const periodId = await periodoIdDe(companyId, periodo);
+  if (!periodId) return null;
   const { data } = await supabase
     .from("tax_f29_history")
     .select(
       "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
     )
     .eq("company_id", companyId)
-    .eq("tax_period_id", periodRow.id)
+    .eq("tax_period_id", periodId)
     .maybeSingle();
   return interpretarAntecedenteF29(data);
 }
@@ -309,20 +299,15 @@ export const cloudTaxDataService: TaxDataService & {
   esDemo: false,
 
   async getAntecedenteF29(companyId, periodo) {
-    const { data: periodRow } = await supabase
-      .from("tax_periods")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("period", periodo)
-      .maybeSingle();
-    if (!periodRow) return null;
+    const periodId = await periodoIdDe(companyId, periodo);
+    if (!periodId) return null;
     const { data } = await supabase
       .from("tax_f29_history")
       .select(
         "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
       )
       .eq("company_id", companyId)
-      .eq("tax_period_id", periodRow.id)
+      .eq("tax_period_id", periodId)
       .maybeSingle();
     const antecedente = interpretarAntecedenteF29(data);
     if (!antecedente?.confirmado) return null;
@@ -333,20 +318,15 @@ export const cloudTaxDataService: TaxDataService & {
 
 
   async getConciliacionRemanente(companyId, periodo) {
-    const { data: periodRow } = await supabase
-      .from("tax_periods")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("period", periodo)
-      .maybeSingle();
-    if (!periodRow) return null;
+    const periodId = await periodoIdDe(companyId, periodo);
+    if (!periodId) return null;
     const { data } = await supabase
       .from("tax_carryforward_reconciliations")
       .select(
         "previous_period, calculated_previous_carryforward, declared_previous_carryforward, difference, status",
       )
       .eq("company_id", companyId)
-      .eq("tax_period_id", periodRow.id)
+      .eq("tax_period_id", periodId)
       .maybeSingle();
     if (!data) return null;
     return {
@@ -431,18 +411,13 @@ export const cloudTaxDataService: TaxDataService & {
 
 
   async getGoals(companyId, periodo) {
-    const { data: periodRow } = await supabase
-      .from("tax_periods")
-      .select("id")
-      .eq("company_id", companyId)
-      .eq("period", periodo)
-      .maybeSingle();
-    if (!periodRow) return null;
+    const periodId = await periodoIdDe(companyId, periodo);
+    if (!periodId) return null;
     const { data } = await supabase
       .from("tax_sales_goals")
       .select("goal_amount")
       .eq("company_id", companyId)
-      .eq("tax_period_id", periodRow.id)
+      .eq("tax_period_id", periodId)
       .maybeSingle();
     return data ? Number(data.goal_amount) : null;
   },
