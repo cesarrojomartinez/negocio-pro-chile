@@ -41,6 +41,11 @@ export function ReservaCard({
     resumen.reservaRecomendada,
     resumen.dineroReservado,
   );
+  // Cuando no hay impuestos que reservar pero sí quedó IVA a favor, la tarjeta
+  // debe explicarlo en vez de mostrar solamente $0.
+  const remanente = resumen.nuevoRemanente ?? 0;
+  const aFavor =
+    !incompleto && resumen.reservaRecomendada <= 0 && remanente > 0;
 
   return (
     <section className={cn("card-surface border p-5 sm:p-6", ESTILOS[estado])}>
@@ -57,18 +62,28 @@ export function ReservaCard({
             TEXTO_ESTADO[estado],
           )}
         >
-          {MENSAJE_SEMAFORO[estado]}
+          {aFavor
+            ? `Este mes no pagas IVA: te queda ${formatCLP(remanente)} a favor.`
+            : MENSAJE_SEMAFORO[estado]}
         </span>
       </div>
 
       <p className="num-xl mt-4 break-words sm:text-[2.75rem]">
-        {formatCLP(resumen.reservaRecomendada)}
+        {aFavor ? formatCLP(remanente) : formatCLP(resumen.reservaRecomendada)}
       </p>
+      {aFavor && (
+        <p className="mt-1 text-sm font-semibold text-success">
+          Remanente de IVA a tu favor
+        </p>
+      )}
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
         {incompleto
           ? "Faltan antecedentes por confirmar, así que este monto es el mínimo conocido y podría aumentar."
-          : "Procura mantener este monto separado para cubrir tus impuestos estimados del mes."}
+          : aFavor
+            ? "No necesitas reservar dinero este mes. Este monto es crédito de IVA que se descuenta de tus impuestos del próximo periodo."
+            : "Procura mantener este monto separado para cubrir tus impuestos estimados del mes."}
       </p>
+
 
       {incompleto && contexto && (
         <ul className="mt-3 space-y-1">
@@ -80,18 +95,28 @@ export function ReservaCard({
         </ul>
       )}
 
-      <div className="mt-4">
-        <Progress value={cobertura} aria-label="Cobertura de la reserva" />
-        <p className="mt-2 text-xs text-muted-foreground">
-          Tu reserva cubre {Math.round(cobertura)}% de la estimación actual.
-        </p>
-      </div>
+      {!aFavor && (
+        <div className="mt-4">
+          <Progress value={cobertura} aria-label="Cobertura de la reserva" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tu reserva cubre {Math.round(cobertura)}% de la estimación actual.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl bg-card p-4">
         <DataRow
           label="Impuestos estimados"
           value={formatCLP(resumen.totalTributarioEstimado)}
         />
+        {remanente > 0 && (
+          <DataRow
+            label="Remanente de IVA a tu favor"
+            value={formatCLP(remanente)}
+            tone="success"
+          />
+        )}
+
         <DataRow
           label="Margen preventivo"
           value={formatCLP(resumen.margenPreventivo)}
