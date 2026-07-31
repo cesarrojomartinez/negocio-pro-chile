@@ -10,7 +10,13 @@
  */
 import { resolverReglaDte } from "./dteTaxRules";
 import type { ConfiguracionTributariaOpcional } from "./optionalConfig";
-import { CODIGO, leerCodigo } from "./officialContext";
+import {
+  CODIGO,
+  leerCodigo,
+  sumarRetencionesOficiales,
+} from "./officialContext";
+import { normalizarTasaPpm, tasaPpmIncoherente } from "./ppmRate";
+
 import type {
   ComponentCalculation,
   ComponentStatus,
@@ -39,6 +45,12 @@ export interface MirrorEngineInput {
   vatAdvanceHistory?: MuestraAnticipoEspejo[];
   /** Antecedentes declarados por la empresa. Opcionales: sin ellos nada cambia. */
   optionalConfig?: ConfiguracionTributariaOpcional | null;
+  /**
+   * Remanente que dejó calculado el periodo anterior cuando no existe F29 que
+   * lo informe. Última fuente de la jerarquía, nunca la primera.
+   */
+  previousComputedCarryforward?: number | null;
+
   /** Proporción confirmada de recuperación del IVA de uso común (0..1). */
   commonUseRecoveryRatio?: number | null;
   /** Factor de reajuste del remanente. Sin dato: `null` (nunca 1 silencioso). */
@@ -317,6 +329,28 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
     );
     if (oficialF29) return oficialF29;
 
+    // Formularios que solo informan el 537 (crédito del mes más remanente):
+    // el remanente anterior se descuenta para no contarlo dos veces al
+    // determinar el IVA del periodo.
+    const totalConRemanente = leerCodigo(ctx.official, CODIGO.creditoTotalConRemanente);
+    if (totalConRemanente != null) {
+      const remanenteDeclarado = leerCodigo(ctx.official, CODIGO.remanenteAnterior) ?? 0;
+      return {
+        amount: peso(totalConRemanente - remanenteDeclarado),
+        status: "official",
+        sources: [`f29:${CODIGO.creditoTotalConRemanente}`],
+        calculationDescription:
+          "Crédito fiscal del mes obtenido del código 537 menos el remanente anterior (código 504), para no contar el remanente dos veces.",
+        inputValues: {
+          codigo_537: totalConRemanente,
+          codigo_504: remanenteDeclarado,
+        },
+        confidence: "high",
+      };
+    }
+
+
+
     const total = monto(ctx, "vat_total_purchases");
     if (total == null)
       return sinFuente("Sin IVA total de compras.", ["vat_total_purchases"]);
@@ -388,6 +422,21 @@ const PREVIOUS_CARRYFORWARD: VersionedTaxRule = {
         confidence: "high",
       };
     }
+    // Jerarquía: 504 propio → confirmado por el contador o la empresa →
+    // código 77 del F29 anterior → remanente calculado del periodo anterior.
+    const declarado = ctx.optionalConfig?.confirmedCarryforward ?? null;
+    if (declarado != null) {
+      return {
+        amount: peso(declarado),
+        status: "confirmed",
+        sources: ["client_declared:confirmed_carryforward"],
+        calculationDescription:
+          "Remanente anterior confirmado en la configuración tributaria opcional.",
+        inputValues: { remanente_declarado: declarado },
+        warnings: ["remanente_declarado_por_la_empresa"],
+        confidence: "medium",
+      };
+    }
     const anterior = leerCodigo(ctx.previousOfficial, CODIGO.remanenteSiguiente);
     if (anterior != null) {
       return {
@@ -401,22 +450,23 @@ const PREVIOUS_CARRYFORWARD: VersionedTaxRule = {
         confidence: "medium",
       };
     }
-    const declarado = ctx.optionalConfig?.confirmedCarryforward ?? null;
-    if (declarado != null) {
+    const calculado = ctx.previousComputedCarryforward ?? null;
+    if (calculado != null) {
       return {
-        amount: peso(declarado),
-        status: "confirmed",
-        sources: ["client_declared:confirmed_carryforward"],
+        amount: peso(calculado),
+        status: "estimated",
+        sources: ["mirror:previous_period_next_carryforward"],
         calculationDescription:
-          "Remanente anterior confirmado por la empresa en la configuración tributaria opcional.",
-        inputValues: { remanente_declarado: declarado },
-        warnings: ["remanente_declarado_por_la_empresa"],
-        confidence: "medium",
+          "Remanente que dejó calculado el periodo anterior, usado mientras no exista F29 que lo informe.",
+        inputValues: { remanente_calculado_anterior: calculado },
+        warnings: ["remanente_encadenado_sin_f29"],
+        confidence: "low",
       };
     }
     return sinFuente("Sin F29 propio ni anterior que informe el remanente.", [
       "previous_period_f29",
     ]);
+
   },
 };
 
@@ -630,53 +680,60 @@ const PPM_RATE: VersionedTaxRule = {
   supportsEstimation: true,
   testCaseReferences: ["golden:*"],
   calculate: (ctx) => {
-    const propia = leerCodigo(ctx.official, CODIGO.tasaPpm);
-    if (propia != null) {
-      const base = leerCodigo(ctx.official, CODIGO.basePpm);
-      const ppm = leerCodigo(ctx.official, CODIGO.ppm);
+    const base = leerCodigo(ctx.official, CODIGO.basePpm);
+    const ppm = leerCodigo(ctx.official, CODIGO.ppm);
+    const propia = normalizarTasaPpm(leerCodigo(ctx.official, CODIGO.tasaPpm), {
+      base,
+      amount: ppm,
+    });
+    if (propia.rate != null) {
       const warnings: string[] = [];
-      if (base != null && ppm != null && base > 0) {
-        const esperado = base * propia;
-        if (Math.abs(esperado - ppm) > Math.max(1000, ppm * 0.05)) {
-          warnings.push("tasa_ppm_incoherente_con_base_y_monto");
-        }
+      if (propia.ambiguous) warnings.push("unidad_tasa_ppm_ambigua");
+      if (tasaPpmIncoherente(propia, { base, amount: ppm })) {
+        warnings.push("tasa_ppm_incoherente_con_base_y_monto");
       }
       return {
-        amount: propia,
+        amount: propia.rate,
         status: "official",
         sources: [`f29:${CODIGO.tasaPpm}`],
-        calculationDescription: "Tasa de PPM declarada en el F29 (código 115).",
-        inputValues: { codigo_115: propia, codigo_563: base, codigo_62: ppm },
+        calculationDescription:
+          "Tasa de PPM declarada en el F29 (código 115), expresada como fracción.",
+        inputValues: {
+          codigo_115: leerCodigo(ctx.official, CODIGO.tasaPpm),
+          unidad_detectada: propia.unit,
+          codigo_563: base,
+          codigo_62: ppm,
+        },
         warnings,
         confidence: warnings.length > 0 ? "low" : "high",
       };
     }
-    const declarada = ctx.optionalConfig?.ppmRate ?? null;
-    if (declarada != null) {
+    const declarada = normalizarTasaPpm(ctx.optionalConfig?.ppmRate ?? null, {
+      base,
+      amount: ppm,
+    });
+    if (declarada.rate != null) {
       return {
-        amount: declarada,
+        amount: declarada.rate,
         status: "confirmed",
         sources: ["client_declared:ppm_rate"],
         calculationDescription:
-          "Tasa de PPM vigente declarada por la empresa en la configuración tributaria opcional.",
-        inputValues: { tasa_declarada: declarada },
+          "Tasa de PPM vigente confirmada en la configuración tributaria de la empresa.",
+        inputValues: { tasa_declarada: declarada.rate, unidad_detectada: declarada.unit },
         warnings: ["tasa_ppm_declarada_por_la_empresa"],
         confidence: "medium",
       };
     }
-    const anterior = leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm);
-    if (anterior != null) {
+    const baseAnterior = leerCodigo(ctx.previousOfficial, CODIGO.basePpm);
+    const ppmAnterior = leerCodigo(ctx.previousOfficial, CODIGO.ppm);
+    const anterior = normalizarTasaPpm(
+      leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm),
+      { base: baseAnterior, amount: ppmAnterior },
+    );
+    if (anterior.rate != null) {
       // Una tasa incoherente en el F29 anterior no se propaga al periodo
       // siguiente: se marca como antecedente contradictorio y queda sin monto.
-      const baseAnterior = leerCodigo(ctx.previousOfficial, CODIGO.basePpm);
-      const ppmAnterior = leerCodigo(ctx.previousOfficial, CODIGO.ppm);
-      const incoherente =
-        baseAnterior != null &&
-        ppmAnterior != null &&
-        baseAnterior > 0 &&
-        Math.abs(baseAnterior * anterior - ppmAnterior) >
-          Math.max(1000, ppmAnterior * 0.05);
-      if (incoherente) {
+      if (tasaPpmIncoherente(anterior, { base: baseAnterior, amount: ppmAnterior })) {
         return {
           amount: null,
           status: "requires_confirmation",
@@ -684,7 +741,7 @@ const PPM_RATE: VersionedTaxRule = {
           calculationDescription:
             "La tasa del F29 anterior es incoherente con su base y su monto, por lo que no se arrastra a este periodo.",
           inputValues: {
-            tasa_anterior: anterior,
+            tasa_anterior: anterior.rate,
             codigo_563_anterior: baseAnterior,
             codigo_62_anterior: ppmAnterior,
           },
@@ -694,17 +751,21 @@ const PPM_RATE: VersionedTaxRule = {
         };
       }
       return {
-        amount: anterior,
+        amount: anterior.rate,
         status: "estimated",
         sources: [`previous_f29:${CODIGO.tasaPpm}`],
         calculationDescription:
           "Tasa del F29 anterior utilizada como referencia. No se asume vigencia indefinida.",
-        inputValues: { tasa_anterior: anterior, periodo_anterior: ctx.previousOfficial?.period ?? null },
+        inputValues: {
+          tasa_anterior: anterior.rate,
+          periodo_anterior: ctx.previousOfficial?.period ?? null,
+        },
         warnings: ["tasa_ppm_de_periodo_anterior"],
         confidence: "low",
       };
     }
     return sinFuente("Sin tasa de PPM conocida.", ["ppm_rate"]);
+
   },
 };
 
@@ -748,19 +809,31 @@ const WITHHOLDINGS: VersionedTaxRule = {
   concept: "withholdings",
   validFrom: "2020-01",
   validTo: null,
-  requiredInputs: ["f29:151"],
+  requiredInputs: ["f29:151 | f29:153 | f29:48 | f29:39 | f29:50"],
   optionalInputs: [],
   roundingRule: "round_to_peso",
   legalBasisReference: "LIR-art74",
   supportsEstimation: false,
   testCaseReferences: ["golden:*"],
   calculate: (ctx) => {
-    const oficialF29 = oficial(
-      ctx,
-      CODIGO.retenciones,
-      "Retenciones declaradas en el F29 (código 151).",
-    );
-    if (oficialF29) return oficialF29;
+    // El F29 reparte las retenciones en varios códigos: honorarios,
+    // trabajadores independientes, construcción y otras. Tomar solo el 151
+    // subdeclaraba el total.
+    const { total, detalle } = sumarRetencionesOficiales(ctx.official);
+    if (total != null) {
+      return {
+        amount: peso(total),
+        status: "official",
+        sources: Object.keys(detalle).map((c) => `f29:${c}`),
+        calculationDescription:
+          "Suma de las retenciones declaradas en el F29 (códigos 151, 153, 48, 39 y 50).",
+        inputValues: Object.fromEntries(
+          Object.entries(detalle).map(([c, v]) => [`codigo_${c}`, v]),
+        ),
+        confidence: "high",
+      };
+    }
+
     const declaradas = ctx.optionalConfig?.withholdingsEstimate ?? null;
     if (declaradas != null) {
       return {
@@ -932,7 +1005,6 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
     const faltantes: string[] = [];
     if (iva == null) faltantes.push("vat_determined");
     if (ppm == null) faltantes.push("ppm_amount");
-    if (retenciones == null) faltantes.push("withholdings");
     if (ctx.official == null && anticipo == null) faltantes.push("vat_advance_change_of_subject");
     if (faltantes.length > 0) {
       return {
@@ -950,7 +1022,13 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
     // 598, no hubo imputación de anticipo. Cubierto por la prueba
     // "anticipo ausente no resta".
     const anticipoImputado = anticipo ?? 0;
-    const total = (iva as number) - anticipoImputado + (ppm as number) + (retenciones as number);
+    // Las retenciones son un sumando: sin antecedente no hay nada que sumar y
+    // el faltante queda declarado como aviso, no como total desconocido.
+    const retencionesSumadas = retenciones ?? 0;
+    const avisos = retenciones == null ? ["retenciones_no_informadas"] : [];
+    const total =
+      (iva as number) - anticipoImputado + (ppm as number) + retencionesSumadas;
+
     const derivadoDeOficiales =
       estado(ctx, "vat_determined") === "official" && estado(ctx, "ppm_amount") === "official";
     return {
@@ -965,7 +1043,9 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
       calculationDescription:
         "IVA determinado menos el anticipo por cambio de sujeto imputado, más PPM y retenciones. Equivale al código 547 del F29.",
       inputValues: { iva, anticipo, ppm, retenciones },
+      warnings: avisos,
       confidence: derivadoDeOficiales ? "high" : "medium",
+
     };
   },
 };

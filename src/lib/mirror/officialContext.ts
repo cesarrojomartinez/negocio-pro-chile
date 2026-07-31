@@ -33,6 +33,11 @@ export const CODIGO = {
   tasaPpm: "115",
   ppm: "62",
   retenciones: "151",
+  retencionesHonorarios: "153",
+  retencionesTrabajadoresIndependientes: "48",
+  retencionesConstruccion: "39",
+  retencionesOtras: "50",
+
   anticipoDelMes: "556",
   anticipoRemanenteAnterior: "557",
   anticipoDisponible: "543",
@@ -108,6 +113,38 @@ export function leerCodigo(
   if (!ctx) return null;
   const v = ctx.codes[codigo];
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+/** Códigos del F29 que componen el total de retenciones del periodo. */
+export const CODIGOS_RETENCIONES = [
+  CODIGO.retenciones,
+  CODIGO.retencionesHonorarios,
+  CODIGO.retencionesTrabajadoresIndependientes,
+  CODIGO.retencionesConstruccion,
+  CODIGO.retencionesOtras,
+] as const;
+
+export interface RetencionesOficiales {
+  total: number | null;
+  detalle: Record<string, number>;
+}
+
+/**
+ * Suma todas las retenciones declaradas. Un código ausente no aporta; si no
+ * hay ninguno presente el total es `null`, nunca cero.
+ */
+export function sumarRetencionesOficiales(
+  ctx: HistoricalOfficialContext | null | undefined,
+): RetencionesOficiales {
+  const detalle: Record<string, number> = {};
+  let total: number | null = null;
+  for (const codigo of CODIGOS_RETENCIONES) {
+    const valor = leerCodigo(ctx, codigo);
+    if (valor == null) continue;
+    detalle[codigo] = valor;
+    total = (total ?? 0) + valor;
+  }
+  return { total, detalle };
 }
 
 /**
