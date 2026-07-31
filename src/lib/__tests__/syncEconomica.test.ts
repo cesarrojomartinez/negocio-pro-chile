@@ -23,7 +23,9 @@ const base = {
   ultimaSincronizacionRcv: null,
   tieneF29Vigente: false,
   periodoCerrado: false,
+  tieneDocumentosRcv: true,
 };
+
 
 describe("política de actualización periodo a periodo", () => {
   it("la primera vez siempre consulta", () => {
