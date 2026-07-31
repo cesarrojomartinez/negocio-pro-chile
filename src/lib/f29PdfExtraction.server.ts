@@ -422,6 +422,11 @@ export interface OpcionesExtraccionF29 {
   ahora?: Date;
   /** Portero del plan aprobado: sin recurso planificado no se descarga nada. */
   control?: ControlPlanEjecucion;
+  /**
+   * Identificador del plan en curso. Sin él no se puede pedir una ampliación:
+   * un folio nuevo detectado queda sin descargar en vez de saltarse el plan.
+   */
+  planId?: string | null;
 }
 
 export async function extraerF29Compacto(
