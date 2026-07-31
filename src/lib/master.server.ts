@@ -39,7 +39,7 @@ async function auditar(
   userId: string,
   accion: string,
   companyId: string | null,
-  metadata: Record<string, unknown> = {},
+  metadata: Record<string, string | number | boolean | null> = {},
 ) {
   await registrarActividad(companyId, userId, accion, "panel_master", metadata);
 }
@@ -1321,7 +1321,11 @@ export async function actualizarTicket(
   entrada: { ticketId: string; estado?: string | null; prioridad?: string | null },
 ) {
   await exigirAdmin(userId);
-  const cambios: Record<string, unknown> = {};
+  const cambios: {
+    status?: string;
+    resolved_at?: string | null;
+    priority?: string;
+  } = {};
   if (entrada.estado) {
     cambios.status = entrada.estado;
     cambios.resolved_at =
@@ -1339,6 +1343,9 @@ export async function actualizarTicket(
     .select("company_id")
     .maybeSingle();
   if (error) throw new ErrorNegocio("No pudimos actualizar el ticket.");
-  await auditar(userId, "admin.ticket_updated", data?.company_id ?? null, cambios);
+  await auditar(userId, "admin.ticket_updated", data?.company_id ?? null, {
+    estado: cambios.status ?? null,
+    prioridad: cambios.priority ?? null,
+  });
   return { ok: true as const };
 }
