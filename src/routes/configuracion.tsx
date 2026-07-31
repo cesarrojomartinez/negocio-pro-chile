@@ -181,9 +181,20 @@ function Configuracion() {
         {esCloud ? (
           <>
             <ModoActualizacionPanel companyId={empresaActiva?.id ?? null} />
+            <SectionCard
+              titulo="Recordatorio de actualización"
+              descripcion="Te avisamos cuando conviene traer tu información, sin consultar nada por tu cuenta."
+            >
+              <RecordatorioActualizacion
+                companyId={empresaActiva?.id ?? null}
+                ultimaSincronizacion={ultimaSincronizacion}
+              />
+            </SectionCard>
             <SiiConnectionPanel />
             <RealGatewayPanel />
+            <AutomatizacionAvanzadaPanel />
           </>
+
 
 
 
