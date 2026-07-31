@@ -279,22 +279,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="text-xs text-muted-foreground">Cargando…</span>
                 )}
               </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">
-                  Fuente del periodo:
-                </span>
-                {fuentePeriodo ? (
-                  <FuentePeriodoBadge fuente={fuentePeriodo} />
-                ) : (
-                  <span className="text-xs text-muted-foreground">Cargando…</span>
-                )}
-              </span>
               <span className="text-xs text-muted-foreground">
                 {fuentePeriodo === "accountant_confirmed"
                   ? "Antecedentes confirmados por tu contador."
-                  : estadoConexion === "stale"
-                    ? `Información desactualizada. Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`
-                    : `Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`}
+                  : `Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`}
               </span>
             </div>
           </header>
