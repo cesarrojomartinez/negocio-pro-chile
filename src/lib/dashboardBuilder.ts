@@ -213,6 +213,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     contexto,
     empresa: entrada.empresa,
     resumen,
+    resumenPreF29: resumenEstimado,
     conciliacionF29: conciliacion,
     meta,
     ventas,

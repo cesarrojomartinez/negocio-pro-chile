@@ -7,6 +7,7 @@ import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
 import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemanente";
+import { PrecisionEstimacion } from "@/components/dashboard/PrecisionEstimacion";
 
 import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 
@@ -110,6 +111,8 @@ function Impuestos() {
             />
 
             <AuditoriaMontos data={data} />
+
+            <PrecisionEstimacion companyId={companyId} />
 
 
             <SectionCard

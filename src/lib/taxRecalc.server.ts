@@ -7,6 +7,7 @@ import {
   resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+import { calcularDesviacionF29 } from "@/lib/f29Precision";
 
 import {
   conciliarRemanente,
@@ -447,9 +448,22 @@ export async function recalculateTaxPeriod(
   });
 
   const r = dashboard.resumen;
+  const estimacionPrevia = dashboard.resumenPreF29;
   const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
   const nivel = nivelDesdeEspanol(dashboard.confiabilidad);
+
+  /**
+   * Precisión: se conserva la estimación previa a la conciliación para poder
+   * medir después cuánto se desvió del F29 real. Sin F29 no hay medición.
+   */
+  const hayOficial = dashboard.conciliacionF29.hayOficial;
+  const desviacion = hayOficial
+    ? calcularDesviacionF29(
+        estimacionPrevia.totalTributarioEstimado,
+        r.totalTributarioEstimado,
+      )
+    : null;
 
   const { error } = await supabaseAdmin.from("tax_monthly_summaries").upsert(
     {
@@ -492,6 +506,13 @@ export async function recalculateTaxPeriod(
       estimated_withholdings: r.retencionesEstimadas,
       withholdings_source: r.fuenteRetenciones,
       estimated_tax_total: r.totalTributarioEstimado,
+      pre_f29_tax_total: hayOficial ? estimacionPrevia.totalTributarioEstimado : null,
+      pre_f29_vat_payable: hayOficial ? estimacionPrevia.ivaEstimado : null,
+      pre_f29_ppm: hayOficial ? estimacionPrevia.ppmEstimado : null,
+      pre_f29_withholdings: hayOficial ? estimacionPrevia.retencionesEstimadas : null,
+      f29_deviation_amount: desviacion?.diferencia ?? null,
+      f29_deviation_pct: desviacion?.porcentaje ?? null,
+      f29_deviation_measured_at: desviacion ? calculadoEn : null,
       preventive_margin_percent: r.margenPorcentaje,
       preventive_margin_amount: r.margenPreventivo,
       recommended_reserve: r.reservaRecomendada,
