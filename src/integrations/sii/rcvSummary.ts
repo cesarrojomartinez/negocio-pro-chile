@@ -164,3 +164,43 @@ export function sumarResumenes(resumenes: ProviderRcvSummary[]): ProviderRcvSumm
   };
 }
 
+
+/** Totales de las líneas que el SII solo informa como agregado mensual. */
+export interface TotalesAgregadosMensuales {
+  cantidadDocumentos: number;
+  neto: number;
+  iva: number;
+  exento: number;
+  total: number;
+}
+
+/**
+ * Suma las líneas del resumen que NO tienen detalle documento por documento
+ * (boletas electrónicas, boletas exentas y comprobantes de pago electrónico).
+ * Son cifras oficiales del SII: se usan para completar los totales del periodo
+ * sin inventar documentos individuales.
+ */
+export function totalesSoloResumenMensual(
+  resumen: ProviderRcvSummary | null | undefined,
+): TotalesAgregadosMensuales {
+  const vacio: TotalesAgregadosMensuales = {
+    cantidadDocumentos: 0,
+    neto: 0,
+    iva: 0,
+    exento: 0,
+    total: 0,
+  };
+  if (!resumen || !Array.isArray(resumen.lines)) return vacio;
+  return resumen.lines
+    .filter((l) => TIPOS_SOLO_RESUMEN_MENSUAL.has(l.documentTypeCode))
+    .reduce(
+      (acc, l) => ({
+        cantidadDocumentos: acc.cantidadDocumentos + l.documentCount,
+        neto: acc.neto + l.taxEffect * l.netAmount,
+        iva: acc.iva + l.taxEffect * l.vatAmount,
+        exento: acc.exento + l.taxEffect * l.exemptAmount,
+        total: acc.total + l.taxEffect * l.totalAmount,
+      }),
+      vacio,
+    );
+}
