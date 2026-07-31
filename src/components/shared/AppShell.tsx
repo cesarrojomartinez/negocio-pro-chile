@@ -45,7 +45,7 @@ import { cn } from "@/lib/utils";
 import { FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
-  { to: "/", label: "Inicio", icon: Home },
+  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Ventas", icon: Receipt },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/impuestos", label: "Impuestos", icon: Calculator },
@@ -55,7 +55,7 @@ const NAV = [
 ] as const;
 
 const NAV_MOVIL = [
-  { to: "/", label: "Inicio", icon: Home },
+  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Movimientos", icon: ArrowLeftRight },
   { to: "/documentos", label: "Documentos", icon: FileText },
   { to: "/metas", label: "Metas", icon: Target },
@@ -120,7 +120,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="mx-auto flex w-full max-w-[1400px]">
         {/* Barra lateral de escritorio */}
         <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-sidebar px-4 py-6 lg:flex">
-          <Link to="/" className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
+          <Link to="/demo" className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Calculator className="h-5 w-5" aria-hidden />
             </span>

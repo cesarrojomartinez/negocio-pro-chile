@@ -1342,6 +1342,78 @@ export type Database = {
           },
         ]
       }
+      tax_landing_content: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          note: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+          version: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          note?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
+      tax_landing_testimonials: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          industry: string
+          is_featured: boolean
+          is_visible: boolean
+          name: string
+          quote: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          industry: string
+          is_featured?: boolean
+          is_visible?: boolean
+          name: string
+          quote: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          industry?: string
+          is_featured?: boolean
+          is_visible?: boolean
+          name?: string
+          quote?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tax_mirror_calculation_runs: {
         Row: {
           calculated_at: string
@@ -2438,6 +2510,7 @@ export type Database = {
       tax_plans: {
         Row: {
           accountant_access: boolean
+          billing_period: string
           code: string
           created_at: string
           description: string | null
@@ -2445,17 +2518,21 @@ export type Database = {
           id: string
           initial_history_periods: number
           is_active: boolean
+          is_featured: boolean
+          is_public: boolean
           max_companies: number
           max_users: number
           monthly_updates_included: number
           name: string
           price_clp: number | null
+          public_features: string[]
           sort_order: number
           support_level: string
           updated_at: string
         }
         Insert: {
           accountant_access?: boolean
+          billing_period?: string
           code: string
           created_at?: string
           description?: string | null
@@ -2463,17 +2540,21 @@ export type Database = {
           id?: string
           initial_history_periods?: number
           is_active?: boolean
+          is_featured?: boolean
+          is_public?: boolean
           max_companies?: number
           max_users?: number
           monthly_updates_included?: number
           name: string
           price_clp?: number | null
+          public_features?: string[]
           sort_order?: number
           support_level?: string
           updated_at?: string
         }
         Update: {
           accountant_access?: boolean
+          billing_period?: string
           code?: string
           created_at?: string
           description?: string | null
@@ -2481,11 +2562,14 @@ export type Database = {
           id?: string
           initial_history_periods?: number
           is_active?: boolean
+          is_featured?: boolean
+          is_public?: boolean
           max_companies?: number
           max_users?: number
           monthly_updates_included?: number
           name?: string
           price_clp?: number | null
+          public_features?: string[]
           sort_order?: number
           support_level?: string
           updated_at?: string

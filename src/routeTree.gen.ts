@@ -16,14 +16,18 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as CuentaRouteImport } from './routes/cuenta'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PlanesRouteImport } from './routes/planes'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
+import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as VentasRouteImport } from './routes/ventas'
+import { Route as AdminLandingRouteImport } from './routes/admin_.landing'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -60,6 +64,11 @@ const CuentaRoute = CuentaRouteImport.update({
   path: '/cuenta',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentosRoute = DocumentosRouteImport.update({
   id: '/documentos',
   path: '/documentos',
@@ -85,9 +94,19 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlanesRoute = PlanesRouteImport.update({
+  id: '/planes',
+  path: '/planes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
   id: '/recuperar-clave',
   path: '/recuperar-clave',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistroRoute = RegistroRouteImport.update({
+  id: '/registro',
+  path: '/registro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SoporteRoute = SoporteRouteImport.update({
@@ -100,6 +119,11 @@ const VentasRoute = VentasRouteImport.update({
   path: '/ventas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLandingRoute = AdminLandingRouteImport.update({
+  id: '/admin_/landing',
+  path: '/admin/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -109,14 +133,18 @@ export interface FileRoutesByFullPath {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin/landing': typeof AdminLandingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -126,14 +154,18 @@ export interface FileRoutesByTo {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin/landing': typeof AdminLandingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,14 +176,18 @@ export interface FileRoutesById {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin_/landing': typeof AdminLandingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -163,14 +199,18 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin/landing'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -180,14 +220,18 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin/landing'
   id:
     | '__root__'
     | '/'
@@ -197,14 +241,18 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin_/landing'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -215,14 +263,18 @@ export interface RootRouteChildren {
   ComprasRoute: typeof ComprasRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
   CuentaRoute: typeof CuentaRoute
+  DemoRoute: typeof DemoRoute
   DocumentosRoute: typeof DocumentosRoute
   ImpuestosRoute: typeof ImpuestosRoute
   InvitacionRoute: typeof InvitacionRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
+  PlanesRoute: typeof PlanesRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
+  RegistroRoute: typeof RegistroRoute
   SoporteRoute: typeof SoporteRoute
   VentasRoute: typeof VentasRoute
+  AdminLandingRoute: typeof AdminLandingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -276,6 +328,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CuentaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/documentos': {
       id: '/documentos'
       path: '/documentos'
@@ -311,11 +370,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/planes': {
+      id: '/planes'
+      path: '/planes'
+      fullPath: '/planes'
+      preLoaderRoute: typeof PlanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recuperar-clave': {
       id: '/recuperar-clave'
       path: '/recuperar-clave'
       fullPath: '/recuperar-clave'
       preLoaderRoute: typeof RecuperarClaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registro': {
+      id: '/registro'
+      path: '/registro'
+      fullPath: '/registro'
+      preLoaderRoute: typeof RegistroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/soporte': {
@@ -332,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VentasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/landing': {
+      id: '/admin_/landing'
+      path: '/admin/landing'
+      fullPath: '/admin/landing'
+      preLoaderRoute: typeof AdminLandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -343,14 +423,18 @@ const rootRouteChildren: RootRouteChildren = {
   ComprasRoute: ComprasRoute,
   ConfiguracionRoute: ConfiguracionRoute,
   CuentaRoute: CuentaRoute,
+  DemoRoute: DemoRoute,
   DocumentosRoute: DocumentosRoute,
   ImpuestosRoute: ImpuestosRoute,
   InvitacionRoute: InvitacionRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
+  PlanesRoute: PlanesRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
+  RegistroRoute: RegistroRoute,
   SoporteRoute: SoporteRoute,
   VentasRoute: VentasRoute,
+  AdminLandingRoute: AdminLandingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

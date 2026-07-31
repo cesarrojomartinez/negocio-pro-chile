@@ -48,7 +48,7 @@ function ActualizarClave() {
       return;
     }
     toast.success("Contraseña actualizada");
-    void navigate({ to: "/" });
+    void navigate({ to: "/demo" });
   }
 
   return (
