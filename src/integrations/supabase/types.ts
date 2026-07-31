@@ -132,6 +132,47 @@ export type Database = {
           },
         ]
       }
+      tax_admin_notes: {
+        Row: {
+          author_id: string | null
+          body: string
+          company_id: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          company_id?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          company_id?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_admin_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_alerts: {
         Row: {
           action_label: string | null
@@ -197,6 +238,116 @@ export type Database = {
             columns: ["tax_period_id"]
             isOneToOne: false
             referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_announcement_events: {
+        Row: {
+          announcement_id: string
+          company_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          announcement_id: string
+          company_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          announcement_id?: string
+          company_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_announcement_events_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "tax_announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_announcement_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_announcements: {
+        Row: {
+          audience: string
+          audience_company_id: string | null
+          audience_plan_code: string | null
+          body: string
+          button_label: string | null
+          button_url: string | null
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          id: string
+          is_visible: boolean
+          kind: string
+          priority: string
+          published_at: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          audience_company_id?: string | null
+          audience_plan_code?: string | null
+          body: string
+          button_label?: string | null
+          button_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_visible?: boolean
+          kind?: string
+          priority?: string
+          published_at?: string | null
+          starts_at?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          audience_company_id?: string | null
+          audience_plan_code?: string | null
+          body?: string
+          button_label?: string | null
+          button_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          id?: string
+          is_visible?: boolean
+          kind?: string
+          priority?: string
+          published_at?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_announcements_audience_company_id_fkey"
+            columns: ["audience_company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
             referencedColumns: ["id"]
           },
         ]
@@ -1381,10 +1532,12 @@ export type Database = {
           id: string
           image_url: string | null
           industry: string
+          is_demo: boolean
           is_featured: boolean
           is_visible: boolean
           name: string
           quote: string
+          role_title: string | null
           sort_order: number
           updated_at: string
         }
@@ -1393,10 +1546,12 @@ export type Database = {
           id?: string
           image_url?: string | null
           industry: string
+          is_demo?: boolean
           is_featured?: boolean
           is_visible?: boolean
           name: string
           quote: string
+          role_title?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -1405,10 +1560,12 @@ export type Database = {
           id?: string
           image_url?: string | null
           industry?: string
+          is_demo?: boolean
           is_featured?: boolean
           is_visible?: boolean
           name?: string
           quote?: string
+          role_title?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -2528,6 +2685,7 @@ export type Database = {
           public_features: string[]
           sort_order: number
           support_level: string
+          trial_days: number
           updated_at: string
         }
         Insert: {
@@ -2550,6 +2708,7 @@ export type Database = {
           public_features?: string[]
           sort_order?: number
           support_level?: string
+          trial_days?: number
           updated_at?: string
         }
         Update: {
@@ -2572,6 +2731,7 @@ export type Database = {
           public_features?: string[]
           sort_order?: number
           support_level?: string
+          trial_days?: number
           updated_at?: string
         }
         Relationships: []
@@ -2821,6 +2981,8 @@ export type Database = {
           id: string
           message: string
           period: string | null
+          priority: string
+          resolved_at: string | null
           sanitized_code: string | null
           status: string
           sync_run_id: string | null
@@ -2835,6 +2997,8 @@ export type Database = {
           id?: string
           message: string
           period?: string | null
+          priority?: string
+          resolved_at?: string | null
           sanitized_code?: string | null
           status?: string
           sync_run_id?: string | null
@@ -2849,6 +3013,8 @@ export type Database = {
           id?: string
           message?: string
           period?: string | null
+          priority?: string
+          resolved_at?: string | null
           sanitized_code?: string | null
           status?: string
           sync_run_id?: string | null
