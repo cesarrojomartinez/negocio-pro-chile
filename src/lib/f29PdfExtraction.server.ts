@@ -765,7 +765,36 @@ export async function extraerF29Compacto(
         mensaje: MENSAJE_ERROR_F29.F29_PDF_DOWNLOAD_FAILED,
         recalculado: false,
       };
-    throw error;
+    // Cualquier otro fallo queda registrado con su detalle técnico para poder
+    // corregirlo sin volver a consultar al proveedor. Nunca interrumpe la
+    // actualización de ventas y compras.
+    const detalle =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    await registrarActividad(
+      entrada.companyId,
+      userId,
+      "sii.f29_pdf_extraction_failed",
+      "tax_f29_extractions",
+      {
+        periodo: entrada.periodo,
+        detalle: detalle.slice(0, 300),
+        consultas: registro.consultas,
+      },
+    ).catch(() => undefined);
+    return {
+      extraccion: anterior,
+      declaraciones: [],
+      seleccion: "ambiguous",
+      motivoSeleccion: "La lectura no pudo completarse.",
+      llamadas,
+      creditosConsumidos: Number(registro.creditosUsados.toFixed(4)),
+      creditosDisponibles: registro.creditosDisponibles,
+      errorCodigo: "F29_UNKNOWN_ERROR",
+      mensaje:
+        "No pudimos leer el Formulario 29 de este periodo. Tus ventas y compras sí quedaron actualizadas.",
+      recalculado: false,
+    };
+
   } finally {
     // La Clave Tributaria se descarta siempre, con éxito o con error.
     if (cuerpo) cuerpo.auth.pass.clave = "";
