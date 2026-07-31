@@ -197,7 +197,7 @@ describe("paridad entre resumen oficial y detalle documento por documento", () =
       agregadosVentasDeResumen(resumen, false),
     );
 
-    expect(soloResumen.ivaDebito).toBe(conDetalle.ivaDebito);
+    expect(soloResumen.ventasExentas).toBe(conDetalle.ventasExentas);
     expect(soloResumen.ventasTotales).toBe(conDetalle.ventasTotales);
     expect(soloResumen.ventasNetas).toBe(conDetalle.ventasNetas);
   });
