@@ -82,7 +82,17 @@ export interface EntradaDashboard {
 export function construirDashboard(entrada: EntradaDashboard): DashboardData {
   const { periodo } = entrada;
   const estado = periodo.estadoPeriodo ?? estadoDelPeriodo(periodo.periodo);
-  const data: PeriodoData = { ...periodo, estadoPeriodo: estado };
+  const tasaManual =
+    entrada.tasaPpmPersonalizada != null && entrada.tasaPpmPersonalizada >= 0
+      ? entrada.tasaPpmPersonalizada
+      : null;
+  const data: PeriodoData = {
+    ...periodo,
+    estadoPeriodo: estado,
+    ...(tasaManual != null
+      ? { tasaPpm: tasaManual, fuentePpm: "configured" as const }
+      : {}),
+  };
 
   const resumenEstimado = construirResumenMensual(data, {
     margenPorcentaje: entrada.margenPorcentaje,
