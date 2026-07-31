@@ -49,6 +49,11 @@ export interface EntradaPruebaReal {
   rutUsuario: string;
   /** Fuerza una sesión nueva (`auth_cache=0`) en la primera consulta RCV. */
   sesionNueva?: boolean;
+  /**
+   * Descarga además el detalle documento por documento del RCV (proveedores y
+   * listado de documentos). Consume más créditos que el modo económico.
+   */
+  incluirDetalle?: boolean;
   /** Clave Tributaria. Solo en memoria. */
   claveTributaria: string;
   consentimiento: boolean;
@@ -142,7 +147,7 @@ export async function ejecutarPruebaRealApiGateway(
     registro,
     // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
     // detalle documento por documento ni estados secundarios de compras.
-    soloResumen: true,
+    soloResumen: entrada.incluirDetalle !== true,
     estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,

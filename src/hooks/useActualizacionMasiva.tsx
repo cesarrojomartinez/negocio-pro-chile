@@ -37,6 +37,8 @@ interface SolicitudActualizacion {
   rutUsuario: string;
   claveTributaria: string;
   periodos: string[];
+  /** Descarga también el detalle documento por documento del RCV. */
+  incluirDetalle?: boolean;
 }
 
 interface ActualizacionMasivaState {
@@ -110,6 +112,7 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
               rutUsuario: solicitud.rutUsuario,
               claveTributaria: claveRef.current ?? "",
               sesionNueva,
+              incluirDetalle: solicitud.incluirDetalle === true,
             });
             sesionNueva = CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? "");
             const m = mensajeProveedor({

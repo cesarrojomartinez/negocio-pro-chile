@@ -159,6 +159,7 @@ export function RealGatewayPanel() {
   const [desde, setDesde] = useState(periodoId);
   const [hasta, setHasta] = useState("");
   const [acepta, setAcepta] = useState(false);
+  const [incluirDetalle, setIncluirDetalle] = useState(true);
   const [habilitando, setHabilitando] = useState(false);
 
   /** Registra la empresa activa en la lista de prueba controlada. */
@@ -280,6 +281,7 @@ export function RealGatewayPanel() {
       rutUsuario,
       claveTributaria: clave,
       periodos: listaFinal,
+      incluirDetalle,
     });
     // La clave se descarta del formulario apenas comienza el trabajo.
     setClave("");
@@ -458,6 +460,20 @@ export function RealGatewayPanel() {
             </p>
             <p>No guardes la clave en un computador o teléfono compartido.</p>
           </div>
+
+          <div className="mt-3 flex items-start gap-2">
+            <Checkbox
+              id="incluir-detalle"
+              checked={incluirDetalle}
+              onCheckedChange={(v) => setIncluirDetalle(v === true)}
+            />
+            <Label htmlFor="incluir-detalle" className="text-sm leading-snug">
+              Traer el detalle documento por documento (clientes, proveedores y
+              listado de documentos). Si lo desmarcas, solo se traen los totales
+              oficiales del periodo y se consumen menos créditos.
+            </Label>
+          </div>
+
 
           <div className="mt-3 flex items-start gap-2">
             <Checkbox
