@@ -36,17 +36,97 @@ function rangoPeriodos(desde: string, hasta: string): string[] {
   return lista;
 }
 
-/**
- * Meses de un año, sin pasarse del mes en curso. Sirve para los atajos
- * "Todo 2025" / "Todo 2026": un año completo cabe justo en un trabajo.
- */
-function mesesDelAnio(anio: number, mesEnCurso: string): string[] {
-  const meses = Array.from(
-    { length: 12 },
-    (_, i) => `${anio}-${String(i + 1).padStart(2, "0")}`,
-  );
-  return meses.filter((p) => p <= mesEnCurso);
+/** Nombres de meses para los selectores (índice 0 = enero). */
+const NOMBRES_MESES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+/** Años que se pueden elegir: desde 2023 hasta el año en curso. */
+function aniosDisponibles(anioEnCurso: number): number[] {
+  const lista: number[] = [];
+  for (let a = anioEnCurso; a >= 2023; a--) lista.push(a);
+  return lista;
 }
+
+/**
+ * Selector de periodo con dos listas: mes y año. Reemplaza al calendario del
+ * navegador, que costaba usar para elegir meses de años anteriores.
+ */
+function SelectorPeriodo({
+  id,
+  valor,
+  anios,
+  onChange,
+  permiteVacio,
+}: {
+  id: string;
+  valor: string;
+  anios: number[];
+  onChange: (periodo: string) => void;
+  permiteVacio?: boolean;
+}) {
+  const mes = valor ? valor.slice(5, 7) : "";
+  const anio = valor ? valor.slice(0, 4) : "";
+  const anioPorDefecto = String(anios[0] ?? new Date().getFullYear());
+
+  return (
+    <div className="flex gap-2">
+      <Select
+        value={mes}
+        onValueChange={(m) => onChange(`${anio || anioPorDefecto}-${m}`)}
+      >
+        <SelectTrigger id={id} className="flex-1">
+          <SelectValue placeholder="Mes" />
+        </SelectTrigger>
+        <SelectContent>
+          {NOMBRES_MESES.map((nombre, i) => (
+            <SelectItem key={nombre} value={String(i + 1).padStart(2, "0")}>
+              {nombre}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={anio}
+        onValueChange={(a) => (mes ? onChange(`${a}-${mes}`) : undefined)}
+      >
+        <SelectTrigger className="w-[6.5rem]">
+          <SelectValue placeholder="Año" />
+        </SelectTrigger>
+        <SelectContent>
+          {anios.map((a) => (
+            <SelectItem key={a} value={String(a)}>
+              {a}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {permiteVacio && valor && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Quitar mes final"
+          onClick={() => onChange("")}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 
 
 /**
