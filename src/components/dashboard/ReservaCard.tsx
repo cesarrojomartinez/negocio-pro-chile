@@ -47,6 +47,84 @@ export function ReservaCard({
   const aFavor =
     !incompleto && resumen.reservaRecomendada <= 0 && remanente > 0;
 
+  // Si el periodo ya tiene F29 presentado, lo relevante es cuánto se pagó,
+  // no cuánto conviene reservar (eso aplica al mes en curso, sin F29 aún).
+  const declarado = contexto?.declared_tax_total ?? null;
+  const yaDeclarado = declarado != null;
+  const declaradoPor = (clave: "vat" | "ppm" | "withholdings") =>
+    contexto?.diferencias.find((d) => d.clave === clave)?.declarado ?? null;
+
+  if (yaDeclarado) {
+    const pagado = declarado as number;
+    return (
+      <section
+        className={cn(
+          "card-surface border p-5 sm:p-6",
+          pagado > 0 ? ESTILOS.neutral : ESTILOS.verde,
+        )}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <PiggyBank className="h-5 w-5 text-primary" aria-hidden />
+            <h2 className="text-base font-semibold sm:text-lg">
+              {pagado > 0 ? "Impuesto pagado del mes" : "Este mes no pagaste impuestos"}
+            </h2>
+          </div>
+          <span className="rounded-full bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
+            Según el Formulario 29 del periodo
+          </span>
+        </div>
+
+        <p className="num-xl mt-4 break-words sm:text-[2.75rem]">
+          {formatCLP(pagado)}
+        </p>
+        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+          {pagado > 0
+            ? "Corresponde al total a pagar declarado en el Formulario 29 de este periodo."
+            : "El Formulario 29 de este periodo quedó en $0 a pagar."}
+        </p>
+
+        <div className="mt-4 rounded-2xl bg-card p-4">
+          {declaradoPor("vat") != null && (
+            <DataRow
+              label="IVA declarado"
+              value={formatCLP(declaradoPor("vat") as number)}
+            />
+          )}
+          {declaradoPor("ppm") != null && (
+            <DataRow
+              label="PPM declarado"
+              value={formatCLP(declaradoPor("ppm") as number)}
+            />
+          )}
+          {declaradoPor("withholdings") != null && (
+            <DataRow
+              label="Retenciones declaradas"
+              value={formatCLP(declaradoPor("withholdings") as number)}
+            />
+          )}
+          {remanente > 0 && (
+            <DataRow
+              label="Remanente de IVA a tu favor"
+              value={formatCLP(remanente)}
+              tone="success"
+            />
+          )}
+          <DataRow
+            label="Total pagado (F29)"
+            value={formatCLP(pagado)}
+            strong
+          />
+        </div>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          La reserva recomendada aplica al mes en curso, mientras aún no
+          presentas el Formulario 29. No reemplaza a tu contador.
+        </p>
+      </section>
+    );
+  }
+
   return (
     <section className={cn("card-surface border p-5 sm:p-6", ESTILOS[estado])}>
       <div className="flex flex-wrap items-start justify-between gap-3">
