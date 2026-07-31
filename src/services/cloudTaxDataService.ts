@@ -547,7 +547,9 @@ export const cloudTaxDataService: TaxDataService & {
         ? Promise.resolve({ valor: null, hayHistorial: false })
         : parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId),
     ]);
-    const periodRow = periodRowResult.data;
+    const filasPeriodo = periodRowResult.data ?? [];
+    const periodRow = filasPeriodo.find((f) => f.period === consulta.periodoId) ?? null;
+    const periodRowAnterior = filasPeriodo.find((f) => f.period === anteriorId) ?? null;
 
     const dias = diasDePeriodo(consulta.periodoId);
     const metaMensual =
