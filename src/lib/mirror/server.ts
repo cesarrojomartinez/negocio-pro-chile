@@ -10,6 +10,8 @@ import { compararMotores, type ComparacionMotores } from "./comparison";
 import { ejecutarMotorEspejo, montoDe } from "./engine";
 import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
+import { configuracionAporta, type ConfiguracionTributariaOpcional } from "./optionalConfig";
+import { configuracionOpcionalDePeriodo } from "./optionalConfig.server";
 import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
 import { auditarCeros } from "./zeroPolicy";
 import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
@@ -342,8 +344,10 @@ export interface EntradaUnificadaPeriodo {
     facts: NormalizedTaxFact[];
     official: HistoricalOfficialContext | null;
     previousOfficial: HistoricalOfficialContext | null;
+    optionalConfig: ConfiguracionTributariaOpcional | null;
   };
   official: HistoricalOfficialContext | null;
+  optionalConfig: ConfiguracionTributariaOpcional | null;
 }
 
 /**
@@ -378,10 +382,14 @@ export async function entradaUnificadaPeriodo(
     .limit(1)
     .maybeSingle<FilaF29 & { tax_periods: { period: string } }>();
 
+  const config = await configuracionOpcionalDePeriodo(companyId, period);
+  const optionalConfig = configuracionAporta(config) ? config : null;
+
   const official = contextoOficialDe(period, f29Row);
   return {
     taxPeriodId: periodoRow.id,
     official,
+    optionalConfig,
     unifiedInput: {
       period,
       facts: hechosDelPeriodo(period, periodoRow),
@@ -389,6 +397,7 @@ export async function entradaUnificadaPeriodo(
       previousOfficial: previoRow
         ? contextoOficialDe(previoRow.tax_periods.period, previoRow)
         : null,
+      optionalConfig,
     },
   };
 }

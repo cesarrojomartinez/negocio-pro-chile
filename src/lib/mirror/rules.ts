@@ -9,6 +9,7 @@
  * Módulo puro: sin red, sin reloj, sin base de datos.
  */
 import { resolverReglaDte } from "./dteTaxRules";
+import type { ConfiguracionTributariaOpcional } from "./optionalConfig";
 import { CODIGO, leerCodigo } from "./officialContext";
 import type {
   ComponentCalculation,
@@ -36,6 +37,8 @@ export interface MirrorEngineInput {
   /** F29 vigente anterior. */
   previousOfficial: HistoricalOfficialContext | null;
   vatAdvanceHistory?: MuestraAnticipoEspejo[];
+  /** Antecedentes declarados por la empresa. Opcionales: sin ellos nada cambia. */
+  optionalConfig?: ConfiguracionTributariaOpcional | null;
   /** Proporción confirmada de recuperación del IVA de uso común (0..1). */
   commonUseRecoveryRatio?: number | null;
   /** Factor de reajuste del remanente. Sin dato: `null` (nunca 1 silencioso). */
@@ -323,7 +326,8 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
     const noRec = noRecuperable ?? 0;
     const avisosBase = noRecuperable == null ? ["no_recuperable_no_informado"] : [];
     const usoComun = monto(ctx, "vat_common_use");
-    const ratio = ctx.commonUseRecoveryRatio ?? null;
+    const ratio =
+      ctx.commonUseRecoveryRatio ?? ctx.optionalConfig?.commonUseRecoveryRatio ?? null;
     const inputValues = {
       iva_total_compras: total,
       no_recuperable: noRecuperable,
@@ -394,6 +398,19 @@ const PREVIOUS_CARRYFORWARD: VersionedTaxRule = {
           "Remanente que dejó el F29 del periodo anterior (código 77), en valores nominales.",
         inputValues: { codigo_77_anterior: anterior },
         warnings: ["remanente_nominal_sin_reajuste"],
+        confidence: "medium",
+      };
+    }
+    const declarado = ctx.optionalConfig?.confirmedCarryforward ?? null;
+    if (declarado != null) {
+      return {
+        amount: peso(declarado),
+        status: "confirmed",
+        sources: ["client_declared:confirmed_carryforward"],
+        calculationDescription:
+          "Remanente anterior confirmado por la empresa en la configuración tributaria opcional.",
+        inputValues: { remanente_declarado: declarado },
+        warnings: ["remanente_declarado_por_la_empresa"],
         confidence: "medium",
       };
     }
@@ -634,6 +651,19 @@ const PPM_RATE: VersionedTaxRule = {
         confidence: warnings.length > 0 ? "low" : "high",
       };
     }
+    const declarada = ctx.optionalConfig?.ppmRate ?? null;
+    if (declarada != null) {
+      return {
+        amount: declarada,
+        status: "confirmed",
+        sources: ["client_declared:ppm_rate"],
+        calculationDescription:
+          "Tasa de PPM vigente declarada por la empresa en la configuración tributaria opcional.",
+        inputValues: { tasa_declarada: declarada },
+        warnings: ["tasa_ppm_declarada_por_la_empresa"],
+        confidence: "medium",
+      };
+    }
     const anterior = leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm);
     if (anterior != null) {
       // Una tasa incoherente en el F29 anterior no se propaga al periodo
@@ -731,6 +761,19 @@ const WITHHOLDINGS: VersionedTaxRule = {
       "Retenciones declaradas en el F29 (código 151).",
     );
     if (oficialF29) return oficialF29;
+    const declaradas = ctx.optionalConfig?.withholdingsEstimate ?? null;
+    if (declaradas != null) {
+      return {
+        amount: peso(declaradas),
+        status: "estimated",
+        sources: ["client_declared:withholdings_estimate"],
+        calculationDescription:
+          "Retenciones habituales declaradas por la empresa mientras no exista F29 del periodo.",
+        inputValues: { retenciones_declaradas: declaradas },
+        warnings: ["retenciones_declaradas_por_la_empresa"],
+        confidence: "medium",
+      };
+    }
     return sinFuente(
       "Las retenciones no se deducen del RCV: requieren antecedente propio.",
       ["withholdings_source"],
@@ -799,6 +842,17 @@ const VAT_ADVANCE_CHANGE_OF_SUBJECT: VersionedTaxRule = {
       };
     }
 
+    if (ctx.optionalConfig?.vatAdvanceRegime === false) {
+      return {
+        amount: null,
+        status: "not_applicable",
+        sources: ["client_declared:vat_advance_regime"],
+        calculationDescription:
+          "La empresa declaró que no está afecta a cambio de sujeto ni anticipo de IVA.",
+        inputValues: {},
+        confidence: "medium",
+      };
+    }
     const historial = (ctx.vatAdvanceHistory ?? []).filter((m) => m.period < ctx.period);
     if (historial.length === 0) {
       return {

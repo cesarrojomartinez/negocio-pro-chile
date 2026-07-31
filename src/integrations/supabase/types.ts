@@ -1459,6 +1459,68 @@ export type Database = {
           },
         ]
       }
+      tax_optional_tax_settings: {
+        Row: {
+          company_id: string
+          concept: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          status: string
+          unit: string
+          updated_at: string
+          valid_from: string
+          valid_to: string | null
+          value: number | null
+          value_text: string | null
+        }
+        Insert: {
+          company_id: string
+          concept: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          unit?: string
+          updated_at?: string
+          valid_from: string
+          valid_to?: string | null
+          value?: number | null
+          value_text?: string | null
+        }
+        Update: {
+          company_id?: string
+          concept?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          unit?: string
+          updated_at?: string
+          valid_from?: string
+          valid_to?: string | null
+          value?: number | null
+          value_text?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_optional_tax_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_parity_results: {
         Row: {
           blocking: boolean
