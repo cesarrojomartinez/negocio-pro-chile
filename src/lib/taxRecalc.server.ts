@@ -488,7 +488,7 @@ export async function recalculateTaxPeriod(
    */
   const legacyProductive = resumenLegadoAProductivo(dashboard.resumen, {
     declaredTaxTotal: dashboard.contexto.declared_tax_total ?? null,
-    periodState: dashboard.resumen.periodo ? estadoDelPeriodo(entrada.periodo) : "open",
+    periodState: estadoDelPeriodo(entrada.periodo),
   });
   const calculo = await calcularPeriodoProductivo({
     companyId: entrada.companyId,
