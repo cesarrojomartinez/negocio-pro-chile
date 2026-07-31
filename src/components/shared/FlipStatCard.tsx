@@ -16,6 +16,8 @@ interface FlipStatCardProps {
   interpretarComoPositivo?: boolean;
   icono?: ReactNode;
   destacado?: boolean;
+  ariaLabelFrente?: string;
+  ariaLabelReverso?: string;
 }
 
 export function FlipStatCard({
