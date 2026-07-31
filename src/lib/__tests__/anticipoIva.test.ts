@@ -129,8 +129,12 @@ describe("tasaPpmEfectivaF29 — lección de junio 2026", () => {
     expect(r).toEqual({ tasa: 0.03, derivada: false });
   });
 
-  it("no inventa tasa sin base declarada", () => {
-    expect(tasaPpmEfectivaF29({ "115": 0.1, "62": 15288 }, 0.1).tasa).toBeNull();
+  it("no deduce nada cuando el formulario no trae base imponible", () => {
+    // Sin base no hay contra qué validar: se conserva la tasa leída, sin deducir.
+    expect(tasaPpmEfectivaF29({ "115": 0.1, "62": 15288 }, 0.1)).toEqual({
+      tasa: 0.1,
+      derivada: false,
+    });
   });
 
   it("el antecedente entrega la tasa deducida para heredarla al mes siguiente", () => {
