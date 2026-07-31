@@ -433,6 +433,78 @@ export type Database = {
           },
         ]
       }
+      tax_component_calculations: {
+        Row: {
+          amount: number | null
+          calculation_description: string
+          company_id: string
+          concept: string
+          confidence: string
+          created_at: string
+          id: string
+          input_values: Json
+          missing_inputs: string[]
+          period: string
+          rule_id: string
+          rule_version: string
+          run_id: string
+          sources: string[]
+          status: string
+          warnings: string[]
+        }
+        Insert: {
+          amount?: number | null
+          calculation_description: string
+          company_id: string
+          concept: string
+          confidence: string
+          created_at?: string
+          id?: string
+          input_values?: Json
+          missing_inputs?: string[]
+          period: string
+          rule_id: string
+          rule_version: string
+          run_id: string
+          sources?: string[]
+          status: string
+          warnings?: string[]
+        }
+        Update: {
+          amount?: number | null
+          calculation_description?: string
+          company_id?: string
+          concept?: string
+          confidence?: string
+          created_at?: string
+          id?: string
+          input_values?: Json
+          missing_inputs?: string[]
+          period?: string
+          rule_id?: string
+          rule_version?: string
+          run_id?: string
+          sources?: string[]
+          status?: string
+          warnings?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_component_calculations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_component_calculations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "tax_mirror_calculation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_document_files: {
         Row: {
           byte_size: number | null
@@ -603,6 +675,82 @@ export type Database = {
           },
           {
             foreignKeyName: "tax_documents_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_engine_comparisons: {
+        Row: {
+          company_id: string
+          comparison_status: string
+          component_differences: Json
+          created_at: string
+          current_engine_total: number | null
+          current_vs_official_difference: number | null
+          explained_difference: number | null
+          id: string
+          mirror_engine_total: number | null
+          mirror_vs_official_difference: number | null
+          official_total: number | null
+          period: string
+          run_id: string | null
+          tax_period_id: string | null
+          unexplained_difference: number | null
+        }
+        Insert: {
+          company_id: string
+          comparison_status: string
+          component_differences?: Json
+          created_at?: string
+          current_engine_total?: number | null
+          current_vs_official_difference?: number | null
+          explained_difference?: number | null
+          id?: string
+          mirror_engine_total?: number | null
+          mirror_vs_official_difference?: number | null
+          official_total?: number | null
+          period: string
+          run_id?: string | null
+          tax_period_id?: string | null
+          unexplained_difference?: number | null
+        }
+        Update: {
+          company_id?: string
+          comparison_status?: string
+          component_differences?: Json
+          created_at?: string
+          current_engine_total?: number | null
+          current_vs_official_difference?: number | null
+          explained_difference?: number | null
+          id?: string
+          mirror_engine_total?: number | null
+          mirror_vs_official_difference?: number | null
+          official_total?: number | null
+          period?: string
+          run_id?: string | null
+          tax_period_id?: string | null
+          unexplained_difference?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_engine_comparisons_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_engine_comparisons_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "tax_mirror_calculation_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_engine_comparisons_tax_period_id_fkey"
             columns: ["tax_period_id"]
             isOneToOne: false
             referencedRelation: "tax_periods"
@@ -786,6 +934,78 @@ export type Database = {
           },
           {
             foreignKeyName: "tax_f29_history_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_mirror_calculation_runs: {
+        Row: {
+          calculated_at: string
+          company_id: string
+          completeness: string
+          confirmed_paid_total: number | null
+          created_at: string
+          engine_version: string
+          id: string
+          input_hash: string
+          missing_inputs: string[]
+          mode: string
+          normalization_version: string
+          official_declared_total: number | null
+          period: string
+          rules_version: string
+          tax_period_id: string | null
+          total_before_surcharges: number | null
+        }
+        Insert: {
+          calculated_at?: string
+          company_id: string
+          completeness: string
+          confirmed_paid_total?: number | null
+          created_at?: string
+          engine_version: string
+          id?: string
+          input_hash: string
+          missing_inputs?: string[]
+          mode?: string
+          normalization_version: string
+          official_declared_total?: number | null
+          period: string
+          rules_version: string
+          tax_period_id?: string | null
+          total_before_surcharges?: number | null
+        }
+        Update: {
+          calculated_at?: string
+          company_id?: string
+          completeness?: string
+          confirmed_paid_total?: number | null
+          created_at?: string
+          engine_version?: string
+          id?: string
+          input_hash?: string
+          missing_inputs?: string[]
+          mode?: string
+          normalization_version?: string
+          official_declared_total?: number | null
+          period?: string
+          rules_version?: string
+          tax_period_id?: string | null
+          total_before_surcharges?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_mirror_calculation_runs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_mirror_calculation_runs_tax_period_id_fkey"
             columns: ["tax_period_id"]
             isOneToOne: false
             referencedRelation: "tax_periods"
@@ -996,6 +1216,93 @@ export type Database = {
           },
           {
             foreignKeyName: "tax_monthly_summaries_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_normalized_facts: {
+        Row: {
+          company_id: string
+          created_at: string
+          document_count: number | null
+          document_type_code: number | null
+          exempt_amount: number | null
+          id: string
+          ledger: string
+          net_amount: number | null
+          normalization_version: string
+          observed_at: string
+          period: string
+          raw_hash: string
+          scope: string
+          source: string
+          source_reference: string | null
+          tax_effect: number | null
+          tax_period_id: string | null
+          total_amount: number | null
+          vat_amount: number | null
+          vat_common_use: number | null
+          vat_non_recoverable: number | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          document_count?: number | null
+          document_type_code?: number | null
+          exempt_amount?: number | null
+          id?: string
+          ledger: string
+          net_amount?: number | null
+          normalization_version: string
+          observed_at?: string
+          period: string
+          raw_hash: string
+          scope: string
+          source: string
+          source_reference?: string | null
+          tax_effect?: number | null
+          tax_period_id?: string | null
+          total_amount?: number | null
+          vat_amount?: number | null
+          vat_common_use?: number | null
+          vat_non_recoverable?: number | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          document_count?: number | null
+          document_type_code?: number | null
+          exempt_amount?: number | null
+          id?: string
+          ledger?: string
+          net_amount?: number | null
+          normalization_version?: string
+          observed_at?: string
+          period?: string
+          raw_hash?: string
+          scope?: string
+          source?: string
+          source_reference?: string | null
+          tax_effect?: number | null
+          tax_period_id?: string | null
+          total_amount?: number | null
+          vat_amount?: number | null
+          vat_common_use?: number | null
+          vat_non_recoverable?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_normalized_facts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_normalized_facts_tax_period_id_fkey"
             columns: ["tax_period_id"]
             isOneToOne: false
             referencedRelation: "tax_periods"
