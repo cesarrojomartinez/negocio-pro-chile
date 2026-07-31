@@ -22,7 +22,15 @@ import type { DocumentoTributario, PeriodoData } from "@/types/tax";
 import {
   agregadosComprasDeResumen,
   agregadosVentasDeResumen,
+  ivaRetenidoPorCompradorEnVentas,
 } from "@/integrations/sii/rcvSummary";
+import {
+  ANTICIPO_SIN_DATOS,
+  estimarAnticipoIva,
+  leerAnticipoF29,
+  type MuestraAnticipo,
+} from "@/lib/anticipoIva";
+
 
 import type { Empresa } from "@/types/company";
 
