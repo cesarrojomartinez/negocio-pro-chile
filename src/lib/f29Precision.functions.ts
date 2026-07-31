@@ -18,3 +18,16 @@ export const obtenerPrecisionEstimacionFn = createServerFn({ method: "POST" })
       return obtenerPrecisionEstimacion(context.userId, data);
     }),
   );
+
+/** Rehace el cálculo de todos los periodos con la versión vigente del motor. */
+export const recalcularHistorialFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ companyId: z.string().uuid(), meses: z.number().int().min(1).max(36).optional() }).parse(data),
+  )
+  .handler(async ({ data, context }) =>
+    envolver(async () => {
+      const { recalculateCompanyHistory } = await import("@/lib/taxRecalc.server");
+      return recalculateCompanyHistory(context.userId, data);
+    }),
+  );
