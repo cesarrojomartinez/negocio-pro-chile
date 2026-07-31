@@ -50,6 +50,8 @@ function Impuestos() {
     data,
     cargando,
     margenPorcentaje,
+    tasaPpmPersonalizada,
+    setTasaPpmPersonalizada,
     setMargenPorcentaje,
     modo,
     companyId,
@@ -101,6 +103,8 @@ function Impuestos() {
               resumen={data.resumen}
               margenPorcentaje={margenPorcentaje}
               onCambiarMargen={setMargenPorcentaje}
+              tasaPpmPersonalizada={tasaPpmPersonalizada}
+              onCambiarTasaPpm={setTasaPpmPersonalizada}
               fuentePeriodo={data.fuentePeriodo}
               conciliacion={data.conciliacionF29}
             />

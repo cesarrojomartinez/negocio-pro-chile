@@ -67,6 +67,11 @@ export interface EntradaDashboard {
   sincronizacionReal?: boolean;
   /** Marca de tiempo del cálculo, si el llamador la controla. */
   calculadoEn?: string | null;
+  /**
+   * Tasa de PPM elegida por la persona (fracción, por ejemplo 0.008 para 0,8%).
+   * Reemplaza a la tasa estimada solo para el cálculo mostrado en pantalla.
+   */
+  tasaPpmPersonalizada?: number | null;
 }
 
 /**
@@ -77,7 +82,17 @@ export interface EntradaDashboard {
 export function construirDashboard(entrada: EntradaDashboard): DashboardData {
   const { periodo } = entrada;
   const estado = periodo.estadoPeriodo ?? estadoDelPeriodo(periodo.periodo);
-  const data: PeriodoData = { ...periodo, estadoPeriodo: estado };
+  const tasaManual =
+    entrada.tasaPpmPersonalizada != null && entrada.tasaPpmPersonalizada >= 0
+      ? entrada.tasaPpmPersonalizada
+      : null;
+  const data: PeriodoData = {
+    ...periodo,
+    estadoPeriodo: estado,
+    ...(tasaManual != null
+      ? { tasaPpm: tasaManual, fuentePpm: "configured" as const }
+      : {}),
+  };
 
   const resumenEstimado = construirResumenMensual(data, {
     margenPorcentaje: entrada.margenPorcentaje,
