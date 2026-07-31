@@ -57,6 +57,26 @@ export function RealGatewayPanel() {
   const [desde, setDesde] = useState(periodoId);
   const [hasta, setHasta] = useState("");
   const [acepta, setAcepta] = useState(false);
+  const [habilitando, setHabilitando] = useState(false);
+
+  /** Registra la empresa activa en la lista de prueba controlada. */
+  const habilitarEmpresa = async () => {
+    if (!empresaActiva?.id) return;
+    setHabilitando(true);
+    try {
+      await apiGatewayService.habilitarEmpresa(empresaActiva.id, true);
+      const actualizado = await apiGatewayService.diagnosticar(empresaActiva.id);
+      setDiagnostico(actualizado);
+      toast.success("Empresa habilitada para la actualización real.");
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "No pudimos habilitar esta empresa.",
+      );
+    } finally {
+      setHabilitando(false);
+    }
+  };
+
 
   const esDueno = empresaActiva?.rol === "owner";
 
