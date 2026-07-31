@@ -83,7 +83,7 @@ async function exigirPruebaRealPermitida(userId: string, companyId: string) {
     throw new ErrorNegocio(
       "La prueba con el proveedor real no está habilitada en este ambiente.",
     );
-  if (!(await empresaHabilitadaParaPruebaReal(companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(companyId)))
     throw new ErrorNegocio(
       "Esta empresa no está autorizada para la prueba con el proveedor real.",
     );

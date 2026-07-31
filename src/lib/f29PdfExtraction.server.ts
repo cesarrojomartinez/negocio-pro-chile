@@ -359,7 +359,7 @@ export async function extraerF29Compacto(
   await exigirRol(userId, entrada.companyId, ["owner", "accountant"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La consulta real con el proveedor no está habilitada.");
-  if (!(await empresaHabilitadaParaPruebaReal(entrada.companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(entrada.companyId)))
     throw new ErrorNegocio("Esta empresa no está autorizada para consultas reales.");
   if (!entrada.consentimiento)
     throw new ErrorNegocio("Necesitamos tu autorización expresa para continuar.");

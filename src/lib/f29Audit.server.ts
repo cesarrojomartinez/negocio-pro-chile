@@ -133,7 +133,7 @@ async function exigirAuditoriaPermitida(userId: string, companyId: string) {
   await exigirRol(userId, companyId, ["owner"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La prueba con el proveedor real no está habilitada en este ambiente.");
-  if (!(await empresaHabilitadaParaPruebaReal(companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(companyId)))
     throw new ErrorNegocio("Esta empresa no está autorizada para la prueba con el proveedor real.");
   const { config } = leerConfiguracion();
   if (!config)

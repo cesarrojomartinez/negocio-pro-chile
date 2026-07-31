@@ -143,7 +143,7 @@ async function exigirDueñoAutorizado(userId: string, companyId: string) {
   await exigirRol(userId, companyId, ["owner"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La consulta real con el proveedor no está habilitada.");
-  if (!(await empresaHabilitadaParaPruebaReal(companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(companyId)))
     throw new ErrorNegocio("Esta empresa no está autorizada para consultas reales.");
 }
 
