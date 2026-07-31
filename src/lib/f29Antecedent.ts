@@ -96,6 +96,41 @@ export function evaluarCoherenciaPpmF29(codigos: Record<string, number>): {
   return { ppmCoherente: true, motivo: null };
 }
 
+/** Tasa máxima de PPM que puede considerarse posible en un F29 real. */
+const TASA_PPM_MAXIMA = 0.5;
+
+/**
+ * Tasa de PPM realmente aplicada en el formulario.
+ *
+ * Junio 2026 dejó la lección: el código 115 se leyó como `0,1` (interpretado
+ * como 10 %) mientras el propio formulario declaraba una base de 15.288.385 y
+ * un PPM de 15.288, es decir 0,1 %. Antes se descartaba la tasa completa y el
+ * motor seguía arrastrando el 2 % del mes anterior, sobreestimando el PPM en
+ * casi $290.000. Ahora, cuando la tasa leída no cuadra, la tasa se DEDUCE del
+ * propio formulario (código 62 ÷ código 563), que es un hecho declarado y no
+ * una interpretación de unidades.
+ */
+export function tasaPpmEfectivaF29(
+  codigos: Record<string, number>,
+  tasaLeida: number | null,
+): { tasa: number | null; derivada: boolean } {
+  const { ppmCoherente } = evaluarCoherenciaPpmF29(codigos);
+  if (ppmCoherente && tasaLeida != null && tasaLeida > 0)
+    return { tasa: tasaLeida, derivada: false };
+
+  const base = codigos["563"];
+  const ppm = codigos["62"];
+  if (base == null || ppm == null || base <= 0 || ppm < 0)
+    return { tasa: ppmCoherente ? tasaLeida : null, derivada: false };
+
+  const implicita = ppm / base;
+  if (!Number.isFinite(implicita) || implicita < 0 || implicita > TASA_PPM_MAXIMA)
+    return { tasa: null, derivada: false };
+
+  // Las tasas de PPM se expresan con un decimal porcentual (0,1 % · 2,5 %).
+  const redondeada = Math.round(implicita * 1000) / 1000;
+  return { tasa: redondeada > 0 ? redondeada : implicita, derivada: true };
+}
 
 
 
