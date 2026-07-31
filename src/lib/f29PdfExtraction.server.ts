@@ -26,7 +26,10 @@ import {
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
+import { obtenerListadoF29Anual } from "@/lib/f29Listing.server";
+import { HORAS_ESPERA_FALLO_DESCARGA_F29 } from "@/lib/syncEconomica";
 import { F29_PARSER_VERSION } from "@/lib/f29Codes";
+
 import {
   construirCamposNormalizados,
   detectarFolio,
