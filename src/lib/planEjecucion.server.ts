@@ -470,10 +470,16 @@ export async function solicitarAmpliacionF29(
     folioYaDescargado: entrada.folioYaDescargado,
     ampliacionPrevia: !!previa,
     descargasDelFolio: entrada.control.consumoDeRecurso(propuesta.recursoId),
-    llamadasRealizadas: entrada.control.llamadasRealizadas(),
+    llamadasRealizadas: entrada.control.llamadasReales,
     maximoLlamadasPorEjecucion: MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
     presupuestoBloqueado: presupuesto.estado === "bloqueado",
-    creditoDisponible: presupuesto.creditosRestantes ?? null,
+    creditoDisponible:
+      preferencias.monthlyCreditBudget != null && preferencias.monthlyCreditBudget > 0
+        ? Math.max(
+            0,
+            preferencias.monthlyCreditBudget - preferencias.creditsUsedCurrentMonth,
+          )
+        : null,
   });
 
   const aprobada = evaluacion.aprobada;
