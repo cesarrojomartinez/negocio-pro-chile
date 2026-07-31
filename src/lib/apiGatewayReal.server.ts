@@ -21,6 +21,8 @@ import {
 import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
+import { NORMAL_SYNC_PURCHASE_STATES } from "@/lib/syncEconomica";
+
 
 import {
   empresaHabilitadaParaPruebaReal,
