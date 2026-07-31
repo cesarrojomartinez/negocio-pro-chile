@@ -108,6 +108,7 @@ export interface OpcionesInternas {
  */
 async function decisionPorPeriodo(
   companyId: string,
+  periodId: string,
   periodo: string,
   ahora: Date,
 ): Promise<DecisionPeriodo> {
@@ -116,11 +117,13 @@ async function decisionPorPeriodo(
       .from("tax_sync_runs")
       .select("completed_at")
       .eq("company_id", companyId)
+      .eq("tax_period_id", periodId)
       .eq("status", "success")
       .not("completed_at", "is", null)
       .order("completed_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+
     supabaseAdmin
       .from("tax_f29_extractions")
       .select("extraction_status")
