@@ -77,8 +77,7 @@ export function interpretarAntecedenteF29(
     fila.declared_withholdings,
     fila.declared_total,
     fila.vat_carryforward,
-    fila.previous_vat_carryforward,
-    fila.new_vat_carryforward,
+    bruto.new_carryforward,
   ].some((valor) => numero(valor) != null) || Object.keys(codigos).length > 0;
   const confirmado =
     fila.declaration_status === "filed" &&
