@@ -29,7 +29,12 @@ import {
   type SiiProviderAdapter,
   type SiiProviderId,
 } from "@/integrations/sii/contracts";
-import { RESUMEN_VACIO, sumarResumenes } from "@/integrations/sii/rcvSummary";
+import {
+  documentosConDetalleEsperados,
+  documentosSoloResumenMensual,
+  RESUMEN_VACIO,
+  sumarResumenes,
+} from "@/integrations/sii/rcvSummary";
 
 import { mockSiiProviderAdapter } from "@/integrations/sii/mockSiiProviderAdapter";
 import {
