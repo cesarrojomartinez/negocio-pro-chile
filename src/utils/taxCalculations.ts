@@ -976,10 +976,11 @@ export function construirResumenMensual(
 
   const retenciones = Math.max(0, redondear(data.retencionesEstimadas));
   const totalTributarioEstimado = calculateTaxEstimate({
-    estimatedVatPayable: posicion.estimatedVatPayable,
+    estimatedVatPayable: anticipo.ivaPorPagar,
     estimatedPpm: ppm.estimatedPpm,
     estimatedWithholdings: retenciones,
   });
+
   const reserva = calculatePreventiveReserve({
     estimatedTaxTotal: totalTributarioEstimado,
     preventiveMarginPercent: opciones.margenPorcentaje,
