@@ -1008,13 +1008,21 @@ export function construirResumenMensual(
     ivaCreditoPotencial: compras.ivaCreditoPotencial,
     remanenteAnterior: Math.max(0, redondear(data.remanenteAnterior)),
     fuenteRemanente,
-    ivaEstimado: posicion.estimatedVatPayable,
+    ivaEstimado: anticipo.ivaPorPagar,
     nuevoRemanente: posicion.estimatedNewCarryforward,
-    ivaEstimadoConPendientes: calculateVatPosition({
-      vatDebit: debito.vatDebit,
-      vatCreditUsable: compras.ivaCredito + compras.ivaCreditoPotencial,
-      previousCarryforward: data.remanenteAnterior,
-    }).estimatedVatPayable,
+    ivaRetenidoPorComprador,
+    anticipoIvaDisponible: anticipo.disponible,
+    anticipoIvaAplicado: anticipo.aplicado,
+    anticipoIvaRemanente: anticipo.remanenteSiguiente,
+    ivaEstimadoConPendientes: Math.max(
+      0,
+      calculateVatPosition({
+        vatDebit: debito.vatDebit,
+        vatCreditUsable: compras.ivaCredito + compras.ivaCreditoPotencial,
+        previousCarryforward: data.remanenteAnterior,
+      }).estimatedVatPayable - anticipo.disponible,
+    ),
+
     ppmEstimado: ppm.estimatedPpm,
     basePpm: ppm.ppmTaxBase,
     tasaPpm: ppm.ppmRate,
