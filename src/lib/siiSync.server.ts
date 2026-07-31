@@ -734,7 +734,11 @@ export async function syncSiiCompanyPeriod(
   }
 
 
+  // Antes de abrir una nueva ejecución, cerramos las que quedaron colgadas.
+  await cerrarEjecucionesColgadas(entrada.companyId, periodoRow.id, ahora);
+
   const inicio = Date.now();
+
   const { data: run, error: errorRun } = await supabaseAdmin
     .from("tax_sync_runs")
     .insert({
