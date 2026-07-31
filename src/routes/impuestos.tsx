@@ -99,25 +99,13 @@ function Impuestos() {
           </>
         ) : (
           <>
-            <div
-              className={cn(
-                "flex items-start gap-3 rounded-2xl border p-4",
-                CONFIABILIDAD[data.confiabilidad].clase,
-              )}
-            >
+            <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success-soft p-4 text-success">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
               <div>
-                <p className="font-semibold">
-                  {CONFIABILIDAD[data.confiabilidad].titulo}
+                <p className="font-semibold">Información orientativa</p>
+                <p className="text-sm">
+                  Ante cualquier duda, consulta a tu contador.
                 </p>
-                <p className="text-sm">{CONFIABILIDAD[data.confiabilidad].texto}</p>
-                {data.razonesConfiabilidad.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
-                    {data.razonesConfiabilidad.map((razon) => (
-                      <li key={razon}>{razon}</li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
 
