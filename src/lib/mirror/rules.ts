@@ -334,34 +334,16 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
   supportsEstimation: true,
   testCaseReferences: ["golden:*", "mirror:credito"],
   calculate: (ctx) => {
-    // El código 537 es el crédito total del periodo: crédito de documentos
-    // del mes más el remanente anterior. Es el que el F29 usa para determinar
-    // el IVA, así que manda cuando existe. Queda marcado para que la posición
-    // de IVA no vuelva a restar el remanente.
-    const totalConRemanente = leerCodigo(ctx.official, CODIGO.creditoTotalConRemanente);
-    if (totalConRemanente != null) {
-      return {
-        amount: peso(totalConRemanente),
-        status: "official",
-        sources: [`f29:${CODIGO.creditoTotalConRemanente}`],
-        calculationDescription:
-          "Crédito fiscal total declarado en el F29 (código 537): crédito de documentos del mes más el remanente anterior.",
-        inputValues: {
-          codigo_537: totalConRemanente,
-          codigo_511: leerCodigo(ctx.official, CODIGO.creditoDocumentos),
-          codigo_504: leerCodigo(ctx.official, CODIGO.remanenteAnterior),
-        },
-        warnings: ["credito_incluye_remanente_anterior"],
-        confidence: "high",
-      };
-    }
-
+    // El crédito recuperable del periodo es el código 511. El 537 no sirve
+    // como reemplazo: incluye el remanente anterior, así que usarlo mezclaría
+    // dos conceptos distintos y duplicaría el remanente aguas abajo.
     const oficialF29 = oficial(
       ctx,
       CODIGO.creditoDocumentos,
       "Crédito fiscal recuperable declarado en el F29 (código 511).",
     );
     if (oficialF29) return oficialF29;
+
 
 
 
@@ -704,25 +686,23 @@ const PPM_RATE: VersionedTaxRule = {
   calculate: (ctx) => {
     const base = leerCodigo(ctx.official, CODIGO.basePpm);
     const ppm = leerCodigo(ctx.official, CODIGO.ppm);
-    const propia = normalizarTasaPpm(leerCodigo(ctx.official, CODIGO.tasaPpm), {
-      base,
-      amount: ppm,
-    });
-    if (propia.rate != null) {
+    // El código 115 se lee tal como viene en el formulario: no se reinterpreta
+    // su unidad. Si no cuadra con la base y el monto, se informa la
+    // incoherencia en vez de corregirla en silencio.
+    const cruda = leerCodigo(ctx.official, CODIGO.tasaPpm);
+    if (cruda != null) {
       const warnings: string[] = [];
-      if (propia.ambiguous) warnings.push("unidad_tasa_ppm_ambigua");
-      if (tasaPpmIncoherente(propia, { base, amount: ppm })) {
+      if (tasaPpmIncoherente({ rate: cruda, unit: "fraction", ambiguous: false, impliedRate: null }, { base, amount: ppm })) {
         warnings.push("tasa_ppm_incoherente_con_base_y_monto");
       }
       return {
-        amount: propia.rate,
+        amount: cruda,
         status: "official",
         sources: [`f29:${CODIGO.tasaPpm}`],
         calculationDescription:
-          "Tasa de PPM declarada en el F29 (código 115), expresada como fracción.",
+          "Tasa de PPM declarada en el F29 (código 115), tal como fue informada.",
         inputValues: {
-          codigo_115: leerCodigo(ctx.official, CODIGO.tasaPpm),
-          unidad_detectada: propia.unit,
+          codigo_115: cruda,
           codigo_563: base,
           codigo_62: ppm,
         },
@@ -730,6 +710,7 @@ const PPM_RATE: VersionedTaxRule = {
         confidence: warnings.length > 0 ? "low" : "high",
       };
     }
+
     const declarada = normalizarTasaPpm(ctx.optionalConfig?.ppmRate ?? null, {
       base,
       amount: ppm,
@@ -748,11 +729,15 @@ const PPM_RATE: VersionedTaxRule = {
     }
     const baseAnterior = leerCodigo(ctx.previousOfficial, CODIGO.basePpm);
     const ppmAnterior = leerCodigo(ctx.previousOfficial, CODIGO.ppm);
-    const anterior = normalizarTasaPpm(
-      leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm),
-      { base: baseAnterior, amount: ppmAnterior },
-    );
+    const tasaAnterior = leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm);
+    const anterior = {
+      rate: tasaAnterior,
+      unit: "fraction" as const,
+      ambiguous: false,
+      impliedRate: null,
+    };
     if (anterior.rate != null) {
+
       // Una tasa incoherente en el F29 anterior no se propaga al periodo
       // siguiente: se marca como antecedente contradictorio y queda sin monto.
       if (tasaPpmIncoherente(anterior, { base: baseAnterior, amount: ppmAnterior })) {
@@ -838,9 +823,15 @@ const WITHHOLDINGS: VersionedTaxRule = {
   supportsEstimation: false,
   testCaseReferences: ["golden:*"],
   calculate: (ctx) => {
-    // El F29 reparte las retenciones en varios códigos: honorarios,
-    // trabajadores independientes, construcción y otras. Tomar solo el 151
-    // subdeclaraba el total.
+    // El código 151 es el total de retenciones del formulario. Los demás
+    // códigos son su desglose, así que solo se suman cuando el 151 no viene.
+    const oficialF29 = oficial(
+      ctx,
+      CODIGO.retenciones,
+      "Retenciones declaradas en el F29 (código 151).",
+    );
+    if (oficialF29) return oficialF29;
+
     const { total, detalle } = sumarRetencionesOficiales(ctx.official);
     if (total != null) {
       return {
@@ -848,13 +839,14 @@ const WITHHOLDINGS: VersionedTaxRule = {
         status: "official",
         sources: Object.keys(detalle).map((c) => `f29:${c}`),
         calculationDescription:
-          "Suma de las retenciones declaradas en el F29 (códigos 151, 153, 48, 39 y 50).",
+          "Suma de las retenciones declaradas en el F29 (códigos 153, 48, 39 y 50) ante la ausencia del código 151.",
         inputValues: Object.fromEntries(
           Object.entries(detalle).map(([c, v]) => [`codigo_${c}`, v]),
         ),
         confidence: "high",
       };
     }
+
 
     const declaradas = ctx.optionalConfig?.withholdingsEstimate ?? null;
     if (declaradas != null) {
