@@ -657,14 +657,15 @@ export async function extraerF29Compacto(
         desdeLlamada(binario.log, rutaPdfRecurso, "Folio nuevo sin PDF guardado previamente."),
       );
       bytesPdf = binario.bytes;
-      var contentTypePdf: string | null = binario.contentType;
+      contentTypePdf = binario.contentType;
     }
 
 
     const decodificado = decodificarRespuestaPdf({
-      contentType: binario.contentType,
-      bytes: binario.bytes,
+      contentType: contentTypePdf,
+      bytes: bytesPdf,
     });
+
     if (!decodificado.ok) throw new ErrorF29("F29_INVALID_PDF");
 
     // Copia inmediata y exclusiva del archivo: el lector de PDF puede
