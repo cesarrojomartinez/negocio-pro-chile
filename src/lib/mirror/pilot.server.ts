@@ -187,10 +187,8 @@ export async function ejecutarValidacionDualPiloto(
         period: fila.period,
         resultado: calculo,
         legacy,
-        compatibility:
-          calculo.projection && calculo.mode === "compatibility"
-            ? calculo.productive
-            : calculo.productive,
+        compatibility: calculo.compatibility ?? calculo.productive,
+
         camposSinRegistroLegado: CAMPOS_SIN_REGISTRO_LEGADO,
         visible: {
           hasOfficialF29: legacy.declaredTaxTotal != null,

@@ -1145,6 +1145,7 @@ export type Database = {
           calculation_status: string
           carryforward_known: boolean
           carryforward_source: string
+          certainty_status: string | null
           company_id: string
           compatibility_projection_version: string | null
           confidence_level: string
@@ -1164,6 +1165,7 @@ export type Database = {
           gross_vat_position: number
           id: string
           invoice_sales: number
+          legacy_fallback_count: number | null
           missing_components: Json
           net_purchases: number
           other_vat_credits: number
@@ -1218,6 +1220,7 @@ export type Database = {
           calculation_status?: string
           carryforward_known?: boolean
           carryforward_source?: string
+          certainty_status?: string | null
           company_id: string
           compatibility_projection_version?: string | null
           confidence_level?: string
@@ -1237,6 +1240,7 @@ export type Database = {
           gross_vat_position?: number
           id?: string
           invoice_sales?: number
+          legacy_fallback_count?: number | null
           missing_components?: Json
           net_purchases?: number
           other_vat_credits?: number
@@ -1291,6 +1295,7 @@ export type Database = {
           calculation_status?: string
           carryforward_known?: boolean
           carryforward_source?: string
+          certainty_status?: string | null
           company_id?: string
           compatibility_projection_version?: string | null
           confidence_level?: string
@@ -1310,6 +1315,7 @@ export type Database = {
           gross_vat_position?: number
           id?: string
           invoice_sales?: number
+          legacy_fallback_count?: number | null
           missing_components?: Json
           net_purchases?: number
           other_vat_credits?: number

@@ -4,6 +4,7 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   calcularPeriodoProductivo,
   metadatosCalculo,
+  persistirCorridaProductiva,
 } from "@/lib/mirror/engineConfig.server";
 import { resumenLegadoAProductivo } from "@/lib/mirror/productiveSummary";
 import { aplicarResumenProductivo } from "@/lib/productiveOverlay";
@@ -512,8 +513,9 @@ export async function recalculateTaxPeriod(
     calculo && calculo.mode === "compatibility" && calculo.runStatus === "completed"
       ? aplicarResumenProductivo(dashboard.resumen, calculo.productive)
       : dashboard.resumen;
+  const runId = calculo ? await persistirCorridaProductiva(calculo) : null;
   const metadatos = calculo
-    ? metadatosCalculo(calculo)
+    ? metadatosCalculo(calculo, runId)
     : {
         calculation_engine: "legacy" as const,
         unified_engine_mode: "shadow" as const,
@@ -521,6 +523,9 @@ export async function recalculateTaxPeriod(
         compatibility_projection_version: null,
         calculation_input_hash: null,
         calculation_run_status: "completed" as const,
+        calculation_run_id: null,
+        certainty_status: null,
+        legacy_fallback_count: null,
         parity_exact: null,
         parity_differences_count: 0,
       };
