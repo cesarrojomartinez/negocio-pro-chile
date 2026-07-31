@@ -209,7 +209,7 @@ export async function guardarBorradorLanding(
   if (existente) {
     const { error } = await supabaseAdmin
       .from("tax_landing_content")
-      .update({ content: limpio, note: nota ?? null, updated_by: userId })
+      .update({ content: limpio as unknown as never, note: nota ?? null, updated_by: userId })
       .eq("id", (existente as { id: string }).id);
     if (error) throw new ErrorNegocio("No pudimos guardar el borrador.");
     return { ok: true };
@@ -218,7 +218,7 @@ export async function guardarBorradorLanding(
   const { error } = await supabaseAdmin.from("tax_landing_content").insert({
     status: "draft",
     version: await proximaVersion(),
-    content: limpio,
+    content: limpio as unknown as never,
     note: nota ?? null,
     updated_by: userId,
   });
@@ -240,7 +240,7 @@ export async function publicarLanding(userId: string): Promise<{ ok: true }> {
   const { error } = await supabaseAdmin.from("tax_landing_content").insert({
     status: "published",
     version: await proximaVersion(),
-    content: borrador.contenido as unknown as Record<string, unknown>,
+    content: borrador.contenido as unknown as never,
     note: "Publicación",
     updated_by: userId,
   });
