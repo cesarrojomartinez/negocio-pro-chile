@@ -492,10 +492,22 @@ export function conceptosOficiales(official: HistoricalOfficialContext | null) {
   if (!official) return { official: {}, officialTotal: null as number | null };
   return {
     official: {
+      vat_debit: leerCodigo(official, CODIGO.debitoTotal),
+      recoverable_vat_credit: leerCodigo(official, CODIGO.creditoTotalConRemanente),
+      previous_nominal_carryforward: leerCodigo(official, CODIGO.remanenteAnterior),
+      next_carryforward: leerCodigo(official, CODIGO.remanenteSiguiente),
+      ppm_base: leerCodigo(official, CODIGO.basePpm),
+      // La tasa se compara ya normalizada a fracción: el código 115 llega en
+      // porcentaje o en fracción según el formulario, y la tasa efectiva del
+      // periodo es la que se desprende del PPM declarado sobre su base.
+      ppm_rate: normalizarTasaPpm(leerCodigo(official, CODIGO.tasaPpm), {
+        base: leerCodigo(official, CODIGO.basePpm),
+        amount: leerCodigo(official, CODIGO.ppm),
+      }).rate,
       vat_determined: leerCodigo(official, CODIGO.ivaDeterminado),
       vat_advance_change_of_subject: leerCodigo(official, CODIGO.anticipoImputado),
       ppm_amount: leerCodigo(official, CODIGO.ppm),
-      withholdings: leerCodigo(official, CODIGO.retenciones),
+      withholdings: sumarRetencionesOficiales(official),
       tax_total_before_surcharges: leerCodigo(official, CODIGO.subtotalDeterminado),
     },
     officialTotal: leerCodigo(official, CODIGO.totalAPagar),
