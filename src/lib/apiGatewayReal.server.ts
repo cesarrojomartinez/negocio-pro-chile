@@ -386,8 +386,9 @@ export async function ejecutarPruebaRealApiGateway(
           consentimiento: true,
         },
         // Contador compartido: los créditos del Formulario 29 quedan sumados
-        // en el mismo registro que el RCV y se informan completos.
-        { registro, control },
+        // en el mismo registro que el RCV y se informan completos. El planId
+        // permite pedir una ampliación formal si aparece un folio nuevo.
+        { registro, control, planId },
       );
 
       f29 = {
