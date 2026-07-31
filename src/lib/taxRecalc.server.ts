@@ -56,11 +56,29 @@ function mapear(fila: FilaDocumento): DocumentoTributario {
 async function periodoId(companyId: string, periodo: string) {
   const { data } = await supabaseAdmin
     .from("tax_periods")
-    .select("id, status")
+    .select("id, status, rcv_summary")
     .eq("company_id", companyId)
     .eq("period", periodo)
     .maybeSingle();
   return data ?? null;
+}
+
+/**
+ * Ventas que el SII informa solo como total del mes (boletas electrónicas,
+ * boletas exentas y comprobantes de pago electrónico). Se leen del resumen
+ * oficial guardado del RCV para que los totales del periodo estén completos
+ * aunque no exista detalle documento por documento.
+ */
+function ventasAgregadasDelResumen(
+  rcvSummary: unknown,
+): VentasAgregadasResumen | null {
+  const ventas =
+    rcvSummary && typeof rcvSummary === "object"
+      ? (rcvSummary as { ventas?: unknown }).ventas
+      : null;
+  if (!ventas || typeof ventas !== "object") return null;
+  const t = totalesSoloResumenMensual(ventas as ProviderRcvSummary);
+  return t.total === 0 && t.iva === 0 && t.cantidadDocumentos === 0 ? null : t;
 }
 
 async function documentos(companyId: string, taxPeriodId: string) {
