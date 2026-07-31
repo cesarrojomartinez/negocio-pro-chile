@@ -61,6 +61,19 @@ describe("lectura determinística del F29", () => {
     expect(codigos["089"]).toBeUndefined();
   });
 
+  it("conserva códigos no catalogados para empresas con formularios distintos", () => {
+    const codigos = extraerCodigos({ items: fila("888", "45.600", 700), texto: "" });
+    expect(codigos["888"].normalized_value).toBe(45600);
+  });
+
+  it("prefiere el total consolidado de la última página cuando un código se repite", () => {
+    const primera = fila("91", "100.000", 700);
+    const segunda = fila("91", "125.000", 700).map((item) => ({ ...item, pagina: 2 }));
+    const codigos = extraerCodigos({ items: [...primera, ...segunda], texto: "" });
+    expect(codigos["91"].normalized_value).toBe(125000);
+    expect(codigos["91"].page).toBe(2);
+  });
+
   it("normaliza los campos tributarios a partir de los códigos", () => {
     const campos = construirCamposNormalizados(extraerCodigosDesdeItems(ITEMS_COHERENTES));
     expect(campos.declared_vat_debit).toBe(2489260);

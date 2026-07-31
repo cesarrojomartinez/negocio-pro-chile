@@ -415,10 +415,22 @@ export function validarF29(
     (v): v is number => v != null,
   );
   const referencia = campos.declared_total_payable ?? campos.declared_total_determined;
-  const codigosConOtrosComponentes = ["48", "151", "153", "50", "39", "593", "127", "30", "756", "92", "93", "64", "66"];
-  const hayOtrosComponentes = codigosConOtrosComponentes.some(
-    (codigo) => (valor(codigos, codigo) ?? 0) !== 0,
-  );
+  const gruposQueAlteranTotal = new Set([
+    "retenciones",
+    "impuesto_unico",
+    "honorarios",
+    "creditos_especiales",
+    "debitos_especiales",
+    "postergacion",
+    "recargos",
+  ]);
+  const hayOtrosComponentes = Object.entries(codigos).some(([codigo, dato]) => {
+    if ((dato.normalized_value ?? 0) === 0) return false;
+    const definicion = definicionDeCodigo(codigo);
+    // Un código todavía no catalogado se conserva y obliga a no reconstruir
+    // el total: podría ser un tributo válido de una actividad distinta.
+    return !definicion || gruposQueAlteranTotal.has(definicion.group) || ["64", "66"].includes(codigo);
+  });
   if (componentes.length && referencia != null && !hayOtrosComponentes) {
     const esperado = componentes.reduce((a, b) => a + b, 0);
     validaciones.push({
