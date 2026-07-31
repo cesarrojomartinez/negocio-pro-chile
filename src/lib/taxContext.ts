@@ -198,8 +198,15 @@ export interface ContextoTributario {
   special_credits: number;
   total_vat_credits: number;
   gross_vat_position: number;
+  /** Anticipo de IVA disponible antes de imputar (cambio de sujeto). */
+  vat_advance_available: number;
+  /** Anticipo de IVA imputado al IVA determinado del periodo. */
+  vat_advance_applied: number;
+  /** Anticipo de IVA que quedaría disponible para el periodo siguiente. */
+  vat_advance_carryforward: number;
   estimated_vat_payable: number;
   estimated_new_carryforward: number;
+
   ppm_tax_base: number;
   ppm_rate: number | null;
   estimated_ppm: number;
