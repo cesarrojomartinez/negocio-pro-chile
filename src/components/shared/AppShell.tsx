@@ -272,8 +272,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3 sm:px-6">
               <span className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Empresa:</span>
-                <ConnectionBadge estado={estadoConexion} />
+                <span className="text-xs text-muted-foreground">Fuente del periodo:</span>
+                {fuentePeriodo ? (
+                  <FuentePeriodoBadge fuente={fuentePeriodo} />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Cargando…</span>
+                )}
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">
