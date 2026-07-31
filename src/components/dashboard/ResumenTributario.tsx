@@ -80,16 +80,30 @@ export function ResumenTributario({
               : "Sin remanente estimado para el próximo periodo."
           }
         />
-        <DataRow label="PPM estimado" value={formatCLP(resumen.ppmEstimado)} />
+        <DataRow
+          label="PPM estimado"
+          value={resumen.ppmPendiente ? "Por confirmar" : formatCLP(resumen.ppmEstimado)}
+          tone={resumen.ppmPendiente ? "warning" : "default"}
+          hint={
+            resumen.ppmPendiente
+              ? "Aún no conocemos tu tasa de PPM para este mes, así que no lo sumamos al total. Actualiza el periodo o confírmala con tu contador."
+              : undefined
+          }
+        />
         <DataRow
           label="Retenciones estimadas"
           value={formatCLP(resumen.retencionesEstimadas)}
         />
         <DataRow
-          label="Total tributario estimado"
+          label={
+            resumen.ppmPendiente
+              ? "Total tributario estimado (sin PPM)"
+              : "Total tributario estimado"
+          }
           value={formatCLP(resumen.totalTributarioEstimado)}
           strong
         />
+
         <DataRow
           label={`Margen preventivo (${margenPorcentaje}%)`}
           value={formatCLP(resumen.margenPreventivo)}
