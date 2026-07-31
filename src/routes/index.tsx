@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shared/AppShell";
 import { ScenarioSwitcher } from "@/components/shared/ScenarioSwitcher";
 import { ErrorState, LoadingBlock, LoadingCards } from "@/components/shared/States";
-import { ReservaCard } from "@/components/dashboard/ReservaCard";
+import { TarjetaMes } from "@/components/dashboard/TarjetaMes";
 import { IndicadoresGrid } from "@/components/dashboard/IndicadoresGrid";
 import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 
@@ -92,9 +92,10 @@ function Inicio() {
           </>
         ) : (
           <>
-            <ReservaCard
+            <TarjetaMes
               resumen={data.resumen}
               contexto={data.contexto}
+              fuentePeriodo={data.fuentePeriodo}
               onGuardarReservado={setDineroReservado}
             />
 
