@@ -673,9 +673,7 @@ export const cloudTaxDataService: TaxDataService & {
       configuradoManualmente: settings != null,
       esDemo: !!empresaRow.is_demo,
       f29Confirmado: !!antecedenteF29?.confirmado,
-      sincronizacionReal:
-        !empresaRow.is_demo &&
-        (informacionReal || resumenActualGuardado != null),
+      sincronizacionReal: !empresaRow.is_demo && informacionReal,
     });
   },
 
