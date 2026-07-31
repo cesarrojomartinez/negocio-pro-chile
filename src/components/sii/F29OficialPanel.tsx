@@ -86,7 +86,39 @@ export function F29OficialPanel({
     }
   }
 
-  const leido = extraccion && extraccion.estadoExtraccion !== "failed";
+  const leidoPdf = extraccion && extraccion.estadoExtraccion !== "failed";
+  // Cuando no hay lectura del PDF, se usan las cifras del F29 ya guardado
+  // (confirmado por el contador) para no decir que el periodo no tiene F29.
+  const campos: { clave: string; etiqueta: string; texto: string }[] = [];
+  const a = antecedente?.antecedente;
+  if (leidoPdf && extraccion) {
+    for (const campo of CAMPOS_VISIBLES) {
+      const texto = valorFormateado(
+        (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
+        campo.tipo,
+      );
+      if (texto) campos.push({ ...campo, texto });
+    }
+  } else if (a) {
+    const desde: [string, string, number | null, "money" | "rate"][] = [
+      ["debito", "IVA débito", a.ivaDebitoDeclarado, "money"],
+      ["credito", "IVA crédito", a.ivaCreditoDeclarado, "money"],
+      ["remAnterior", "Remanente anterior", a.remanenteAnterior, "money"],
+      ["iva", "IVA determinado", a.ivaDeclarado, "money"],
+      ["remNuevo", "Nuevo remanente", a.nuevoRemanenteDeclarado, "money"],
+      ["basePpm", "Base para el PPM", a.basePpmDeclarada, "money"],
+      ["tasaPpm", "Tasa de PPM", a.tasaPpm, "rate"],
+      ["ppm", "PPM", a.ppmDeclarado, "money"],
+      ["retenciones", "Retenciones", a.retenciones, "money"],
+      ["total", "Total declarado", a.totalDeclarado, "money"],
+    ];
+    for (const [clave, etiqueta, valor, tipo] of desde) {
+      const texto = valorFormateado(valor, tipo);
+      if (texto) campos.push({ clave, etiqueta, texto });
+    }
+  }
+  const leido = campos.length > 0;
+  const folio = extraccion?.folio ?? antecedente?.folio ?? null;
 
   return (
     <SectionCard
@@ -107,22 +139,17 @@ export function F29OficialPanel({
     >
       {cargando ? (
         <p className="text-sm text-muted-foreground">Revisando este periodo…</p>
-      ) : leido && extraccion ? (
+      ) : leido ? (
         <div className="space-y-3">
           <p className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success-soft p-3 text-sm font-medium text-success">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
-            Resultado confirmado según Formulario 29 oficial.
+            Resultado confirmado según Formulario 29 oficial
+            {folio ? ` · Folio ${folio}` : ""}.
           </p>
           <div className="rounded-2xl bg-secondary/60 p-4">
-            {CAMPOS_VISIBLES.map((campo) => {
-              const texto = valorFormateado(
-                (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
-                campo.tipo,
-              );
-              return texto ? (
-                <DataRow key={campo.clave} label={campo.etiqueta} value={texto} />
-              ) : null;
-            })}
+            {campos.map((campo) => (
+              <DataRow key={campo.clave} label={campo.etiqueta} value={campo.texto} />
+            ))}
           </div>
         </div>
       ) : (
@@ -131,6 +158,7 @@ export function F29OficialPanel({
           aplicación lo buscará sola y completará las cifras cuando exista.
         </p>
       )}
+
 
       <p className="mt-3 text-xs text-muted-foreground">
         Estimación informativa: no reemplaza a tu contador.
