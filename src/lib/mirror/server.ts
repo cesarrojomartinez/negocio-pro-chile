@@ -5,7 +5,8 @@ import { ejecutarMotorEspejo, montoDe } from "./engine";
 import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
 import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
-import type { MirrorEngineResult, NormalizedTaxFact, OfficialFilingContext } from "./types";
+import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
+import type { HistoricalOfficialContext } from "./types";
 
 /**
  * Ejecución del Motor Espejo en **modo sombra**.
@@ -35,7 +36,7 @@ function codigosDe(fila: FilaF29 | null | undefined): Record<string, number> | n
 function contextoOficialDe(
   period: string,
   fila: FilaF29 | null | undefined,
-): OfficialFilingContext | null {
+): HistoricalOfficialContext | null {
   const codigos = codigosDe(fila);
   if (!codigos) return null;
   const cantidad = Object.keys(codigos).length;
@@ -75,10 +76,10 @@ async function guardarHechos(
       tax_period_id: taxPeriodId,
       period: h.period,
       ledger: h.ledger,
-      scope: h.scope,
-      document_type_code: h.documentTypeCode,
+      scope: h.granularity,
+      document_type_code: h.documentType,
       document_count: h.documentCount,
-      net_amount: h.netAmount,
+      net_amount: h.taxableNet,
       vat_amount: h.vatAmount,
       exempt_amount: h.exemptAmount,
       vat_common_use: h.vatCommonUse,
@@ -86,10 +87,11 @@ async function guardarHechos(
       total_amount: h.totalAmount,
       tax_effect: h.taxEffect,
       source: h.source,
-      source_reference: h.sourceReference,
+      source_reference: h.snapshotId,
+      observed_at: new Date().toISOString(),
       raw_hash: h.rawHash,
       normalization_version: h.normalizationVersion,
-      observed_at: h.observedAt,
+      
     })),
     { onConflict: "company_id,period,ledger,scope,document_type_code,raw_hash", ignoreDuplicates: true },
   );
@@ -107,16 +109,19 @@ async function guardarCorrida(
       tax_period_id: taxPeriodId,
       period: resultado.period,
       engine_version: resultado.engineVersion,
-      rules_version: resultado.rulesVersion,
+      rules_version: resultado.engineVersion,
       normalization_version: resultado.normalizationVersion,
       mode: "shadow_only",
-      completeness: resultado.completeness,
-      missing_inputs: resultado.missingInputs,
+      completeness:
+        resultado.missingComponentCount === 0 ? "complete" : "incomplete",
+      missing_inputs: Array.from(
+        new Set(resultado.components.flatMap((c) => c.missingInputs ?? [])),
+      ),
       total_before_surcharges: montoDe(resultado, "tax_total_before_surcharges"),
       official_declared_total: montoDe(resultado, "official_declared_total"),
       confirmed_paid_total: montoDe(resultado, "confirmed_paid_total"),
-      input_hash: resultado.inputHash,
-      calculated_at: resultado.calculatedAt,
+      input_hash: hashOrigen({ period: resultado.period, components: resultado.components.length }),
+      calculated_at: new Date().toISOString(),
     })
     .select("id")
     .maybeSingle();
@@ -228,7 +233,7 @@ export async function ejecutarSombraPeriodo(
       ? {
           vat_determined: leerCodigo(official, CODIGO.ivaDeterminado),
           vat_advance_change_of_subject: leerCodigo(official, CODIGO.anticipoImputado),
-          ppm_amount: leerCodigo(official, CODIGO.ppmMonto),
+          ppm_amount: leerCodigo(official, CODIGO.ppm),
           withholdings: leerCodigo(official, CODIGO.retenciones),
           tax_total_before_surcharges: leerCodigo(official, CODIGO.subtotalDeterminado),
         }
@@ -254,9 +259,9 @@ export async function ejecutarSombraPeriodo(
       current_vs_official_difference: comparacion.currentVsOfficialDifference,
       mirror_vs_official_difference: comparacion.mirrorVsOfficialDifference,
       comparison_status: comparacion.comparisonStatus,
-      component_differences: comparacion.componentDifferences,
-      explained_difference: comparacion.explainedDifference,
-      unexplained_difference: comparacion.unexplainedDifference,
+      component_differences: JSON.parse(JSON.stringify(comparacion.componentDifferences)),
+      explained_difference: comparacion.currentVsMirrorDifference,
+      unexplained_difference: comparacion.mirrorVsOfficialDifference,
     },
     { onConflict: "company_id,period,run_id" },
   );
