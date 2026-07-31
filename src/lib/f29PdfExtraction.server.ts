@@ -650,7 +650,43 @@ export async function extraerF29Compacto(
       if (await esperaPorFalloReciente(entrada.companyId, entrada.periodo, ahora))
         throw new ErrorF29("F29_PDF_DOWNLOAD_FAILED");
 
-      opciones.control?.autorizarDescargaF29(entrada.periodo, elegida.folio);
+      /*
+       * Gobernanza: si el recurso no venía en el plan aprobado (folio nuevo o
+       * rectificatorio detectado en el listado), NO se descarga por excepción.
+       * Se pide una ampliación formal que revalida permisos, bloqueo, límites
+       * y presupuesto. Si la ampliación se rechaza, no se llama al proveedor.
+       */
+      const control = opciones.control;
+      if (control) {
+        const recursoId = recursoPdfF29(entrada.periodo);
+        if (!control.estaPlanificado(recursoId)) {
+          if (!opciones.planId)
+            throw new ErrorPlanEjecucion(
+              CODIGO_AMPLIACION_RECHAZADA,
+              recursoId,
+              "Detectamos una nueva declaración, pero no pudimos autorizar su descarga en esta actualización.",
+            );
+          const { solicitarAmpliacionF29 } = await import("@/lib/planEjecucion.server");
+          const ampliacion = await solicitarAmpliacionF29({
+            userId,
+            companyId: entrada.companyId,
+            planId: opciones.planId,
+            control,
+            periodo: entrada.periodo,
+            folioNuevo: String(elegida.folio),
+            folioAnterior: existente?.folio ? String(existente.folio) : null,
+            folioYaDescargado: false,
+          });
+          if (!ampliacion.autorizada)
+            throw new ErrorPlanEjecucion(
+              ampliacion.codigo,
+              recursoId,
+              ampliacion.mensajeUsuario,
+            );
+        }
+        // Recién ahora el portero puede autorizar: el recurso está en el plan.
+        control.autorizar(recursoId);
+      }
       const binario = await requestApiGatewayBinary({
         config,
         modulo: "f29_compact_pdf",
