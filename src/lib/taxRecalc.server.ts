@@ -342,11 +342,26 @@ export async function recalculateTaxPeriod(
   const reservado = Number(settings?.reserved_amount ?? 0);
   const metaMensual = Number(metaRow?.goal_amount ?? settings?.monthly_sales_goal ?? 0);
 
+  /**
+   * Cuando el periodo tiene documentos guardados, el resumen oficial solo
+   * aporta las boletas (comportamiento de siempre). Cuando no hay detalle
+   * documento por documento —actualización económica—, el resumen oficial
+   * aporta también facturas y notas de crédito, para que los totales sean
+   * exactamente los mismos que se obtenían descargando el detalle.
+   */
   const periodoData: PeriodoData = {
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
-    ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodoRow.rcv_summary),
+    ventasAgregadasResumen: agregadosVentasDeResumen(
+      periodoRow.rcv_summary,
+      docs.venta.length > 0,
+    ),
     documentosCompra: docs.compra,
+    comprasAgregadasResumen: agregadosComprasDeResumen(
+      periodoRow.rcv_summary,
+      docs.compra.length > 0,
+    ),
+
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
     remanenteConocido:
