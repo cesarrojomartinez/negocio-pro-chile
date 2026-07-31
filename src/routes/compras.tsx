@@ -106,7 +106,7 @@ function Compras() {
               <StatCard
                 titulo="Compras exentas / sin IVA"
                 monto={formatCLP(data.compras.ivaNoRecuperableDetalle.comprasSinIva)}
-                descripcion="Monto sin IVA incluido en tus compras totales."
+                descripcion="Monto exento informado en tus compras del periodo."
               />
             </div>
 
@@ -132,6 +132,12 @@ function Compras() {
                     detalle: "Montos exentos o no afectos que igual son compra del mes.",
                   },
                   {
+                    etiqueta: "Más otros montos del documento",
+                    monto: otrosMontosCompras,
+                    detalle:
+                      "Impuestos específicos, adicionales o partidas informadas en el total del documento que no son neto, IVA ni exento.",
+                  },
+                  {
                     etiqueta: "Compras totales",
                     monto: data.compras.comprasTotales,
                     detalle: "Valor bruto de las compras consideradas en el periodo.",
@@ -154,11 +160,14 @@ function Compras() {
                 ))}
               </ul>
               <p className="mt-3 text-xs text-muted-foreground">
-                Las {formatNumero(data.compras.documentosPendientes)} compras pendientes no
-                están incluidas en ninguna de estas cifras: solo se suman cuando cambian de
-                estado a registrada o aceptada.
+                Si las compras exentas aparecen en $0 es porque tus documentos del mes no
+                informan montos exentos. Las{" "}
+                {formatNumero(data.compras.documentosPendientes)} compras pendientes tampoco
+                están incluidas: solo se suman cuando cambian de estado a registrada o
+                aceptada.
               </p>
             </SectionCard>
+
 
 
             <SectionCard
