@@ -37,12 +37,31 @@ export interface AntecedenteF29 {
   retenciones: number | null;
   ivaDeclarado: number | null;
   totalDeclarado: number | null;
+  /** Débito fiscal declarado (código 538). */
+  ivaDebitoDeclarado: number | null;
+  /** Total de créditos declarados (código 537). */
+  ivaCreditoDeclarado: number | null;
+  /** Remanente para el periodo siguiente declarado (código 77). */
+  nuevoRemanenteDeclarado: number | null;
+  /** Todos los códigos leídos del formulario oficial, cuando existen. */
+  codigos: Record<string, number>;
 }
 
 function numero(valor: unknown): number | null {
   if (valor == null) return null;
   const n = Number(valor);
   return Number.isFinite(n) ? n : null;
+}
+
+function codigosDe(bruto: Record<string, unknown>): Record<string, number> {
+  const fuente = bruto.codigos;
+  if (!fuente || typeof fuente !== "object") return {};
+  const salida: Record<string, number> = {};
+  for (const [clave, valor] of Object.entries(fuente as Record<string, unknown>)) {
+    const n = numero(valor);
+    if (n != null) salida[clave] = n;
+  }
+  return salida;
 }
 
 /** Interpreta la fila del F29; devuelve `null` cuando no hay antecedente útil. */
@@ -58,6 +77,8 @@ export function interpretarAntecedenteF29(
       bruto.origin === ORIGEN_F29_CONTADOR ||
       bruto.origin === ORIGEN_F29_PDF);
 
+  const codigos = codigosDe(bruto);
+
   return {
     confirmado,
     remanenteAnterior: numero(fila.vat_carryforward),
@@ -67,8 +88,13 @@ export function interpretarAntecedenteF29(
     retenciones: numero(fila.declared_withholdings),
     ivaDeclarado: numero(fila.declared_vat),
     totalDeclarado: numero(fila.declared_total),
+    ivaDebitoDeclarado: numero(bruto.vat_debit) ?? codigos["538"] ?? null,
+    ivaCreditoDeclarado: numero(bruto.vat_credit) ?? codigos["537"] ?? null,
+    nuevoRemanenteDeclarado: numero(bruto.new_carryforward) ?? codigos["77"] ?? null,
+    codigos,
   };
 }
+
 
 export interface ParametrosTributarios {
   remanenteAnterior: number;
