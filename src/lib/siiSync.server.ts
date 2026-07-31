@@ -724,7 +724,25 @@ export async function syncSiiCompanyPeriod(
 
   const ahora = opciones.ahora ?? new Date();
   const periodoRow = await asegurarPeriodo(entrada.companyId, entrada.periodo);
-  const decision = opciones.omitirPoliticaCache
+  // La política por periodo es la de la actualización real: cada mes se evalúa
+  // solo. Un mes ya leído o cerrado no vuelve a consultarse aunque se hayan
+  // seleccionado varios meses a la vez.
+  const economica = opciones.politicaPorPeriodo
+    ? await decisionPorPeriodo(
+        entrada.companyId,
+        String(periodoRow.id),
+        entrada.periodo,
+        ahora,
+      )
+    : null;
+  const decision = economica
+    ? {
+        debeConsultar: economica.consultarRcv,
+        motivo: economica.motivo,
+        proximaActualizacion: null,
+        minutosDesdeUltima: null,
+      }
+    : opciones.omitirPoliticaCache
     ? {
         debeConsultar: true,
         motivo: "solicitud_manual" as const,
@@ -737,6 +755,7 @@ export async function syncSiiCompanyPeriod(
         tipo,
         periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
       });
+
 
   if (!decision.debeConsultar) {
     const { data: omitido } = await supabaseAdmin
