@@ -34,6 +34,20 @@ describe("política de actualización periodo a periodo", () => {
     expect(d.motivo).toBe("sin_datos_previos");
   });
 
+  it("un periodo sin datos reales del RCV siempre se descarga, aunque esté cerrado o con F29", () => {
+    const d = decidirActualizacionPeriodo({
+      ...base,
+      periodo: "2025-12",
+      ultimaSincronizacionRcv: "2026-07-15T11:00:00-04:00",
+      tieneF29Vigente: true,
+      periodoCerrado: true,
+      tieneDatosRcv: false,
+    });
+    expect(d.consultarRcv).toBe(true);
+    expect(d.motivo).toBe("sin_documentos_rcv");
+  });
+
+
   it("el mes en curso se actualiza una vez al día", () => {
     const reciente = decidirActualizacionPeriodo({
       ...base,
