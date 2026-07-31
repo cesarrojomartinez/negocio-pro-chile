@@ -9,8 +9,13 @@
  * contiene periodos, recursos, cupos y cifras.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { MAX_REAL_PROVIDER_REQUESTS_PER_SYNC } from "@/integrations/sii/apiGatewayClient";
 import { ErrorNegocio, exigirRol } from "@/lib/companies.server";
 import { normalizarPeriodo } from "@/lib/periodo";
+import {
+  construirPropuestaAmpliacionF29,
+  evaluarAmpliacion,
+} from "@/lib/planAmendment";
 import {
   CODIGO_GUARDA_CREDITOS,
   ControlPlanEjecucion,
@@ -178,18 +183,33 @@ export const MENSAJE_CACHE_ONLY = "Tus datos ya están actualizados.";
  * Construye y valida el plan definitivo. El navegador solo indica empresa y
  * periodos: todo lo demás lo decide el servidor con datos persistidos.
  *
- * Orden: rol → periodos → estado en base de datos → plan → límites →
- * presupuesto → concurrencia. La clave NUNCA participa de este proceso.
+ * ORDEN AUTORITATIVO (no se puede alterar):
+ *  1. usuario autenticado (lo garantiza la capa de servidor que llama);
+ *  2. usuario activo;
+ *  3. acceso a la empresa;
+ *  4. rol autorizado para sincronizar;
+ *  5. bloqueo de sincronización;
+ *  6. caché y estado tributario guardado;
+ *  7. plan de ejecución;
+ *  8. límites;
+ *  9. presupuesto;
+ * 10. determinación de credenciales necesarias.
+ *
+ * Antes del paso 4 NO se lee ningún periodo, folio, extracción de F29 ni
+ * presupuesto, no se construye plan y no se revela si la empresa existe.
+ * La Clave Tributaria NUNCA participa de este proceso.
  */
 export async function prepararEjecucionPlanificada(
   entrada: EntradaPreparacion,
 ): Promise<Preparacion> {
   const ahora = entrada.ahora ?? new Date();
 
-  // B. Rol y acceso a la empresa.
+  // --- 2, 3 y 4. Usuario activo, acceso a la empresa y rol autorizado. -----
+  // `exigirRol` exige membresía ACTIVA en esta empresa con rol suficiente. Si
+  // falla, se lanza de inmediato y no se lee ni se revela nada tributario.
   await exigirRol(entrada.userId, entrada.companyId, ["owner"]);
 
-  // C. Normalización de periodos.
+  // Formato de los periodos. No consulta la base de datos.
   const periodos = Array.from(
     new Set(
       entrada.periodos
@@ -200,145 +220,313 @@ export async function prepararEjecucionPlanificada(
   if (periodos.length === 0)
     throw new ErrorNegocio("El periodo debe tener el formato AAAA-MM.");
 
-  // Modo de ejecución: la automatización avanzada sigue sin estar disponible.
-  const preferencias = await obtenerPreferenciasSync(entrada.userId, entrada.companyId);
-  if (preferencias.syncMode !== "manual_secure")
-    throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
-
-  // D. Estado real guardado.
-  const estados = await construirEstadosPeriodos(entrada.companyId, periodos, ahora);
-
-  // E. Plan.
-  const plan = construirPlanEjecucion({
-    companyId: entrada.companyId,
-    requestedPeriods: periodos,
-    estados,
-    ahora,
-    executionMode: "manual_secure",
-    permitirDetalleDocumental: entrada.incluirDetalle === true,
-  });
-  const control = new ControlPlanEjecucion(plan);
-
-  // F. Límites del plan, antes de recibir o usar la clave.
-  const limites = verificarLimitesPlan(plan);
-  if (!limites.ok) {
-    await registrarPlan(entrada, plan, {
-      planStatus: "stopped_by_guard",
-      errorCodigo: CODIGO_GUARDA_CREDITOS,
-      enCurso: false,
-    });
-    return {
-      estado: "bloqueado",
-      plan,
-      control,
-      planId: null,
-      mensaje: limites.mensajeUsuario ?? "Detuvimos la actualización por precaución.",
-      errorCodigo: CODIGO_GUARDA_CREDITOS,
-    };
-  }
-
-  // G. Presupuesto mensual.
-  const presupuesto = evaluarPresupuesto(preferencias);
-  if (presupuesto.estado === "bloqueado" && plan.requiresCredentials) {
-    await registrarPlan(entrada, plan, {
-      planStatus: "stopped_by_guard",
-      errorCodigo: CODIGO_GUARDA_CREDITOS,
-      enCurso: false,
-    });
-    return {
-      estado: "bloqueado",
-      plan,
-      control,
-      planId: null,
-      mensaje:
-        "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
-      errorCodigo: CODIGO_GUARDA_CREDITOS,
-    };
-  }
-
-  // H. Plan sin llamadas: se responde con la información guardada.
-  if (!plan.requiresCredentials) {
-    await registrarPlan(entrada, plan, {
-      planStatus: "cache_only",
-      errorCodigo: null,
-      enCurso: false,
-    });
-    return {
-      estado: "cache_only",
-      plan,
-      control,
-      planId: null,
-      mensaje: MENSAJE_CACHE_ONLY,
-      errorCodigo: null,
-    };
-  }
-
-  // K. Concurrencia: una sola ejecución activa por empresa.
-  const activa = await ejecucionActiva(entrada.companyId);
-  if (activa)
-    return {
-      estado: "bloqueado",
-      plan,
-      control,
-      planId: null,
-      mensaje:
-        "Ya hay una actualización en curso para esta empresa. Espera a que termine para no consultar dos veces.",
-      errorCodigo: "SYNC_ALREADY_RUNNING",
-    };
-
-  const planId = await registrarPlan(entrada, plan, {
-    planStatus: "approved",
-    errorCodigo: null,
-    enCurso: true,
-  });
+  // --- 5. Bloqueo de sincronización, ANTES de leer datos tributarios. ------
+  const planId = await adquirirBloqueo(entrada, periodos);
   if (!planId)
     return {
       estado: "bloqueado",
-      plan,
-      control,
+      plan: planVacio(entrada.companyId, periodos),
+      control: new ControlPlanEjecucion(planVacio(entrada.companyId, periodos)),
       planId: null,
       mensaje:
         "Ya hay una actualización en curso para esta empresa. Espera a que termine para no consultar dos veces.",
       errorCodigo: "SYNC_ALREADY_RUNNING",
     };
 
-  return {
-    estado: "aprobado",
-    plan,
-    control,
-    planId,
-    mensaje: "Plan aprobado.",
-    errorCodigo: null,
-  };
+  try {
+    // Modo de ejecución: la automatización avanzada sigue sin estar disponible.
+    const preferencias = await obtenerPreferenciasSync(
+      entrada.userId,
+      entrada.companyId,
+    );
+    if (preferencias.syncMode !== "manual_secure")
+      throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
+
+    // --- 6. Caché y estado tributario guardado. ---------------------------
+    const estados = await construirEstadosPeriodos(entrada.companyId, periodos, ahora);
+
+    // --- 7. Plan. ---------------------------------------------------------
+    const plan = construirPlanEjecucion({
+      companyId: entrada.companyId,
+      requestedPeriods: periodos,
+      estados,
+      ahora,
+      executionMode: "manual_secure",
+      permitirDetalleDocumental: entrada.incluirDetalle === true,
+    });
+    const control = new ControlPlanEjecucion(plan);
+
+    // --- 8. Límites del plan, antes de recibir o usar la clave. -----------
+    const limites = verificarLimitesPlan(plan);
+    if (!limites.ok) {
+      await liberarBloqueo(planId, plan, "stopped_by_guard", CODIGO_GUARDA_CREDITOS);
+      return {
+        estado: "bloqueado",
+        plan,
+        control,
+        planId: null,
+        mensaje: limites.mensajeUsuario ?? "Detuvimos la actualización por precaución.",
+        errorCodigo: CODIGO_GUARDA_CREDITOS,
+      };
+    }
+
+    // --- 9. Presupuesto mensual. ------------------------------------------
+    const presupuesto = evaluarPresupuesto(preferencias);
+    if (presupuesto.estado === "bloqueado" && plan.requiresCredentials) {
+      await liberarBloqueo(planId, plan, "stopped_by_guard", CODIGO_GUARDA_CREDITOS);
+      return {
+        estado: "bloqueado",
+        plan,
+        control,
+        planId: null,
+        mensaje:
+          "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
+        errorCodigo: CODIGO_GUARDA_CREDITOS,
+      };
+    }
+
+    // --- 10. Credenciales: un plan sin llamadas no las necesita. ----------
+    if (!plan.requiresCredentials) {
+      await liberarBloqueo(planId, plan, "cache_only", null);
+      return {
+        estado: "cache_only",
+        plan,
+        control,
+        planId: null,
+        mensaje: MENSAJE_CACHE_ONLY,
+        errorCodigo: null,
+      };
+    }
+
+    await guardarPlanAprobado(planId, plan);
+
+    return {
+      estado: "aprobado",
+      plan,
+      control,
+      planId,
+      mensaje: "Plan aprobado.",
+      errorCodigo: null,
+    };
+  } catch (error) {
+    // El bloqueo nunca queda tomado si la preparación falla.
+    await supabaseAdmin
+      .from("tax_sync_plans")
+      .update({
+        in_progress: false,
+        plan_status: "failed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", planId);
+    throw error;
+  }
 }
 
-/** Guarda el plan. Solo cifras y recursos: nunca datos de acceso. */
-async function registrarPlan(
+/** Plan vacío para responder sin revelar nada cuando no se llegó a construir. */
+function planVacio(companyId: string, periodos: string[]): SyncExecutionPlan {
+  return construirPlanEjecucion({
+    companyId,
+    requestedPeriods: periodos,
+    estados: [],
+    ahora: new Date(),
+    executionMode: "manual_secure",
+  });
+}
+
+/**
+ * Toma el bloqueo por empresa. El índice único parcial de la base de datos
+ * garantiza que solo una ejecución quede en curso: si ya hay otra, el insert
+ * falla y devolvemos null sin leer nada del contribuyente.
+ */
+async function adquirirBloqueo(
   entrada: EntradaPreparacion,
-  plan: SyncExecutionPlan,
-  extra: { planStatus: string; errorCodigo: string | null; enCurso: boolean },
+  periodos: string[],
 ): Promise<string | null> {
   const { data } = await supabaseAdmin
     .from("tax_sync_plans")
     .insert({
       company_id: entrada.companyId,
       created_by: entrada.userId,
-      requested_periods: plan.requestedPeriods,
-      execution_mode: plan.executionMode,
-      requires_credentials: plan.requiresCredentials,
-      plan: plan as never,
-      plan_status: extra.planStatus,
-      in_progress: extra.enCurso,
-      planned_calls: plan.expectedProviderCalls,
-      planned_credit_min: plan.expectedCreditRange.min,
-      planned_credit_max: plan.expectedCreditRange.max,
-      calls_avoided_by_cache: plan.periodsUsingCache.length,
-      error_code: extra.errorCodigo,
-      completed_at: extra.enCurso ? null : new Date().toISOString(),
+      requested_periods: periodos,
+      execution_mode: "manual_secure",
+      requires_credentials: false,
+      plan: {} as never,
+      plan_status: "planned",
+      in_progress: true,
+      planned_calls: 0,
+      planned_credit_min: 0,
+      planned_credit_max: 0,
+      calls_avoided_by_cache: 0,
     })
     .select("id")
     .maybeSingle();
   return data ? String(data.id) : null;
+}
+
+/** Escribe el plan aprobado sobre la fila del bloqueo, que sigue vigente. */
+async function guardarPlanAprobado(planId: string, plan: SyncExecutionPlan) {
+  await supabaseAdmin
+    .from("tax_sync_plans")
+    .update({
+      plan: plan as never,
+      plan_status: "approved",
+      requires_credentials: plan.requiresCredentials,
+      planned_calls: plan.expectedProviderCalls,
+      planned_credit_min: plan.expectedCreditRange.min,
+      planned_credit_max: plan.expectedCreditRange.max,
+      calls_avoided_by_cache: plan.periodsUsingCache.length,
+    })
+    .eq("id", planId);
+}
+
+/** Cierra la fila y libera el bloqueo cuando no habrá consultas. */
+async function liberarBloqueo(
+  planId: string,
+  plan: SyncExecutionPlan,
+  planStatus: string,
+  errorCodigo: string | null,
+) {
+  await supabaseAdmin
+    .from("tax_sync_plans")
+    .update({
+      plan: plan as never,
+      plan_status: planStatus,
+      requires_credentials: plan.requiresCredentials,
+      planned_calls: plan.expectedProviderCalls,
+      planned_credit_min: plan.expectedCreditRange.min,
+      planned_credit_max: plan.expectedCreditRange.max,
+      calls_avoided_by_cache: plan.periodsUsingCache.length,
+      error_code: errorCodigo,
+      in_progress: false,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", planId);
+}
+
+/* --------------------- Ampliación controlada del plan --------------------- */
+
+export interface EntradaAmpliacion {
+  userId: string;
+  companyId: string;
+  planId: string;
+  control: ControlPlanEjecucion;
+  periodo: string;
+  folioNuevo: string;
+  folioAnterior: string | null;
+  /** El folio ya está descargado y leído: no corresponde pagar de nuevo. */
+  folioYaDescargado: boolean;
+}
+
+export type ResultadoAmpliacionServidor =
+  | { autorizada: true }
+  | { autorizada: false; codigo: string; motivo: string; mensajeUsuario: string };
+
+/**
+ * Única vía para que un folio nuevo o rectificatorio entre al plan. Revalida
+ * permisos, bloqueo, idempotencia, límites y presupuesto; si algo falla, la
+ * ampliación queda registrada como rechazada y NO se llama al proveedor.
+ */
+export async function solicitarAmpliacionF29(
+  entrada: EntradaAmpliacion,
+): Promise<ResultadoAmpliacionServidor> {
+  const propuesta = construirPropuestaAmpliacionF29({
+    planId: entrada.planId,
+    companyId: entrada.companyId,
+    periodo: entrada.periodo,
+    folioNuevo: entrada.folioNuevo,
+    folioAnterior: entrada.folioAnterior,
+  });
+
+  // Permisos y bloqueo se revalidan aquí, no se dan por heredados.
+  let permisosOk = true;
+  try {
+    await exigirRol(entrada.userId, entrada.companyId, ["owner"]);
+  } catch {
+    permisosOk = false;
+  }
+
+  const { data: fila } = await supabaseAdmin
+    .from("tax_sync_plans")
+    .select("id, in_progress, company_id")
+    .eq("id", entrada.planId)
+    .maybeSingle();
+  const bloqueoVigente =
+    !!fila && fila.in_progress === true && fila.company_id === entrada.companyId;
+
+  const { data: previa } = await supabaseAdmin
+    .from("tax_sync_plan_amendments")
+    .select("id, status")
+    .eq("plan_id", entrada.planId)
+    .eq("period", entrada.periodo)
+    .eq("new_folio", entrada.folioNuevo)
+    .maybeSingle();
+
+  const preferencias = await obtenerPreferenciasSync(entrada.userId, entrada.companyId);
+  const presupuesto = evaluarPresupuesto(preferencias);
+
+  const evaluacion = evaluarAmpliacion(entrada.control.plan, propuesta, {
+    permisosOk,
+    bloqueoVigente,
+    folioYaDescargado: entrada.folioYaDescargado,
+    ampliacionPrevia: !!previa,
+    descargasDelFolio: entrada.control.consumoDeRecurso(propuesta.recursoId),
+    llamadasRealizadas: entrada.control.llamadasReales,
+    maximoLlamadasPorEjecucion: MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
+    presupuestoBloqueado: presupuesto.estado === "bloqueado",
+    creditoDisponible:
+      preferencias.monthlyCreditBudget != null && preferencias.monthlyCreditBudget > 0
+        ? Math.max(
+            0,
+            preferencias.monthlyCreditBudget - preferencias.creditsUsedCurrentMonth,
+          )
+        : null,
+  });
+
+  const aprobada = evaluacion.aprobada;
+  await supabaseAdmin.from("tax_sync_plan_amendments").insert({
+    plan_id: entrada.planId,
+    company_id: entrada.companyId,
+    requested_by: entrada.userId,
+    period: propuesta.periodo,
+    new_folio: propuesta.folioNuevo,
+    previous_folio: propuesta.folioAnterior,
+    reason: propuesta.motivo,
+    resource_id: propuesta.recursoId,
+    additional_calls: propuesta.llamadasAdicionales,
+    additional_credit_min: propuesta.creditoAdicionalMin,
+    additional_credit_max: propuesta.creditoAdicionalMax,
+    status: aprobada ? "approved" : "rejected",
+    rejection_code: aprobada ? null : evaluacion.codigo,
+    rejection_detail: aprobada ? null : evaluacion.motivo,
+  });
+
+  if (!aprobada)
+    return {
+      autorizada: false,
+      codigo: evaluacion.codigo,
+      motivo: evaluacion.motivo,
+      mensajeUsuario: evaluacion.mensajeUsuario,
+    };
+
+  // Recién aquí el recurso existe para el portero.
+  entrada.control.aplicarAmpliacion(propuesta);
+
+  await supabaseAdmin
+    .from("tax_sync_plans")
+    .update({
+      plan: entrada.control.plan as never,
+      plan_amended: true,
+      amendment_reason: propuesta.motivo,
+      approved_additional_calls: propuesta.llamadasAdicionales,
+      approved_additional_credit_min: propuesta.creditoAdicionalMin,
+      approved_additional_credit_max: propuesta.creditoAdicionalMax,
+      amendment_created_at: new Date().toISOString(),
+      planned_calls: entrada.control.plan.expectedProviderCalls,
+      planned_credit_max: entrada.control.plan.expectedCreditRange.max,
+    })
+    .eq("id", entrada.planId);
+
+  return { autorizada: true };
 }
 
 /**

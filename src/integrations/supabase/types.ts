@@ -1514,10 +1514,90 @@ export type Database = {
           },
         ]
       }
+      tax_sync_plan_amendments: {
+        Row: {
+          additional_calls: number
+          additional_credit_max: number
+          additional_credit_min: number
+          company_id: string
+          created_at: string
+          id: string
+          new_folio: string
+          period: string
+          plan_id: string
+          previous_folio: string | null
+          reason: string
+          rejection_code: string | null
+          rejection_detail: string | null
+          requested_by: string | null
+          resource_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          additional_calls?: number
+          additional_credit_max?: number
+          additional_credit_min?: number
+          company_id: string
+          created_at?: string
+          id?: string
+          new_folio: string
+          period: string
+          plan_id: string
+          previous_folio?: string | null
+          reason: string
+          rejection_code?: string | null
+          rejection_detail?: string | null
+          requested_by?: string | null
+          resource_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          additional_calls?: number
+          additional_credit_max?: number
+          additional_credit_min?: number
+          company_id?: string
+          created_at?: string
+          id?: string
+          new_folio?: string
+          period?: string
+          plan_id?: string
+          previous_folio?: string | null
+          reason?: string
+          rejection_code?: string | null
+          rejection_detail?: string | null
+          requested_by?: string | null
+          resource_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_sync_plan_amendments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_sync_plan_amendments_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "tax_sync_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sync_plans: {
         Row: {
           actual_calls: number
           actual_credits: number
+          amendment_created_at: string | null
+          amendment_reason: string | null
+          approved_additional_calls: number
+          approved_additional_credit_max: number
+          approved_additional_credit_min: number
           calls_avoided_by_cache: number
           company_id: string
           completed_at: string | null
@@ -1528,6 +1608,7 @@ export type Database = {
           id: string
           in_progress: boolean
           plan: Json
+          plan_amended: boolean
           plan_status: string
           planned_calls: number
           planned_credit_max: number
@@ -1540,6 +1621,11 @@ export type Database = {
         Insert: {
           actual_calls?: number
           actual_credits?: number
+          amendment_created_at?: string | null
+          amendment_reason?: string | null
+          approved_additional_calls?: number
+          approved_additional_credit_max?: number
+          approved_additional_credit_min?: number
           calls_avoided_by_cache?: number
           company_id: string
           completed_at?: string | null
@@ -1550,6 +1636,7 @@ export type Database = {
           id?: string
           in_progress?: boolean
           plan?: Json
+          plan_amended?: boolean
           plan_status?: string
           planned_calls?: number
           planned_credit_max?: number
@@ -1562,6 +1649,11 @@ export type Database = {
         Update: {
           actual_calls?: number
           actual_credits?: number
+          amendment_created_at?: string | null
+          amendment_reason?: string | null
+          approved_additional_calls?: number
+          approved_additional_credit_max?: number
+          approved_additional_credit_min?: number
           calls_avoided_by_cache?: number
           company_id?: string
           completed_at?: string | null
@@ -1572,6 +1664,7 @@ export type Database = {
           id?: string
           in_progress?: boolean
           plan?: Json
+          plan_amended?: boolean
           plan_status?: string
           planned_calls?: number
           planned_credit_max?: number

@@ -25,7 +25,11 @@ import {
   leerConfiguracion,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
-import type { ControlPlanEjecucion } from "@/lib/syncPlan";
+import { ErrorPlanEjecucion, type ControlPlanEjecucion } from "@/lib/syncPlan";
+import {
+  CODIGO_AMPLIACION_RECHAZADA,
+  recursoPdfF29,
+} from "@/lib/planAmendment";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import { obtenerListadoF29Anual } from "@/lib/f29Listing.server";
 import { HORAS_ESPERA_FALLO_DESCARGA_F29 } from "@/lib/syncEconomica";
@@ -422,6 +426,11 @@ export interface OpcionesExtraccionF29 {
   ahora?: Date;
   /** Portero del plan aprobado: sin recurso planificado no se descarga nada. */
   control?: ControlPlanEjecucion;
+  /**
+   * Identificador del plan en curso. Sin él no se puede pedir una ampliación:
+   * un folio nuevo detectado queda sin descargar en vez de saltarse el plan.
+   */
+  planId?: string | null;
 }
 
 export async function extraerF29Compacto(
@@ -645,7 +654,43 @@ export async function extraerF29Compacto(
       if (await esperaPorFalloReciente(entrada.companyId, entrada.periodo, ahora))
         throw new ErrorF29("F29_PDF_DOWNLOAD_FAILED");
 
-      opciones.control?.autorizarDescargaF29(entrada.periodo, elegida.folio);
+      /*
+       * Gobernanza: si el recurso no venía en el plan aprobado (folio nuevo o
+       * rectificatorio detectado en el listado), NO se descarga por excepción.
+       * Se pide una ampliación formal que revalida permisos, bloqueo, límites
+       * y presupuesto. Si la ampliación se rechaza, no se llama al proveedor.
+       */
+      const control = opciones.control;
+      if (control) {
+        const recursoId = recursoPdfF29(entrada.periodo);
+        if (!control.estaPlanificado(recursoId)) {
+          if (!opciones.planId)
+            throw new ErrorPlanEjecucion(
+              CODIGO_AMPLIACION_RECHAZADA,
+              recursoId,
+              "Detectamos una nueva declaración, pero no pudimos autorizar su descarga en esta actualización.",
+            );
+          const { solicitarAmpliacionF29 } = await import("@/lib/planEjecucion.server");
+          const ampliacion = await solicitarAmpliacionF29({
+            userId,
+            companyId: entrada.companyId,
+            planId: opciones.planId,
+            control,
+            periodo: entrada.periodo,
+            folioNuevo: String(elegida.folio),
+            folioAnterior: existente?.folio ? String(existente.folio) : null,
+            folioYaDescargado: false,
+          });
+          if (!ampliacion.autorizada)
+            throw new ErrorPlanEjecucion(
+              ampliacion.codigo,
+              recursoId,
+              ampliacion.mensajeUsuario,
+            );
+        }
+        // Recién ahora el portero puede autorizar: el recurso está en el plan.
+        control.autorizar(recursoId);
+      }
       const binario = await requestApiGatewayBinary({
         config,
         modulo: "f29_compact_pdf",
