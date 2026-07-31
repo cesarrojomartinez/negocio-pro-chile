@@ -1069,25 +1069,36 @@ export async function syncSiiCompanyPeriod(
 
   /**
    * Consistencia obligatoria resumen ↔ detalle.
-   * Si el SII informa documentos y no logramos guardar ninguno, el resultado NO
-   * puede presentarse como exitoso: se marca como parcial y se explica.
+   *
+   * Comparación justa: las boletas electrónicas y los comprobantes de pago
+   * electrónico el SII los informa SOLO como total del mes, sin detalle
+   * documento por documento. Sus cantidades entran en los totales oficiales
+   * pero nunca pueden guardarse una por una, así que compararlas contra lo
+   * persistido marcaba "por revisar" un resultado en realidad correcto.
    */
   const informadosResumen = resumenVentas.documentCount + resumenCompras.documentCount;
+  const esperadosConDetalle =
+    documentosConDetalleEsperados(resumenVentas) +
+    documentosConDetalleEsperados(resumenCompras);
+  const soloTotalMensual =
+    documentosSoloResumenMensual(resumenVentas) +
+    documentosSoloResumenMensual(resumenCompras);
   const inconsistencias: string[] = [];
   if (hayResumen) {
-    if (resumenVentas.documentCount > 0 && totalesDetalle.ventas === 0)
+    if (documentosConDetalleEsperados(resumenVentas) > 0 && totalesDetalle.ventas === 0)
       inconsistencias.push(
-        `El SII informa ${resumenVentas.documentCount} documentos de venta y el detalle llegó vacío.`,
+        `El SII informa ${documentosConDetalleEsperados(resumenVentas)} documentos de venta con detalle y no llegó ninguno.`,
       );
-    if (resumenCompras.documentCount > 0 && totalesDetalle.compras === 0)
+    if (documentosConDetalleEsperados(resumenCompras) > 0 && totalesDetalle.compras === 0)
       inconsistencias.push(
-        `El SII informa ${resumenCompras.documentCount} documentos de compra y el detalle llegó vacío.`,
+        `El SII informa ${documentosConDetalleEsperados(resumenCompras)} documentos de compra con detalle y no llegó ninguno.`,
       );
-    if (informadosResumen > 0 && persistidos > 0 && persistidos < informadosResumen)
+    if (esperadosConDetalle > 0 && persistidos > 0 && persistidos < esperadosConDetalle)
       inconsistencias.push(
-        `El resumen informa ${informadosResumen} documentos y guardamos ${persistidos}.`,
+        `El resumen informa ${esperadosConDetalle} documentos con detalle y guardamos ${persistidos}.`,
       );
   }
+
 
   const estadoBase: ResultadoSincronizacion["estado"] = fallidos.length
     ? hubieron
