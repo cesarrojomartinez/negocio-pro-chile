@@ -19,6 +19,8 @@ import {
 } from "@/integrations/sii/apiGatewayClient";
 import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
+import { normalizarPeriodo } from "@/lib/periodo";
+
 import {
   empresaAutorizadaParaPruebaReal,
   leerConfiguracion,
