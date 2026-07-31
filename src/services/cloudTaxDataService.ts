@@ -12,7 +12,10 @@ import {
   periodoAnterior,
 } from "@/lib/taxMappers";
 import { construirDashboard } from "@/lib/dashboardBuilder";
-import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
+import {
+  agregadosComprasDeResumen,
+  agregadosVentasDeResumen,
+} from "@/integrations/sii/rcvSummary";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
