@@ -667,7 +667,10 @@ export async function extraerF29Compacto(
           declared_vat: campos.declared_vat_payable,
           declared_ppm: campos.declared_ppm,
           declared_withholdings: campos.declared_withholdings ?? 0,
-          declared_total: campos.declared_total_payable,
+          // El total a pagar dentro del plazo (91) manda; si no se leyó, se usa
+          // el total determinado (547) antes que dejar el periodo sin total.
+          declared_total:
+            campos.declared_total_payable ?? campos.declared_total_determined ?? null,
           vat_carryforward: campos.declared_previous_carryforward,
           previous_vat_carryforward: campos.declared_previous_carryforward,
           new_vat_carryforward: campos.declared_new_carryforward,
@@ -682,7 +685,19 @@ export async function extraerF29Compacto(
             ppm_rate: campos.declared_ppm_rate,
             ppm_tax_base: campos.declared_ppm_base,
             confidence_level: evaluacion.confianza,
+            // Todos los códigos leídos del formulario, para conciliar en pantalla.
+            vat_debit: campos.declared_vat_debit,
+            vat_credit: campos.declared_total_vat_credits,
+            new_carryforward: campos.declared_new_carryforward,
+            total_with_surcharges: campos.declared_total_with_surcharges,
+            total_determined: campos.declared_total_determined,
+            codigos: Object.fromEntries(
+              Object.entries(codigos)
+                .filter(([, v]) => v.normalized_value != null)
+                .map(([c, v]) => [c, v.normalized_value as number]),
+            ),
           } as never,
+
         },
         { onConflict: "company_id,tax_period_id" },
       );
