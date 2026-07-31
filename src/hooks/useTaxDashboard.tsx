@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { mockTaxDataService } from "@/services/mockTaxDataService";
 import { cloudTaxDataService } from "@/services/cloudTaxDataService";
 import { siiConnectionService } from "@/services/siiConnectionService";
+import { recalcularPeriodoFn } from "@/lib/companies.functions";
+
 import type { ConexionSii } from "@/lib/siiSync.server";
 import type { TipoActivacion } from "@/lib/syncPolicy";
 import { obtenerPeriodoData, PERIODOS } from "@/data/mockTaxData";
