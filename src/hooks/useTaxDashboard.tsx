@@ -156,6 +156,12 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   }, [esCloud, companyId]);
 
   const cargar = useCallback(async () => {
+    // Mientras la sesión no se resuelve no cargamos la demostración: así la
+    // persona autenticada no ve primero datos de ejemplo y luego los suyos.
+    if (sesionPendiente) {
+      setCargando(true);
+      return;
+    }
     if (esCloud && (!companyId || !ajustesCargados)) {
       setCargando(cargandoEmpresas || !!companyId);
       return;
@@ -183,6 +189,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       setCargando(false);
     }
   }, [
+    sesionPendiente,
     esCloud,
     companyId,
     ajustesCargados,
