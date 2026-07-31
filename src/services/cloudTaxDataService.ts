@@ -572,7 +572,8 @@ export const cloudTaxDataService: TaxDataService & {
       periodRowResult,
       antecedenteF29,
       antecedenteAnterior,
-      tasaPrevia,
+      previos,
+
       paramPpm,
     ] = await Promise.all([
       this.getSettings(companyId),
