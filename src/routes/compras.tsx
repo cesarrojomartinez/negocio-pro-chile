@@ -81,10 +81,14 @@ function Compras() {
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard
-                titulo="Compras totales"
-                monto={formatCLP(data.compras.comprasTotales)}
-                descripcion="Compras consideradas durante el periodo."
+              <FlipStatCard
+                tituloFrente="Compras totales"
+                montoFrente={formatCLP(data.compras.comprasTotales)}
+                descripcionFrente="Compras consideradas durante el periodo."
+                tituloReverso="Compras netas"
+                montoReverso={formatCLP(data.compras.comprasNetas)}
+                descripcionReverso="Monto sin IVA que sirve de base para el crédito."
+                notaReverso="El IVA crédito se calcula sobre el neto afecto, no sobre el total. Las compras exentas no generan crédito."
                 variacion={data.comparacion.variacionCompras}
                 interpretarComoPositivo={false}
                 destacado
