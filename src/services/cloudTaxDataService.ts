@@ -590,8 +590,9 @@ export const cloudTaxDataService: TaxDataService & {
       antecedenteF29De(companyId, consulta.periodoId),
       antecedenteF29De(companyId, anteriorId),
       esDemoEmpresa
-        ? Promise.resolve(null)
-        : tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId),
+        ? Promise.resolve({ tasaPpm: null as number | null, anticipo: ANTICIPO_SIN_DATOS })
+        : antecedentesPreviosDe(companyId, consulta.periodoId),
+
       esDemoEmpresa
         ? Promise.resolve({ valor: null, hayHistorial: false })
         : parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId),
