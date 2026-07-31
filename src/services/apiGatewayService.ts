@@ -21,8 +21,11 @@ export class ErrorApiGateway extends Error {
  * navegador (ni en estado persistente, ni en almacenamiento local).
  */
 export const apiGatewayService = {
-  async diagnosticar(probarProductos = false): Promise<DiagnosticoApiGateway> {
-    const r = await diagnosticarApiGatewayFn({ data: { probarProductos } });
+  async diagnosticar(
+    companyId: string,
+    probarProductos = false,
+  ): Promise<DiagnosticoApiGateway> {
+    const r = await diagnosticarApiGatewayFn({ data: { companyId, probarProductos } });
     if (!r.ok) throw new ErrorApiGateway(r.error);
     return r.data;
   },

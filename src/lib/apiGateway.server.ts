@@ -89,6 +89,8 @@ export interface DiagnosticoApiGateway {
   etiqueta: string;
   puedeConsultar: boolean;
   modoPruebaHabilitado: boolean;
+  /** Indica si la empresa activa está incluida en la prueba controlada. */
+  empresaAutorizada: boolean;
   comprobaciones: ComprobacionDiagnostico[];
   productos: ProductoDiagnostico[];
   creditosDisponibles: number | null;
@@ -291,12 +293,14 @@ async function sondearProductos(
  */
 export async function diagnoseApiGatewayConfiguration(opciones?: {
   probarProductos?: boolean;
+  empresaAutorizada?: boolean;
 }): Promise<DiagnosticoApiGateway> {
   const verificadoEn = new Date().toISOString();
   const comprobaciones: ComprobacionDiagnostico[] = [];
   const productos: ProductoDiagnostico[] = [];
   const { config, baseUrl, tieneToken, baseUrlValida, https } = leerConfiguracion();
   const modoPrueba = modoPruebaRealHabilitado();
+  const empresaAutorizada = opciones?.empresaAutorizada ?? false;
 
   const modulosPendientes = RECURSOS_API_GATEWAY.filter((r) => !r.enabled).map((r) => ({
     modulo: r.module,
@@ -309,8 +313,9 @@ export async function diagnoseApiGatewayConfiguration(opciones?: {
   ): DiagnosticoApiGateway => ({
     resultado,
     etiqueta: ETIQUETA_DIAGNOSTICO[resultado],
-    puedeConsultar: resultado === "configuracion_valida",
+    puedeConsultar: resultado === "configuracion_valida" && empresaAutorizada,
     modoPruebaHabilitado: modoPrueba,
+    empresaAutorizada,
     comprobaciones,
     productos,
     creditosDisponibles: null,
