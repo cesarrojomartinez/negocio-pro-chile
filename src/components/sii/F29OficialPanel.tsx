@@ -91,36 +91,39 @@ export function F29OficialPanel({
   }
 
   const leidoPdf = extraccion && extraccion.estadoExtraccion !== "failed";
-  // Cuando no hay lectura del PDF, se usan las cifras del F29 ya guardado
-  // (confirmado por el contador) para no decir que el periodo no tiene F29.
+  // Se muestran las cifras leídas del PDF y, para todo campo que el PDF no
+  // entregue, las del F29 ya guardado (confirmado por el contador). Así el
+  // periodo nunca aparece "sin Formulario 29" cuando sí existe.
   const campos: { clave: string; etiqueta: string; texto: string }[] = [];
   const a = antecedente?.antecedente;
-  if (leidoPdf && extraccion) {
-    for (const campo of CAMPOS_VISIBLES) {
-      const texto = valorFormateado(
-        (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
-        campo.tipo,
-      );
-      if (texto) campos.push({ ...campo, texto });
-    }
-  } else if (a) {
-    const desde: [string, string, number | null, "money" | "rate"][] = [
-      ["debito", "IVA débito", a.ivaDebitoDeclarado, "money"],
-      ["credito", "IVA crédito", a.ivaCreditoDeclarado, "money"],
-      ["remAnterior", "Remanente anterior", a.remanenteAnterior, "money"],
-      ["iva", "IVA determinado", a.ivaDeclarado, "money"],
-      ["remNuevo", "Nuevo remanente", a.nuevoRemanenteDeclarado, "money"],
-      ["basePpm", "Base para el PPM", a.basePpmDeclarada, "money"],
-      ["tasaPpm", "Tasa de PPM", a.tasaPpm, "rate"],
-      ["ppm", "PPM", a.ppmDeclarado, "money"],
-      ["retenciones", "Retenciones", a.retenciones, "money"],
-      ["total", "Total declarado", a.totalDeclarado, "money"],
-    ];
-    for (const [clave, etiqueta, valor, tipo] of desde) {
-      const texto = valorFormateado(valor, tipo);
-      if (texto) campos.push({ clave, etiqueta, texto });
-    }
+  const respaldo: Record<string, [number | null, "money" | "rate"]> = a
+    ? {
+        declared_vat_debit: [a.ivaDebitoDeclarado, "money"],
+        declared_vat_credit: [a.ivaCreditoDeclarado, "money"],
+        declared_previous_carryforward: [a.remanenteAnterior, "money"],
+        declared_vat_payable: [a.ivaDeclarado, "money"],
+        declared_new_carryforward: [a.nuevoRemanenteDeclarado, "money"],
+        declared_ppm_base: [a.basePpmDeclarada, "money"],
+        declared_ppm_rate: [a.tasaPpm, "rate"],
+        declared_ppm: [a.ppmDeclarado, "money"],
+        declared_withholdings: [a.retenciones, "money"],
+        declared_total_payable: [a.totalDeclarado, "money"],
+      }
+    : {};
+  for (const campo of CAMPOS_VISIBLES) {
+    const desdePdf =
+      leidoPdf && extraccion
+        ? valorFormateado(
+            (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
+            campo.tipo,
+          )
+        : null;
+    const alternativo = respaldo[campo.clave];
+    const texto =
+      desdePdf ?? (alternativo ? valorFormateado(alternativo[0], alternativo[1]) : null);
+    if (texto) campos.push({ ...campo, texto });
   }
+
   const leido = campos.length > 0;
   const folio = extraccion?.folio ?? antecedente?.folio ?? null;
 
