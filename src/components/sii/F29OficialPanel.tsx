@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { DataRow, SectionCard } from "@/components/shared/SectionCard";
 import { Button } from "@/components/ui/button";
 import { f29PdfService } from "@/services/f29PdfService";
+import { cloudTaxDataService } from "@/services/cloudTaxDataService";
+import type { AntecedenteF29 } from "@/lib/f29Antecedent";
+
 import type { ExtraccionF29 } from "@/lib/f29PdfExtraction.server";
 import { formatCLP } from "@/utils/currency";
 
