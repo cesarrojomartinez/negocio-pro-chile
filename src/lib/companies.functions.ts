@@ -8,6 +8,7 @@ import {
   cambiarConexionDemo,
   cambiarRolMiembro,
   crearEmpresa,
+  guardarTasaPpmPeriodo,
   registrarSincronizacionDemo,
 } from "@/lib/companies.server";
 import { recalculateTaxPeriod } from "@/lib/taxRecalc.server";
@@ -100,4 +101,13 @@ export const recalcularPeriodoFn = createServerFn({ method: "POST" })
   .inputValidator((data: { companyId: string; periodo: string }) => data)
   .handler(async ({ data, context }) =>
     envolver(() => recalculateTaxPeriod(context.userId, data)),
+  );
+
+export const guardarTasaPpmPeriodoFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: { companyId: string; periodo: string; tasaPpm: number | null }) => data,
+  )
+  .handler(async ({ data, context }) =>
+    envolver(() => guardarTasaPpmPeriodo(context.userId, data)),
   );
