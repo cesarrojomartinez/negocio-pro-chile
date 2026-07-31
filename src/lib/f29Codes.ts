@@ -8,7 +8,7 @@
  */
 
 /** Versión del lector. Cambiar SIEMPRE que cambie el comportamiento del parser. */
-export const F29_PARSER_VERSION = "f29-pdf-1.1.0";
+export const F29_PARSER_VERSION = "f29-pdf-1.2.0";
 
 export type F29ValueType = "money" | "rate" | "count";
 
