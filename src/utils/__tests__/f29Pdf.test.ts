@@ -103,7 +103,7 @@ describe("lectura determinística del F29", () => {
       periodoDocumento: "2026-06",
       folioListado: "1234567890",
       folioDocumento: "1234567890",
-    });
+    }, codigos);
     expect(validaciones.find((v) => v.id === "total")?.estado).toBe("sin_datos");
     expect(evaluarExtraccion({ codigos, campos, validaciones }).estado).toBe("success");
   });

@@ -567,7 +567,7 @@ export async function extraerF29Compacto(
       // Algunos lectores PDF transfieren (y separan) el ArrayBuffer recibido.
       // Se entrega una copia exclusiva al parser para conservar intactos los
       // bytes que luego deben archivarse en almacenamiento privado.
-      lectura = await leerPdf(decodificado.bytes.slice());
+      lectura = await leerPdf(Uint8Array.from(decodificado.bytes));
     } catch {
       throw new ErrorF29("F29_TEXT_EXTRACTION_FAILED");
     }
@@ -790,7 +790,9 @@ export async function extraerF29Compacto(
       creditosConsumidos: Number(registro.creditosUsados.toFixed(4)),
       creditosDisponibles: registro.creditosDisponibles,
       errorCodigo:
-        evaluacion.estado === "partial"
+        evaluacion.estado === "failed"
+          ? "F29_VALIDATION_FAILED"
+          : evaluacion.estado === "partial"
           ? "F29_PARTIAL_EXTRACTION"
           : evaluacion.estado === "needs_review"
             ? "F29_VALIDATION_FAILED"
@@ -800,6 +802,8 @@ export async function extraerF29Compacto(
       mensaje:
         evaluacion.estado === "success"
           ? "Formulario 29 oficial descargado y leído correctamente."
+          : evaluacion.estado === "failed"
+            ? MENSAJE_ERROR_F29.F29_VALIDATION_FAILED
           : evaluacion.estado === "partial"
             ? MENSAJE_ERROR_F29.F29_PARTIAL_EXTRACTION
             : MENSAJE_ERROR_F29.F29_VALIDATION_FAILED,

@@ -218,7 +218,15 @@ export function extraerCodigosDesdeItems(items: ItemTextoPdf[]): MapaCodigos {
 
       const previo = resultado[codigo];
       const confianza = elegido ? (ancla ? 0.95 : 0.9) : 0.4;
-      if (previo && previo.confidence >= confianza && previo.normalized_value != null) return;
+      // En formularios de varias páginas un código puede repetirse. A igual
+      // confianza se conserva la aparición de la página más avanzada, donde el
+      // compacto presenta los totales consolidados, no un subtotal intermedio.
+      if (
+        previo &&
+        previo.normalized_value != null &&
+        (previo.confidence > confianza ||
+          (previo.confidence === confianza && (previo.page ?? 0) >= tokens[indice].pagina))
+      ) return;
 
       resultado[codigo] = {
         code: codigo,
@@ -343,13 +351,14 @@ export function validarF29(
   if (campos.declared_ppm_base != null && campos.declared_ppm_rate != null) {
     const esperado = Math.round(campos.declared_ppm_base * campos.declared_ppm_rate);
     const obtenido = campos.declared_ppm;
+    const toleranciaPpm = Math.max(TOLERANCIA, 2);
     validaciones.push({
       id: "ppm",
       titulo: "PPM declarado",
       estado:
         obtenido == null
           ? "sin_datos"
-          : Math.abs(esperado - obtenido) <= TOLERANCIA
+          : Math.abs(esperado - obtenido) <= toleranciaPpm
             ? "ok"
             : "advertencia",
       detalle:
