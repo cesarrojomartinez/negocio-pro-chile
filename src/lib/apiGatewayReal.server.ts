@@ -49,6 +49,11 @@ export interface EntradaPruebaReal {
   rutUsuario: string;
   /** Fuerza una sesión nueva (`auth_cache=0`) en la primera consulta RCV. */
   sesionNueva?: boolean;
+  /**
+   * Descarga además el detalle documento por documento del RCV (proveedores y
+   * listado de documentos). Consume más créditos que el modo económico.
+   */
+  incluirDetalle?: boolean;
   /** Clave Tributaria. Solo en memoria. */
   claveTributaria: string;
   consentimiento: boolean;
