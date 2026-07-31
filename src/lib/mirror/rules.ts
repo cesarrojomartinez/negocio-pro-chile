@@ -102,6 +102,18 @@ function estado(ctx: RuleContext, concepto: MirrorConcept): ComponentStatus | nu
   return ctx.resolved.get(concepto)?.status ?? null;
 }
 
+/**
+ * Verdadero cuando el crédito recuperable ya incorpora el remanente anterior
+ * (código 537). En ese caso el remanente no vuelve a restarse ni a sumarse.
+ */
+function creditoIncluyeRemanente(ctx: RuleContext): boolean {
+  return (
+    ctx.resolved
+      .get("recoverable_vat_credit")
+      ?.warnings?.includes("credito_incluye_remanente_anterior") ?? false
+  );
+}
+
 function peso(valor: number): number {
   return Math.round(valor);
 }
@@ -586,15 +598,18 @@ const VAT_POSITION: VersionedTaxRule = {
         confidence: "unknown",
       };
     }
-    const posicion = (debito as number) - (credito as number) - (remanente as number);
+    const remanenteYaIncluido = creditoIncluyeRemanente(ctx);
+    const posicion =
+      (debito as number) - (credito as number) - (remanenteYaIncluido ? 0 : (remanente as number));
     return {
       amount: peso(Math.max(0, posicion)),
       status: estado(ctx, "recoverable_vat_credit") === "requires_confirmation"
         ? "requires_confirmation"
         : "estimated",
       sources: ["mirror:vat_debit", "mirror:recoverable_vat_credit"],
-      calculationDescription:
-        "Débito fiscal menos crédito recuperable menos remanente anterior. El resultado negativo no es impuesto: se traslada como remanente.",
+      calculationDescription: remanenteYaIncluido
+        ? "Débito fiscal menos el crédito total del periodo, que ya incluye el remanente anterior."
+        : "Débito fiscal menos crédito recuperable menos remanente anterior. El resultado negativo no es impuesto: se traslada como remanente.",
       inputValues: { debito, credito, remanente, posicion: peso(posicion) },
       warnings: ["remanente_sin_reajuste_utm"],
       confidence: "medium",
@@ -631,8 +646,11 @@ const NEXT_CARRYFORWARD: VersionedTaxRule = {
         ...(remanente == null ? ["previous_carryforward"] : []),
       ]);
     }
+    const remanenteYaIncluido = creditoIncluyeRemanente(ctx);
     return {
-      amount: peso(Math.max(0, credito + remanente - debito)),
+      amount: peso(
+        Math.max(0, credito + (remanenteYaIncluido ? 0 : remanente) - debito),
+      ),
       status: "estimated",
       sources: ["mirror:vat_debit", "mirror:recoverable_vat_credit"],
       calculationDescription:
