@@ -17,13 +17,8 @@ import {
 import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers";
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
-import type {
-  DocumentoTributario,
-  PeriodoData,
-  VentasAgregadasResumen,
-} from "@/types/tax";
-import type { ProviderRcvSummary } from "@/integrations/sii/contracts";
-import { totalesSoloResumenMensual } from "@/integrations/sii/rcvSummary";
+import type { DocumentoTributario, PeriodoData } from "@/types/tax";
+import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
 import type { Empresa } from "@/types/company";
 
 interface FilaDocumento {
@@ -69,23 +64,6 @@ async function periodoId(companyId: string, periodo: string) {
   return data ?? null;
 }
 
-/**
- * Ventas que el SII informa solo como total del mes (boletas electrónicas,
- * boletas exentas y comprobantes de pago electrónico). Se leen del resumen
- * oficial guardado del RCV para que los totales del periodo estén completos
- * aunque no exista detalle documento por documento.
- */
-function ventasAgregadasDelResumen(
-  rcvSummary: unknown,
-): VentasAgregadasResumen | null {
-  const ventas =
-    rcvSummary && typeof rcvSummary === "object"
-      ? (rcvSummary as { ventas?: unknown }).ventas
-      : null;
-  if (!ventas || typeof ventas !== "object") return null;
-  const t = totalesSoloResumenMensual(ventas as ProviderRcvSummary);
-  return t.total === 0 && t.iva === 0 && t.cantidadDocumentos === 0 ? null : t;
-}
 
 async function documentos(companyId: string, taxPeriodId: string) {
   const { data } = await supabaseAdmin
@@ -363,7 +341,7 @@ export async function recalculateTaxPeriod(
   const periodoData: PeriodoData = {
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
-    ventasAgregadasResumen: ventasAgregadasDelResumen(periodoRow.rcv_summary),
+    ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodoRow.rcv_summary),
     documentosCompra: docs.compra,
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
@@ -417,7 +395,7 @@ export async function recalculateTaxPeriod(
             documentosVenta: docsPrevios.venta,
             documentosCompra: docsPrevios.compra,
             ventasAgregadasResumen: previoRow
-              ? ventasAgregadasDelResumen(previoRow.rcv_summary)
+              ? ventasAgregadasDeResumenGuardado(previoRow.rcv_summary)
               : null,
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
