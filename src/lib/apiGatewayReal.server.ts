@@ -137,9 +137,14 @@ export async function ejecutarPruebaRealApiGateway(
     config,
     credenciales,
     registro,
+    // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
+    // detalle documento por documento ni estados secundarios de compras.
+    soloResumen: true,
+    estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,
   });
+
   const ahora = new Date().toISOString();
 
   const consumo = () => ({
