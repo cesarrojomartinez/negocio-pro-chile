@@ -169,7 +169,7 @@ export function RealGatewayPanel() {
           : "border-success/40 bg-success-soft";
 
   return (
-    <div ref={contenedorRef}>
+    <div ref={contenedorRef} id="actualizar-sii" data-panel="sii-real">
       <SectionCard
         titulo="Actualizar con la información del SII"
         descripcion="Elige el periodo, ingresa tu clave y la aplicación actualiza tus ventas, tus compras y tu Formulario 29 cuando ya está presentado."
