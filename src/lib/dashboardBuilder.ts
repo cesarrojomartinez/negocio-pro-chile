@@ -78,13 +78,32 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
   const estado = periodo.estadoPeriodo ?? estadoDelPeriodo(periodo.periodo);
   const data: PeriodoData = { ...periodo, estadoPeriodo: estado };
 
-  const resumen = construirResumenMensual(data, {
+  const resumenEstimado = construirResumenMensual(data, {
     margenPorcentaje: entrada.margenPorcentaje,
     dineroReservado: entrada.dineroReservado,
   });
+  /**
+   * Comparación interna con el Formulario 29 oficial: si el periodo ya fue
+   * declarado, la pantalla debe mostrar exactamente sus cifras.
+   */
+  const { resumen, conciliacion } = conciliarConF29Oficial(
+    resumenEstimado,
+    {
+      ivaDebito: data.ivaDebitoDeclarado ?? null,
+      ivaCredito: data.ivaCreditoDeclarado ?? null,
+      remanenteAnterior: null,
+      ivaDeterminado: data.ivaDeclarado ?? null,
+      nuevoRemanente: data.nuevoRemanenteDeclarado ?? null,
+      ppm: data.ppmDeclarado ?? null,
+      retenciones: data.retencionesDeclaradas ?? null,
+      totalAPagar: data.totalDeclarado ?? null,
+    },
+    { margenPorcentaje: entrada.margenPorcentaje },
+  );
   const ventas = construirResumenVentas(data.documentosVenta);
   const compras = construirResumenCompras(data.documentosCompra);
   const meta = construirMeta(data, resumen.ventasTotales, entrada.metaMensual);
+
 
   let anterior: { resumen: ResumenMensual; ventas: ResumenVentas } | null = null;
   if (entrada.periodoAnterior) {
