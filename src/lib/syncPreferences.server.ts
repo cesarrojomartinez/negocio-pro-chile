@@ -106,14 +106,16 @@ export async function actualizarPreferenciasSync(
   cambio: CambioPreferencias,
 ): Promise<SyncPreferences> {
   for (const campo of CAMPOS_PROHIBIDOS)
-    if (campo in (cambio as Record<string, unknown>))
+    if (campo in (cambio as unknown as Record<string, unknown>))
       throw new ErrorNegocio("Esta operación no admite datos de acceso.");
 
   await exigirRol(userId, cambio.companyId, ["owner", "business_user"]);
   await obtenerPreferenciasSync(userId, cambio.companyId);
 
   const ahora = new Date().toISOString();
-  const parche: Record<string, unknown> = {};
+  const parche: Partial<
+    import("@/integrations/supabase/types").Database["public"]["Tables"]["tax_sync_preferences"]["Update"]
+  > = {};
 
   if (cambio.syncMode) {
     // La automatización autorizada no está disponible: se conserva el modo
