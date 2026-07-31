@@ -10,6 +10,8 @@ export interface ConsultaDashboard {
   metaMensual: number | null;
   /** Solo en modo autenticado (Lovable Cloud). */
   companyId?: string | null;
+  /** Tasa de PPM elegida por la persona (fracción). `null` = usar la estimada. */
+  tasaPpmPersonalizada?: number | null;
 }
 
 /**
