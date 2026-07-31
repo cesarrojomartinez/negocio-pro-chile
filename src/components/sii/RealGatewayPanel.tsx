@@ -374,24 +374,25 @@ export function RealGatewayPanel() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="periodo-real">Periodo (o inicio del rango)</Label>
-              <Input
+              <SelectorPeriodo
                 id="periodo-real"
-                name="sii_periodo"
-                type="month"
-                value={desde}
-                onChange={(e) => setDesde(e.target.value)}
+                valor={desde}
+                anios={anios}
+                onChange={setDesde}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="periodo-real-hasta">Hasta (opcional)</Label>
               <div className="flex gap-2">
-                <Input
-                  id="periodo-real-hasta"
-                  name="sii_periodo_hasta"
-                  type="month"
-                  value={hasta}
-                  onChange={(e) => setHasta(e.target.value)}
-                />
+                <div className="flex-1">
+                  <SelectorPeriodo
+                    id="periodo-real-hasta"
+                    valor={hasta}
+                    anios={anios}
+                    onChange={setHasta}
+                    permiteVacio
+                  />
+                </div>
                 <Button type="button" variant="secondary" onClick={agregar}>
                   <Plus className="h-4 w-4" aria-hidden />
                   Agregar
@@ -403,22 +404,8 @@ export function RealGatewayPanel() {
             </div>
           </div>
 
-          {/* Atajos por año: puedes revisar meses antiguos que aún no has visto. */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Agregar un año completo:</span>
-            {aniosAtajo.map((anio) => (
-              <Button
-                key={anio}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => agregarAnio(anio)}
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden />
-                Todo {anio}
-              </Button>
-            ))}
-            {seleccionados.length > 0 && (
+          {seleccionados.length > 0 && (
+            <div className="mt-3">
               <Button
                 type="button"
                 variant="ghost"
@@ -427,8 +414,10 @@ export function RealGatewayPanel() {
               >
                 Limpiar
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+
 
 
 
