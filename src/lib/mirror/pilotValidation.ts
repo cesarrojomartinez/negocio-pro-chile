@@ -154,6 +154,16 @@ function clasificar(
     }
     return { categoria: "exact", explicacion: "Sin diferencias.", blocking: false };
   }
+  // El motor antiguo se aparta del formulario y el núcleo lo reproduce exacto:
+  // es una corrección deliberada, documentada y no bloqueante.
+  if (diferenciaOficial === 0) {
+    return {
+      categoria: "known_legacy_difference",
+      explicacion:
+        "La proyección coincide exactamente con el F29 oficial y el motor antiguo se apartaba de él. Corrección deliberada.",
+      blocking: false,
+    };
+  }
   if (faltaEntrada) {
     return {
       categoria: "missing_input",

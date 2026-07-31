@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { codigosDesdeAntecedenteContador } from "./accountantAntecedent";
+import { seleccionarParametroVigente } from "@/lib/vigenciaParametros";
 
 import {
   evaluarCertezaPeriodo,
@@ -12,7 +14,13 @@ import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
 import { configuracionAporta, type ConfiguracionTributariaOpcional } from "./optionalConfig";
 import { configuracionOpcionalDePeriodo } from "./optionalConfig.server";
-import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
+import {
+  construirContextoOficial,
+  leerCodigo,
+  sumarRetencionesOficiales,
+  CODIGO,
+} from "./officialContext";
+import { normalizarTasaPpm } from "./ppmRate";
 import { auditarCeros } from "./zeroPolicy";
 import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
 import type { HistoricalOfficialContext } from "./types";
@@ -34,12 +42,32 @@ interface FilaPeriodo {
 interface FilaF29 {
   declaration_status: string | null;
   source: string | null;
-  raw_data: { codigos?: Record<string, number>; folio?: string } | null;
+  declared_vat?: number | null;
+  declared_ppm?: number | null;
+  declared_withholdings?: number | null;
+  declared_total?: number | null;
+  vat_carryforward?: number | null;
+  raw_data: Record<string, unknown> | null;
 }
 
+const COLUMNAS_F29 =
+  "declaration_status, source, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, raw_data";
+
+/**
+ * Códigos oficiales del periodo. Se combinan los códigos transcritos del F29
+ * con los antecedentes confirmados por el contador, que llegan en columnas
+ * propias y no siempre traen `raw_data.codigos`.
+ */
 function codigosDe(fila: FilaF29 | null | undefined): Record<string, number> | null {
-  const codigos = fila?.raw_data?.codigos;
-  return codigos && Object.keys(codigos).length > 0 ? codigos : null;
+  if (!fila) return null;
+  return codigosDesdeAntecedenteContador({
+    declaredVat: fila.declared_vat ?? null,
+    declaredPpm: fila.declared_ppm ?? null,
+    declaredWithholdings: fila.declared_withholdings ?? null,
+    declaredTotal: fila.declared_total ?? null,
+    vatCarryforward: fila.vat_carryforward ?? null,
+    rawData: fila.raw_data ?? null,
+  });
 }
 
 function contextoOficialDe(
@@ -49,16 +77,20 @@ function contextoOficialDe(
   const codigos = codigosDe(fila);
   if (!codigos) return null;
   const cantidad = Object.keys(codigos).length;
+  const confirmadoPorContador =
+    fila?.source === "accountant" ||
+    (fila?.raw_data as { origin?: string } | null)?.origin === "accountant_confirmed_f29";
   return construirContextoOficial({
     period,
     codes: codigos,
-    folio: fila?.raw_data?.folio ?? null,
+    folio: ((fila?.raw_data as { folio?: string } | null)?.folio) ?? null,
     declarationStatus: fila?.declaration_status ?? null,
-    extractionStatus: cantidad >= 10 ? "valid" : "partial",
-    confidence: cantidad >= 10 ? "medium" : "low",
+    extractionStatus: confirmadoPorContador || cantidad >= 10 ? "valid" : "partial",
+    confidence: confirmadoPorContador ? "high" : cantidad >= 10 ? "medium" : "low",
     source: fila?.source ?? null,
   });
 }
+
 
 function hechosDelPeriodo(period: string, fila: FilaPeriodo): NormalizedTaxFact[] {
   const resumen = (fila.rcv_summary ?? null) as {
@@ -345,9 +377,54 @@ export interface EntradaUnificadaPeriodo {
     official: HistoricalOfficialContext | null;
     previousOfficial: HistoricalOfficialContext | null;
     optionalConfig: ConfiguracionTributariaOpcional | null;
+    previousComputedCarryforward: number | null;
   };
   official: HistoricalOfficialContext | null;
   optionalConfig: ConfiguracionTributariaOpcional | null;
+}
+
+/**
+ * Tasa de PPM confirmada para la empresa, respetando su vigencia temporal.
+ * Solo se consideran parámetros confirmados: una tasa estimada y no
+ * confirmada no entra al cálculo tributario.
+ */
+async function tasaPpmConfirmada(
+  companyId: string,
+  period: string,
+): Promise<number | null> {
+  const { data } = await supabaseAdmin
+    .from("tax_company_tax_parameters")
+    .select("value, effective_from, effective_to, confirmed, source, confirmed_at")
+    .eq("company_id", companyId)
+    .eq("parameter_type", "ppm_rate")
+    .eq("confirmed", true);
+  const vigente = seleccionarParametroVigente(data ?? [], period);
+  return vigente?.valor ?? null;
+}
+
+/** Remanente que dejó calculado el periodo inmediatamente anterior. */
+async function remanenteCalculadoAnterior(
+  companyId: string,
+  period: string,
+): Promise<number | null> {
+  const { data } = await supabaseAdmin
+    .from("tax_periods")
+    .select("id, period, tax_monthly_summaries(estimated_new_carryforward)")
+    .eq("company_id", companyId)
+    .lt("period", period)
+    .order("period", { ascending: false })
+    .limit(1)
+    .maybeSingle<{
+      tax_monthly_summaries:
+        | { estimated_new_carryforward: number | null }
+        | { estimated_new_carryforward: number | null }[]
+        | null;
+    }>();
+  const resumen = Array.isArray(data?.tax_monthly_summaries)
+    ? data?.tax_monthly_summaries[0]
+    : data?.tax_monthly_summaries;
+  const valor = resumen?.estimated_new_carryforward;
+  return valor == null ? null : Number(valor);
 }
 
 /**
@@ -368,14 +445,14 @@ export async function entradaUnificadaPeriodo(
 
   const { data: f29Row } = await supabaseAdmin
     .from("tax_f29_history")
-    .select("declaration_status, source, raw_data")
+    .select(COLUMNAS_F29)
     .eq("company_id", companyId)
     .eq("tax_period_id", periodoRow.id)
     .maybeSingle<FilaF29>();
 
   const { data: previoRow } = await supabaseAdmin
     .from("tax_f29_history")
-    .select("declaration_status, source, raw_data, tax_periods!inner(period)")
+    .select(`${COLUMNAS_F29}, tax_periods!inner(period)`)
     .eq("company_id", companyId)
     .lt("tax_periods.period", period)
     .order("tax_periods(period)", { ascending: false })
@@ -383,7 +460,19 @@ export async function entradaUnificadaPeriodo(
     .maybeSingle<FilaF29 & { tax_periods: { period: string } }>();
 
   const config = await configuracionOpcionalDePeriodo(companyId, period);
-  const optionalConfig = configuracionAporta(config) ? config : null;
+  // La configuración declarada no reemplaza al F29; solo aporta el
+  // antecedente que el formulario no informa. La tasa confirmada de la
+  // empresa se suma aquí para que el núcleo la reciba por un único camino.
+  const tasaEmpresa = await tasaPpmConfirmada(companyId, period);
+  const aportaTasaEmpresa = config.ppmRate == null && tasaEmpresa != null;
+  const configCompleta: ConfiguracionTributariaOpcional = {
+    ...config,
+    ppmRate: config.ppmRate ?? tasaEmpresa,
+    appliedConcepts: aportaTasaEmpresa
+      ? [...config.appliedConcepts, "ppm_rate" as const]
+      : config.appliedConcepts,
+  };
+  const optionalConfig = configuracionAporta(configCompleta) ? configCompleta : null;
 
   const official = contextoOficialDe(period, f29Row);
   return {
@@ -398,19 +487,33 @@ export async function entradaUnificadaPeriodo(
         ? contextoOficialDe(previoRow.tax_periods.period, previoRow)
         : null,
       optionalConfig,
+      previousComputedCarryforward: await remanenteCalculadoAnterior(companyId, period),
     },
   };
 }
+
 
 /** Códigos oficiales relevantes para la comparación triple. */
 export function conceptosOficiales(official: HistoricalOfficialContext | null) {
   if (!official) return { official: {}, officialTotal: null as number | null };
   return {
     official: {
+      vat_debit: leerCodigo(official, CODIGO.debitoTotal),
+      recoverable_vat_credit: leerCodigo(official, CODIGO.creditoTotalConRemanente),
+      previous_nominal_carryforward: leerCodigo(official, CODIGO.remanenteAnterior),
+      next_carryforward: leerCodigo(official, CODIGO.remanenteSiguiente),
+      ppm_base: leerCodigo(official, CODIGO.basePpm),
+      // La tasa se compara ya normalizada a fracción: el código 115 llega en
+      // porcentaje o en fracción según el formulario, y la tasa efectiva del
+      // periodo es la que se desprende del PPM declarado sobre su base.
+      ppm_rate: normalizarTasaPpm(leerCodigo(official, CODIGO.tasaPpm), {
+        base: leerCodigo(official, CODIGO.basePpm),
+        amount: leerCodigo(official, CODIGO.ppm),
+      }).rate,
       vat_determined: leerCodigo(official, CODIGO.ivaDeterminado),
       vat_advance_change_of_subject: leerCodigo(official, CODIGO.anticipoImputado),
       ppm_amount: leerCodigo(official, CODIGO.ppm),
-      withholdings: leerCodigo(official, CODIGO.retenciones),
+      withholdings: sumarRetencionesOficiales(official).total,
       tax_total_before_surcharges: leerCodigo(official, CODIGO.subtotalDeterminado),
     },
     officialTotal: leerCodigo(official, CODIGO.totalAPagar),
