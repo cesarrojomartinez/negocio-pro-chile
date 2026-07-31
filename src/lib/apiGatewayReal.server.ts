@@ -106,11 +106,17 @@ export async function ejecutarPruebaRealApiGateway(
   if (!entrada.consentimiento)
     throw new ErrorNegocio("Necesitamos tu autorización expresa para continuar.");
 
+  // El periodo es texto AAAA-MM de principio a fin: nunca se convierte a fecha.
+  const periodo = normalizarPeriodo(entrada.periodo);
+  if (!periodo) throw new ErrorNegocio("El periodo debe tener el formato AAAA-MM.");
+  entrada = { ...entrada, periodo };
+
   const rutUsuario = normalizarRut(entrada.rutUsuario ?? "");
   if (!esRutValido(rutUsuario))
     throw new ErrorNegocio("El RUT del usuario autorizado no es válido.");
   if (!entrada.claveTributaria || entrada.claveTributaria.length < 4)
     throw new ErrorNegocio("La clave indicada no es válida.");
+
 
   const { data: empresa } = await supabaseAdmin
     .from("tax_companies")
