@@ -148,6 +148,13 @@ export interface EntradaContextoTributario {
   specialDebits?: number;
   specialCredits?: number;
   specialAdjustmentsSource?: ConceptSource;
+  /**
+   * Anticipo de IVA por cambio de sujeto disponible para imputar (códigos 543
+   * y 573 del F29). Se descuenta del IVA determinado, nunca del débito.
+   */
+  vatAdvanceAvailable?: number | null;
+  vatAdvanceSource?: ConceptSource;
+
   ppmTaxBase: number | null;
   ppmBaseSource: ConceptSource;
   ppmRate: number | null;
