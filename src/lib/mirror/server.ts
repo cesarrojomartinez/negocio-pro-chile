@@ -1,10 +1,17 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+import {
+  evaluarCertezaPeriodo,
+  valoresTributarios,
+  type PeriodCalculationCertainty,
+  type TaxComponentValue,
+} from "./certainty";
 import { compararMotores, type ComparacionMotores } from "./comparison";
 import { ejecutarMotorEspejo, montoDe } from "./engine";
 import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
 import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
+import { auditarCeros } from "./zeroPolicy";
 import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
 import type { HistoricalOfficialContext } from "./types";
 
