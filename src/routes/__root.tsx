@@ -146,11 +146,14 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CompanyProvider>
-          <TaxDashboardProvider>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster position="top-center" richColors />
-          </TaxDashboardProvider>
+          <ActualizacionMasivaProvider>
+            <TaxDashboardProvider>
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+              <ProgresoActualizacion />
+              <Toaster position="top-center" richColors />
+            </TaxDashboardProvider>
+          </ActualizacionMasivaProvider>
         </CompanyProvider>
       </AuthProvider>
     </QueryClientProvider>
