@@ -407,14 +407,25 @@ export async function recalculateTaxPeriod(
     empresa,
     periodo: periodoData,
     periodoAnterior:
-      docsPrevios.venta.length || docsPrevios.compra.length
+      docsPrevios.venta.length ||
+      docsPrevios.compra.length ||
+      agregadosVentasDeResumen(previoRow?.rcv_summary, false)
         ? {
             ...periodoData,
             periodo: previoNombre,
             documentosVenta: docsPrevios.venta,
             documentosCompra: docsPrevios.compra,
             ventasAgregadasResumen: previoRow
-              ? ventasAgregadasDeResumenGuardado(previoRow.rcv_summary)
+              ? agregadosVentasDeResumen(
+                  previoRow.rcv_summary,
+                  docsPrevios.venta.length > 0,
+                )
+              : null,
+            comprasAgregadasResumen: previoRow
+              ? agregadosComprasDeResumen(
+                  previoRow.rcv_summary,
+                  docsPrevios.compra.length > 0,
+                )
               : null,
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
@@ -423,6 +434,7 @@ export async function recalculateTaxPeriod(
             estadoPeriodo: estadoDelPeriodo(previoNombre),
           }
         : null,
+
     idPeriodoAnterior: previoNombre,
     margenPorcentaje: margen,
     dineroReservado: reservado,
