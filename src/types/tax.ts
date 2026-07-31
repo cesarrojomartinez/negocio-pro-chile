@@ -52,6 +52,13 @@ export interface ResumenMensual {
   fuenteRemanente: CarryforwardSource;
   ivaEstimado: number;
   nuevoRemanente: number;
+  /** IVA de facturas de compra (DTE 46) excluido del débito fiscal. */
+  ivaRetenidoPorComprador?: number;
+  /** Anticipo de IVA disponible, imputado y remanente para el mes siguiente. */
+  anticipoIvaDisponible?: number;
+  anticipoIvaAplicado?: number;
+  anticipoIvaRemanente?: number;
+
   /** IVA estimado si las compras pendientes llegaran a incorporarse. */
   ivaEstimadoConPendientes: number;
   ppmEstimado: number;
