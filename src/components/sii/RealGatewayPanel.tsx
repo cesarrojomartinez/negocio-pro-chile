@@ -229,9 +229,7 @@ export function RealGatewayPanel() {
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
   const mesEnCurso = periodoEnCurso(new Date());
-  const anioEnCurso = Number(mesEnCurso.slice(0, 4));
-  /** Años que se ofrecen como atajo: el actual y el anterior. */
-  const aniosAtajo = [anioEnCurso, anioEnCurso - 1];
+  const anios = aniosDisponibles(Number(mesEnCurso.slice(0, 4)));
 
   const sumar = (nuevos: string[]) => {
     const union = Array.from(new Set([...seleccionados, ...nuevos])).sort();
@@ -260,19 +258,7 @@ export function RealGatewayPanel() {
     if (sumar(nuevos)) setHasta("");
   };
 
-  /** Atajo: agrega todos los meses de un año (sin pasar del mes en curso). */
-  const agregarAnio = (anio: number) => {
-    const meses = mesesDelAnio(anio, mesEnCurso);
-    if (meses.length === 0) return;
-    // Un año completo ocupa el trabajo entero: se reemplaza lo elegido antes.
-    const union = Array.from(new Set([...seleccionados, ...meses])).sort();
-    if (union.length > MAX_PERIODOS) {
-      setSeleccionados(meses);
-      toast.info(`Dejamos los ${meses.length} meses de ${anio} en esta actualización.`);
-      return;
-    }
-    setSeleccionados(union);
-  };
+
 
   const quitar = (p: string) =>
     setSeleccionados((prev) => prev.filter((x) => x !== p));
