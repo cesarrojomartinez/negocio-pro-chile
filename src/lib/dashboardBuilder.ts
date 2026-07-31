@@ -102,7 +102,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
    * Comparación interna con el Formulario 29 oficial: si el periodo ya fue
    * declarado, la pantalla debe mostrar exactamente sus cifras.
    */
-  const { resumen, conciliacion } = conciliarConF29Oficial(
+  const { resumen: resumenConciliado, conciliacion } = conciliarConF29Oficial(
     resumenEstimado,
     {
       ivaDebito: data.ivaDebitoDeclarado ?? null,
@@ -116,6 +116,13 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     },
     { margenPorcentaje: entrada.margenPorcentaje },
   );
+  /**
+   * Modo `compatibility`: las cifras tributarias ya vienen calculadas por el
+   * núcleo unificado. Aquí solo se copian; no se recalcula nada.
+   */
+  const resumen = entrada.resumenProductivo
+    ? aplicarResumenProductivo(resumenConciliado, entrada.resumenProductivo)
+    : resumenConciliado;
   const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
   const compras = construirResumenCompras(
     data.documentosCompra,
