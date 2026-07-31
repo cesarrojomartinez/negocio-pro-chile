@@ -447,7 +447,11 @@ export async function extraerF29Compacto(
   let cuerpo: { auth: { pass: { rut: string; clave: string } } } | null =
     construirCuerpoAuth(rutUsuario, entrada.claveTributaria);
 
-  const registro = new RegistroConsumo(2);
+  // Contador único: si viene de una sincronización, el gasto del F29 se suma
+  // al mismo registro del RCV y no queda oculto en un contador aparte.
+  const registro = opciones.registro ?? new RegistroConsumo(2);
+  const ahora = opciones.ahora ?? new Date();
+
   const llamadas: LlamadaProveedor[] = [];
   let recalculado = false;
 
