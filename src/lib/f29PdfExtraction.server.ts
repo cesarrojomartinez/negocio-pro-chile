@@ -352,10 +352,78 @@ export async function urlFirmadaF29(
 
 // -------------------------------------------------------------------- proceso
 
+/** Folio reservado para anotar un fallo de descarga y su espera obligatoria. */
+export function folioFalloDescarga(periodo: string): string {
+  return `fallo-descarga:${periodo}`;
+}
+
+/**
+ * ¿Hay un fallo de descarga reciente para este periodo? Tras un fallo se espera
+ * 24 horas antes de volver a pagar una descarga.
+ */
+async function esperaPorFalloReciente(
+  companyId: string,
+  periodo: string,
+  ahora: Date,
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("tax_f29_extractions")
+    .select("updated_at, created_at")
+    .eq("company_id", companyId)
+    .eq("folio", folioFalloDescarga(periodo))
+    .maybeSingle();
+  if (!data) return false;
+  const marca = String(data.updated_at ?? data.created_at ?? "");
+  if (!marca) return false;
+  const horas = (ahora.getTime() - new Date(marca).getTime()) / 3_600_000;
+  return horas < HORAS_ESPERA_FALLO_DESCARGA_F29;
+}
+
+/** Anota el fallo de descarga para respetar la espera. Nunca se muestra. */
+async function anotarFalloDescarga(
+  companyId: string,
+  periodo: string,
+  motivo: string,
+): Promise<void> {
+  await supabaseAdmin
+    .from("tax_f29_extractions")
+    .upsert(
+      {
+        company_id: companyId,
+        period: periodo,
+        folio: folioFalloDescarga(periodo),
+        parser_version: F29_PARSER_VERSION,
+        extraction_status: "download_failed",
+        confidence_level: "unknown",
+        // Queda fuera de las consultas de pantalla.
+        superseded: true,
+        warnings: [motivo] as never,
+        code_values: {} as never,
+        normalized_fields: {} as never,
+        validation_results: [] as never,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "company_id,folio" },
+    )
+    .then(() => undefined, () => undefined);
+}
+
+export interface OpcionesExtraccionF29 {
+  /**
+   * Contador compartido de la ejecución. Cuando la extracción ocurre dentro de
+   * una sincronización, el gasto del F29 se suma al mismo registro del RCV para
+   * que los créditos informados sean los reales.
+   */
+  registro?: RegistroConsumo;
+  ahora?: Date;
+}
+
 export async function extraerF29Compacto(
   userId: string,
   entrada: EntradaExtraccionF29,
+  opciones: OpcionesExtraccionF29 = {},
 ): Promise<ResultadoExtraccionF29> {
+
   await exigirRol(userId, entrada.companyId, ["owner", "accountant"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La consulta real con el proveedor no está habilitada.");
