@@ -7,6 +7,7 @@ import {
   resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+import { calcularDesviacionF29 } from "@/lib/f29Precision";
 
 import {
   conciliarRemanente,
