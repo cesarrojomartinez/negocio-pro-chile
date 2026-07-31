@@ -10,6 +10,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CODIGO_AMPLIACION_RECHAZADA,
+  construirPropuestaAmpliacionF29,
+  evaluarAmpliacion,
+} from "@/lib/planAmendment";
+
+
+import {
   CODIGO_GUARDA_CREDITOS,
   CODIGO_LLAMADA_NO_PLANIFICADA,
   ControlPlanEjecucion,
