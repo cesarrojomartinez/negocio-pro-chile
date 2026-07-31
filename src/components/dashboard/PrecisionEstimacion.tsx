@@ -41,23 +41,44 @@ function etiquetaPeriodo(periodo: string): string {
  */
 export function PrecisionEstimacion({ companyId }: { companyId: string | null }) {
   const [datos, setDatos] = useState<ResumenPrecision | null>(null);
+  const [recalculando, setRecalculando] = useState(false);
 
-  useEffect(() => {
-    let vigente = true;
+  const cargar = useCallback(async () => {
     if (!companyId) {
       setDatos(null);
       return;
     }
-    obtenerPrecisionEstimacionFn({ data: { companyId } })
-      .then((r) => {
-        if (!vigente) return;
-        setDatos(r.ok ? r.data : null);
-      })
-      .catch(() => vigente && setDatos(null));
-    return () => {
-      vigente = false;
-    };
+    try {
+      const r = await obtenerPrecisionEstimacionFn({ data: { companyId } });
+      setDatos(r.ok ? r.data : null);
+    } catch {
+      setDatos(null);
+    }
   }, [companyId]);
+
+  useEffect(() => {
+    void cargar();
+  }, [cargar]);
+
+  async function recalcular() {
+    if (!companyId || recalculando) return;
+    setRecalculando(true);
+    try {
+      const r = await recalcularHistorialFn({ data: { companyId } });
+      if (r.ok) {
+        toast.success(
+          `Historial recalculado: ${r.data.recalculados.length} meses actualizados.`,
+        );
+      } else {
+        toast.error("No pudimos recalcular el historial.");
+      }
+      await cargar();
+    } catch {
+      toast.error("No pudimos recalcular el historial.");
+    } finally {
+      setRecalculando(false);
+    }
+  }
 
   if (!datos || datos.filas.length === 0) return null;
 
@@ -69,6 +90,21 @@ export function PrecisionEstimacion({ companyId }: { companyId: string | null })
       descripcion="Comparación entre lo que estimó esta app y el Formulario 29 finalmente declarado."
     >
       <div className="space-y-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={recalcular}
+          disabled={recalculando}
+        >
+          <RefreshCw
+            className={`size-4 ${recalculando ? "animate-spin" : ""}`}
+            aria-hidden
+          />
+          {recalculando
+            ? "Recalculando historial…"
+            : "Recalcular con el motor actual"}
+        </Button>
+
         <div className="flex items-start gap-3 rounded-xl bg-secondary p-3.5">
           <Target className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
           <div className="space-y-0.5">
