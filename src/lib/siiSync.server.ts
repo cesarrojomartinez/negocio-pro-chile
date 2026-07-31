@@ -1056,11 +1056,13 @@ export async function syncSiiCompanyPeriod(
         company_id: entrada.companyId,
         tax_period_id: periodoRow.id,
         estimated_withholdings: n.total,
-        withholdings_source: "documents",
-        source: "mock_gateway",
+        // Sin detalle de retenciones no afirmamos que sean cero.
+        withholdings_source: n.detalle.length > 0 || n.total > 0 ? "documents" : "unknown",
+        source: fuente,
       },
       { onConflict: "company_id,tax_period_id" },
     );
+
   });
 
   const hubieron = completados.length > 0;
