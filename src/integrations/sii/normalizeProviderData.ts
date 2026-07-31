@@ -38,9 +38,14 @@ export interface ResultadoNormalizacion {
   inferidos: number;
 }
 
-function esFechaDelPeriodo(fecha: string, periodo: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha.slice(0, 7) === periodo;
+function esFechaValida(fecha: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(fecha);
 }
+
+function esFechaDelPeriodo(fecha: string, periodo: string): boolean {
+  return esFechaValida(fecha) && fecha.slice(0, 7) === periodo;
+}
+
 
 function normalizarMontos(doc: ProviderDocument): {
   neto: number;
