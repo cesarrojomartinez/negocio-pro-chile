@@ -155,8 +155,12 @@ async function parametroVigente(
 }
 
 
-/** Última tasa de PPM confirmada por el contador en periodos anteriores. */
-async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
+/**
+ * Antecedentes de los F29 anteriores: última tasa de PPM confirmada y
+ * anticipo de IVA por cambio de sujeto disponible para el periodo.
+ */
+async function antecedentesPrevios(companyId: string, periodo: string) {
+  const vacio = { tasaPpm: null as number | null, anticipo: ANTICIPO_SIN_DATOS };
   const { data: periodos } = await supabaseAdmin
     .from("tax_periods")
     .select("id, period")
@@ -165,7 +169,7 @@ async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
     .order("period", { ascending: false })
     .limit(12);
   const lista = periodos ?? [];
-  if (lista.length === 0) return null;
+  if (lista.length === 0) return vacio;
 
   const { data: filas } = await supabaseAdmin
     .from("tax_f29_history")
@@ -178,15 +182,22 @@ async function tasaPpmConfirmadaPrevia(companyId: string, periodo: string) {
       lista.map((p) => p.id),
     );
 
+  let tasaPpm: number | null = null;
+  const muestras: MuestraAnticipo[] = [];
   for (const p of lista) {
     const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
     if (!fila) continue;
     const antecedente = interpretarAntecedenteF29(fila);
-    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
-      return antecedente.tasaPpm;
+    if (!antecedente?.confirmado) continue;
+    if (tasaPpm == null && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      tasaPpm = antecedente.tasaPpm;
+    const anticipo = leerAnticipoF29(antecedente.codigos);
+    if (anticipo) muestras.push({ periodo: p.period, anticipo });
   }
-  return null;
+
+  return { tasaPpm, anticipo: estimarAnticipoIva(muestras, periodo) };
 }
+
 
 
 
