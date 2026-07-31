@@ -44,6 +44,10 @@ export function F29OficialPanel({
   onCambio?: () => void;
 }) {
   const [extraccion, setExtraccion] = useState<ExtraccionF29 | null>(null);
+  const [antecedente, setAntecedente] = useState<{
+    antecedente: AntecedenteF29;
+    folio: string | null;
+  } | null>(null);
   const [cargando, setCargando] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -53,6 +57,11 @@ export function F29OficialPanel({
       setExtraccion(await f29PdfService.obtener(companyId, periodo));
     } catch {
       setExtraccion(null);
+    }
+    try {
+      setAntecedente(await cloudTaxDataService.getAntecedenteF29(companyId, periodo));
+    } catch {
+      setAntecedente(null);
     } finally {
       setCargando(false);
     }
@@ -61,6 +70,7 @@ export function F29OficialPanel({
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
 
   if (!companyId) return null;
 
