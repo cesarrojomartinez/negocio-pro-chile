@@ -219,7 +219,7 @@ describe("plan de ejecución conectado al orquestador", () => {
     ).toBe(true);
   });
 
-  it("I. rectificatoria: solo se autoriza el folio nuevo", () => {
+  it("I. rectificatoria: sin ampliación aprobada no se descarga nada", () => {
     const p = plan(
       ["2026-05"],
       [
@@ -235,12 +235,64 @@ describe("plan de ejecución conectado al orquestador", () => {
     const control = new ControlPlanEjecucion(p);
     const proveedor = proveedorFalso(control);
 
-    // El folio ya leído nunca se vuelve a pagar.
-    expect(() => proveedor.pdfF29("2026-05", "111")).toThrow(ErrorPlanEjecucion);
-    // El folio nuevo de la rectificatoria sí se autoriza, una sola vez.
+    // Ya no existe excepción por folio nuevo: sin recurso en el plan, se bloquea.
+    expect(() => proveedor.pdfF29("2026-05", "222")).toThrow(ErrorPlanEjecucion);
+    expect(proveedor.llamadas).toEqual([]);
+
+    // Solo una ampliación formalmente aprobada incorpora el recurso.
+    const propuesta = construirPropuestaAmpliacionF29({
+      planId: "plan-1",
+      companyId: "empresa-1",
+      periodo: "2026-05",
+      folioNuevo: "222",
+      folioAnterior: "111",
+    });
+    const evaluacion = evaluarAmpliacion(p, propuesta, {
+      permisosOk: true,
+      bloqueoVigente: true,
+      folioYaDescargado: false,
+      ampliacionPrevia: false,
+      descargasDelFolio: 0,
+      llamadasRealizadas: control.llamadasReales,
+      maximoLlamadasPorEjecucion: 24,
+      presupuestoBloqueado: false,
+      creditoDisponible: null,
+    });
+    expect(evaluacion.aprobada).toBe(true);
+    expect(propuesta.motivo).toBe("RECTIFICATORY_F29");
+
+    control.aplicarAmpliacion(propuesta);
+    expect(control.plan.planAmended).toBe(true);
     proveedor.pdfF29("2026-05", "222");
     expect(() => proveedor.pdfF29("2026-05", "222")).toThrow(ErrorPlanEjecucion);
     expect(proveedor.llamadas).toEqual(["f29_pdf:2026-05"]);
+  });
+
+  it("I.2 ampliación rechazada por presupuesto: no autoriza el recurso", () => {
+    const p = plan(["2026-05"], [estado({ periodo: "2026-05", tieneDatosRcv: true })]);
+    const propuesta = construirPropuestaAmpliacionF29({
+      planId: "plan-1",
+      companyId: "empresa-1",
+      periodo: "2026-05",
+      folioNuevo: "333",
+      folioAnterior: null,
+    });
+    const evaluacion = evaluarAmpliacion(p, propuesta, {
+      permisosOk: true,
+      bloqueoVigente: true,
+      folioYaDescargado: false,
+      ampliacionPrevia: false,
+      descargasDelFolio: 0,
+      llamadasRealizadas: 0,
+      maximoLlamadasPorEjecucion: 24,
+      presupuestoBloqueado: true,
+      creditoDisponible: 0,
+    });
+    expect(evaluacion).toMatchObject({
+      aprobada: false,
+      codigo: CODIGO_AMPLIACION_RECHAZADA,
+      motivo: "presupuesto_insuficiente",
+    });
   });
 
   it("J. la clave nunca aparece en el plan ni en el resumen", () => {
