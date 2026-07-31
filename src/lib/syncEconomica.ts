@@ -102,8 +102,13 @@ export function decidirActualizacionPeriodo(
     mensaje: MENSAJE_MOTIVO_ECONOMICO[motivo],
   });
 
+  // Regla de oro: un periodo sin documentos reales del RCV SIEMPRE se descarga.
+  // Ninguna caché, F29 ni cierre puede dejar el panel en cero.
+  if (!entrada.tieneDocumentosRcv) return armar(true, true, "sin_documentos_rcv");
+
   // Periodo cerrado por el usuario: no se consulta nada más.
   if (entrada.periodoCerrado) return armar(false, false, "periodo_cerrado");
+
 
   // Periodo con F29 leído y vigente: sus cifras son definitivas. Solo se revisa
   // el listado anual (que ya viene agrupado y con caché) por si hay una
