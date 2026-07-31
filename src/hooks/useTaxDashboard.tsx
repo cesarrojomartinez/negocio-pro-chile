@@ -71,8 +71,14 @@ interface DashboardState {
 const TaxDashboardContext = createContext<DashboardState | null>(null);
 
 export function TaxDashboardProvider({ children }: { children: ReactNode }) {
-  const { modo, empresaActiva, periodos, cargandoEmpresas, refrescarEmpresas } =
-    useCompany();
+  const {
+    modo,
+    empresaActiva,
+    periodos,
+    cargandoEmpresas,
+    sesionPendiente,
+    refrescarEmpresas,
+  } = useCompany();
 
   const [periodoId, setPeriodoId] = useState(PERIODOS[0].id);
   const [escenario, setEscenarioState] = useState<EscenarioId>("equilibrado");
