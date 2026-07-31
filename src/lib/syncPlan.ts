@@ -103,6 +103,10 @@ export interface SyncExecutionPlan {
    */
   allowsDocumentDetail: boolean;
   executionMode: "manual_secure" | "automated_authorized";
+  /** Verdadero si durante la ejecución se aprobó una ampliación del plan. */
+  planAmended?: boolean;
+  /** Ampliaciones aprobadas, en orden. Nunca contienen datos de acceso. */
+  amendments?: AmpliacionAprobada[];
 }
 
 /** Recurso aprobado por el plan. Nunca contiene datos de acceso. */
