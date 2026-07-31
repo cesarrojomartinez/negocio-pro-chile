@@ -2,8 +2,10 @@ import {
   auditarF29RealFn,
   desconectarApiGatewayFn,
   diagnosticarApiGatewayFn,
+  habilitarPruebaRealFn,
   pruebaRealApiGatewayFn,
 } from "@/lib/apiGateway.functions";
+
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import type { ResultadoAuditoriaF29 } from "@/lib/f29Audit.server";
