@@ -115,7 +115,7 @@ describe("normalización", () => {
     expect(r.documentos[0].vat_amount).toBe(19000);
   });
 
-  it("descarta documentos fuera del periodo y deduplica por identificador", () => {
+  it("deduplica por identificador y conserva documentos registrados de otro mes", () => {
     const base = {
       documentType: "factura" as const,
       folio: 10,
