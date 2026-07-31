@@ -112,6 +112,8 @@ function Impuestos() {
 
             <AuditoriaMontos data={data} />
 
+            <PrecisionEstimacion companyId={companyId} />
+
 
             <SectionCard
               titulo="Qué puede modificar este cálculo"
