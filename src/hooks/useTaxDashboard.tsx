@@ -86,6 +86,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   const [periodoId, setPeriodoId] = useState(PERIODOS[0].id);
   const [escenario, setEscenarioState] = useState<EscenarioId>("equilibrado");
   const [margenPorcentaje, setMargenPorcentajeState] = useState(10);
+  const [tasaPpmPersonalizada, setTasaPpmPersonalizada] = useState<number | null>(null);
   const base = obtenerPeriodoData("equilibrado", PERIODOS[0].id);
   const [dineroReservado, setDineroReservadoState] = useState(base.dineroReservado);
   const [metaMensual, setMetaMensualState] = useState(base.metaMensual);
@@ -180,6 +181,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
         dineroReservado,
         metaMensual,
         companyId,
+        tasaPpmPersonalizada,
       });
       setData(resultado);
     } catch {
@@ -202,6 +204,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     margenPorcentaje,
     dineroReservado,
     metaMensual,
+    tasaPpmPersonalizada,
   ]);
 
   useEffect(() => {
@@ -508,6 +511,8 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       periodosDisponibles,
       escenario,
       margenPorcentaje,
+      tasaPpmPersonalizada,
+      setTasaPpmPersonalizada,
       dineroReservado,
       metaMensual,
       soloLectura,
@@ -540,6 +545,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       periodosDisponibles,
       escenario,
       margenPorcentaje,
+      tasaPpmPersonalizada,
       dineroReservado,
       metaMensual,
       soloLectura,
