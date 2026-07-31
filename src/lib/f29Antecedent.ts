@@ -45,7 +45,53 @@ export interface AntecedenteF29 {
   nuevoRemanenteDeclarado: number | null;
   /** Todos los códigos leídos del formulario oficial, cuando existen. */
   codigos: Record<string, number>;
+  /**
+   * Incoherencias detectadas en el propio formulario (por ejemplo, un PPM que
+   * no cuadra con su base y su tasa). Un F29 incoherente sigue guardándose,
+   * pero no se usa como parámetro de cálculo.
+   */
+  incoherencias: string[];
+  /** El bloque de PPM del formulario es aritméticamente consistente. */
+  ppmCoherente: boolean;
 }
+
+/**
+ * Verifica que el bloque de PPM del formulario cuadre: el PPM declarado
+ * (código 62) debe ser, con tolerancia, la base (563) por la tasa (115).
+ * Un PDF mal leído produce combinaciones imposibles —por ejemplo tasa 10 %
+ * con un PPM de cinco dígitos sobre una base de quince millones— y esa tasa
+ * jamás debe alimentar la estimación de los meses siguientes.
+ */
+export function evaluarCoherenciaPpmF29(codigos: Record<string, number>): {
+  ppmCoherente: boolean;
+  motivo: string | null;
+} {
+  const base = codigos["563"];
+  const tasa = codigos["115"];
+  const ppm = codigos["62"];
+  if (base == null || tasa == null || ppm == null || base <= 0 || tasa <= 0)
+    return { ppmCoherente: true, motivo: null };
+
+  if (tasa > 0.5)
+    return {
+      ppmCoherente: false,
+      motivo: "La tasa de PPM leída del formulario no es un valor posible.",
+    };
+
+  const esperado = base * tasa;
+  const tolerancia = Math.max(1000, esperado * 0.05);
+  if (Math.abs(esperado - ppm) > tolerancia)
+    return {
+      ppmCoherente: false,
+      motivo:
+        "El PPM declarado no coincide con la base y la tasa del mismo formulario.",
+    };
+
+  return { ppmCoherente: true, motivo: null };
+}
+
+
+
 
 function numero(valor: unknown): number | null {
   if (valor == null) return null;
@@ -87,10 +133,15 @@ export function interpretarAntecedenteF29(
       bruto.origin === ORIGEN_F29_CONTADOR ||
       bruto.origin === ORIGEN_F29_PDF);
 
+  const coherencia = evaluarCoherenciaPpmF29(codigos);
+  const tasaLeida = numero(bruto.ppm_rate);
+
   return {
     confirmado,
     remanenteAnterior: numero(fila.vat_carryforward),
-    tasaPpm: numero(bruto.ppm_rate),
+    // Una tasa que no cuadra con la base y el PPM del propio formulario no se
+    // entrega: arrastrarla contamina la estimación de los meses siguientes.
+    tasaPpm: coherencia.ppmCoherente ? tasaLeida : null,
     basePpmDeclarada: numero(bruto.ppm_tax_base),
     ppmDeclarado: numero(fila.declared_ppm),
     retenciones: numero(fila.declared_withholdings),
@@ -100,8 +151,11 @@ export function interpretarAntecedenteF29(
     ivaCreditoDeclarado: numero(bruto.vat_credit) ?? codigos["537"] ?? null,
     nuevoRemanenteDeclarado: numero(bruto.new_carryforward) ?? codigos["77"] ?? null,
     codigos,
+    incoherencias: coherencia.motivo ? [coherencia.motivo] : [],
+    ppmCoherente: coherencia.ppmCoherente,
   };
 }
+
 
 
 export interface ParametrosTributarios {

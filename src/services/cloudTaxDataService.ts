@@ -16,7 +16,15 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   agregadosComprasDeResumen,
   agregadosVentasDeResumen,
+  ivaRetenidoPorCompradorEnVentas,
 } from "@/integrations/sii/rcvSummary";
+import {
+  ANTICIPO_SIN_DATOS,
+  estimarAnticipoIva,
+  leerAnticipoF29,
+} from "@/lib/anticipoIva";
+import type { MuestraAnticipo } from "@/lib/anticipoIva";
+
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
@@ -199,10 +207,13 @@ async function antecedenteF29De(companyId: string, periodo: string) {
 }
 
 /**
- * Última tasa de PPM confirmada por el contador en un periodo anterior.
- * Evita que una empresa real herede la tasa demostrativa por omisión.
+ * Antecedentes de los F29 anteriores: última tasa de PPM confirmada y
+ * anticipo de IVA por cambio de sujeto disponible para el periodo.
+ * Evita que una empresa real herede la tasa demostrativa por omisión y que se
+ * ignore un anticipo que el SII sí descuenta.
  */
-async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
+async function antecedentesPreviosDe(companyId: string, periodo: string) {
+  const vacio = { tasaPpm: null as number | null, anticipo: ANTICIPO_SIN_DATOS };
   const { data: periodos } = await supabase
     .from("tax_periods")
     .select("id, period")
@@ -211,7 +222,7 @@ async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
     .order("period", { ascending: false })
     .limit(12);
   const lista = periodos ?? [];
-  if (lista.length === 0) return null;
+  if (lista.length === 0) return vacio;
 
   const { data: filas } = await supabase
     .from("tax_f29_history")
@@ -224,15 +235,22 @@ async function tasaPpmConfirmadaPreviaDe(companyId: string, periodo: string) {
       lista.map((p) => p.id),
     );
 
+  let tasaPpm: number | null = null;
+  const muestras: MuestraAnticipo[] = [];
   for (const p of lista) {
     const fila = (filas ?? []).find((f) => f.tax_period_id === p.id);
     if (!fila) continue;
     const antecedente = interpretarAntecedenteF29(fila);
-    if (antecedente?.confirmado && antecedente.tasaPpm && antecedente.tasaPpm > 0)
-      return antecedente.tasaPpm;
+    if (!antecedente?.confirmado) continue;
+    if (tasaPpm == null && antecedente.tasaPpm && antecedente.tasaPpm > 0)
+      tasaPpm = antecedente.tasaPpm;
+    const anticipo = leerAnticipoF29(antecedente.codigos);
+    if (anticipo) muestras.push({ periodo: p.period, anticipo });
   }
-  return null;
+
+  return { tasaPpm, anticipo: estimarAnticipoIva(muestras, periodo) };
 }
+
 
 /**
  * Parámetro tributario de la empresa vigente al inicio del periodo, con la
@@ -554,7 +572,8 @@ export const cloudTaxDataService: TaxDataService & {
       periodRowResult,
       antecedenteF29,
       antecedenteAnterior,
-      tasaPrevia,
+      previos,
+
       paramPpm,
     ] = await Promise.all([
       this.getSettings(companyId),
@@ -572,8 +591,9 @@ export const cloudTaxDataService: TaxDataService & {
       antecedenteF29De(companyId, consulta.periodoId),
       antecedenteF29De(companyId, anteriorId),
       esDemoEmpresa
-        ? Promise.resolve(null)
-        : tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId),
+        ? Promise.resolve({ tasaPpm: null as number | null, anticipo: ANTICIPO_SIN_DATOS })
+        : antecedentesPreviosDe(companyId, consulta.periodoId),
+
       esDemoEmpresa
         ? Promise.resolve({ valor: null, hayHistorial: false })
         : parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId),
@@ -597,7 +617,7 @@ export const cloudTaxDataService: TaxDataService & {
       hayHistorialVigencias: paramPpm.hayHistorial,
       tasaConfigurada: settings?.tasaPpm ?? null,
       configuracionConfirmada: !!settings?.tasaPpmConfirmada,
-      tasaConfirmadaPrevia: tasaPrevia,
+      tasaConfirmadaPrevia: previos.tasaPpm,
     });
 
     const remanente = resolverRemanenteAnterior({
@@ -641,6 +661,21 @@ export const cloudTaxDataService: TaxDataService & {
         periodRow?.rcv_summary,
         docs.compra.length > 0,
       ),
+      /**
+       * El IVA de las facturas de compra (DTE 46) lo retiene el comprador: no
+       * es débito del vendedor.
+       */
+      ivaRetenidoPorComprador: ivaRetenidoPorCompradorEnVentas(periodRow?.rcv_summary),
+      /**
+       * Anticipo de IVA por cambio de sujeto. Si el periodo ya tiene F29
+       * confirmado se usa su cifra oficial; si no, la estimación con el
+       * historial del propio contribuyente.
+       */
+      anticipoIvaDisponible:
+        (confirmado ? leerAnticipoF29(antecedenteF29?.codigos)?.disponible : null) ??
+        previos.anticipo.disponible,
+
+
 
       remanenteAnterior: parametros.remanenteAnterior,
       fuenteRemanente: parametros.fuenteRemanente,

@@ -1,4 +1,6 @@
+import { aplicarAnticipoIva } from "@/lib/anticipoIva";
 import type {
+
   AdditionalSaleInput,
   AdditionalSaleResult,
   CarryforwardSource,
@@ -914,9 +916,21 @@ export function construirResumenMensual(
     Math.max(0, redondear(data.ventasAgregadasResumen?.iva ?? 0)) +
     redondear(data.ventasAgregadasResumen?.facturas?.iva ?? 0) -
     redondear(data.ventasAgregadasResumen?.notasCredito?.iva ?? 0);
+  /**
+   * En la factura de compra electrónica (DTE 46) el IVA lo retiene y entera el
+   * comprador, así que no es débito fiscal del vendedor aunque el neto sí sea
+   * venta suya. Sumarlo inflaba la estimación mes a mes.
+   */
+  const ivaRetenidoPorComprador = Math.max(
+    0,
+    redondear(data.ivaRetenidoPorComprador ?? 0),
+  );
   const debito = {
     ...debitoDocumentos,
-    vatDebit: debitoDocumentos.vatDebit + ivaAgregado,
+    vatDebit: Math.max(
+      0,
+      debitoDocumentos.vatDebit + ivaAgregado - ivaRetenidoPorComprador,
+    ),
   };
 
   const otrosDebitos = Math.max(
@@ -932,6 +946,13 @@ export function construirResumenMensual(
     vatCreditUsable: compras.ivaCredito + otrosCreditos,
     previousCarryforward: data.remanenteAnterior,
   });
+
+  // Anticipo de IVA por cambio de sujeto: se imputa al IVA ya determinado.
+  const anticipo = aplicarAnticipoIva(
+    posicion.estimatedVatPayable,
+    data.anticipoIvaDisponible ?? 0,
+  );
+
 
   const fuenteRemanente: CarryforwardSource = data.fuenteRemanente ?? "unknown";
   const fuentePpm: PpmSource = data.fuentePpm ?? (data.tasaPpm ? "configured" : "unknown");
@@ -955,10 +976,11 @@ export function construirResumenMensual(
 
   const retenciones = Math.max(0, redondear(data.retencionesEstimadas));
   const totalTributarioEstimado = calculateTaxEstimate({
-    estimatedVatPayable: posicion.estimatedVatPayable,
+    estimatedVatPayable: anticipo.ivaPorPagar,
     estimatedPpm: ppm.estimatedPpm,
     estimatedWithholdings: retenciones,
   });
+
   const reserva = calculatePreventiveReserve({
     estimatedTaxTotal: totalTributarioEstimado,
     preventiveMarginPercent: opciones.margenPorcentaje,
@@ -986,13 +1008,21 @@ export function construirResumenMensual(
     ivaCreditoPotencial: compras.ivaCreditoPotencial,
     remanenteAnterior: Math.max(0, redondear(data.remanenteAnterior)),
     fuenteRemanente,
-    ivaEstimado: posicion.estimatedVatPayable,
+    ivaEstimado: anticipo.ivaPorPagar,
     nuevoRemanente: posicion.estimatedNewCarryforward,
-    ivaEstimadoConPendientes: calculateVatPosition({
-      vatDebit: debito.vatDebit,
-      vatCreditUsable: compras.ivaCredito + compras.ivaCreditoPotencial,
-      previousCarryforward: data.remanenteAnterior,
-    }).estimatedVatPayable,
+    ivaRetenidoPorComprador,
+    anticipoIvaDisponible: anticipo.disponible,
+    anticipoIvaAplicado: anticipo.aplicado,
+    anticipoIvaRemanente: anticipo.remanenteSiguiente,
+    ivaEstimadoConPendientes: Math.max(
+      0,
+      calculateVatPosition({
+        vatDebit: debito.vatDebit,
+        vatCreditUsable: compras.ivaCredito + compras.ivaCreditoPotencial,
+        previousCarryforward: data.remanenteAnterior,
+      }).estimatedVatPayable - anticipo.disponible,
+    ),
+
     ppmEstimado: ppm.estimatedPpm,
     basePpm: ppm.ppmTaxBase,
     tasaPpm: ppm.ppmRate,
