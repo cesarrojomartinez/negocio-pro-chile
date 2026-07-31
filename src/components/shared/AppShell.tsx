@@ -42,7 +42,7 @@ import { MENSAJE_PERIODO_SIN_SINCRONIZAR } from "@/lib/f29Antecedent";
 import type { FuentePeriodo } from "@/types/tax";
 import { formatearRut } from "@/lib/rut";
 import { cn } from "@/lib/utils";
-import { ConnectionBadge, FuentePeriodoBadge } from "./Badges";
+import { FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
   { to: "/", label: "Inicio", icon: Home },
