@@ -39,6 +39,9 @@ export type MotivoActualizacion =
 
 export const MENSAJE_MOTIVO_ECONOMICO: Record<MotivoActualizacion, string> = {
   sin_datos_previos: "Es la primera vez que consultamos este periodo.",
+  sin_documentos_rcv:
+    "Este periodo no tiene documentos del registro de compras y ventas: se descargan siempre.",
+
   mes_en_curso_vencido: "El mes en curso se actualiza una vez al día.",
   mes_sin_f29_vencido: "Este mes todavía no tiene Formulario 29 y se revisa cada tres días.",
   rcv_vigente: "Ya tienes información reciente de este periodo.",
