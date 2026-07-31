@@ -217,6 +217,14 @@ export interface PeriodoData {
   otrosCreditosIva?: number;
   debitosEspeciales?: number;
   creditosEspeciales?: number;
+  /**
+   * IVA de ventas cuyo IVA retiene el comprador (factura de compra, DTE 46).
+   * Se descuenta del débito fiscal: el vendedor no lo entera.
+   */
+  ivaRetenidoPorComprador?: number;
+  /** Anticipo de IVA por cambio de sujeto disponible para imputar. */
+  anticipoIvaDisponible?: number;
+
   /** Cifras declaradas en el F29 del periodo, cuando existen. */
   ivaDeclarado?: number | null;
   ppmDeclarado?: number | null;
