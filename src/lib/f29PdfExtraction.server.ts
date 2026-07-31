@@ -788,6 +788,15 @@ export async function extraerF29Compacto(
       .eq("period", entrada.periodo)
       .neq("folio", elegida.folio);
 
+    // La lectura resultó: se levanta la espera por fallos anteriores.
+    await supabaseAdmin
+      .from("tax_f29_extractions")
+      .delete()
+      .eq("company_id", entrada.companyId)
+      .eq("folio", folioFalloDescarga(entrada.periodo));
+
+
+
     await guardarSnapshot({
       companyId: entrada.companyId,
       periodId,
