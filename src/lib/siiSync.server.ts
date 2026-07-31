@@ -112,7 +112,8 @@ async function decisionPorPeriodo(
   periodo: string,
   ahora: Date,
 ): Promise<DecisionPeriodo> {
-  const [{ data: ultima }, { data: f29 }, { count: documentos }] = await Promise.all([
+  const [{ data: ultima }, { data: f29 }, { count: documentos }, { count: snapshotsRcv }] =
+    await Promise.all([
     supabaseAdmin
       .from("tax_sync_runs")
       .select("completed_at")
