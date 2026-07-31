@@ -11,6 +11,9 @@ import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
 import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
 import { ModoActualizacionPanel } from "@/components/sii/ModoActualizacionPanel";
+import { RecordatorioActualizacion } from "@/components/sii/RecordatorioActualizacion";
+import { AutomatizacionAvanzadaPanel } from "@/components/sii/AutomatizacionAvanzadaPanel";
+
 
 
 import { MoneyDialog } from "@/components/shared/MoneyDialog";
