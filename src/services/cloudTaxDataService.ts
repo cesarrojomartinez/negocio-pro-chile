@@ -617,7 +617,7 @@ export const cloudTaxDataService: TaxDataService & {
       hayHistorialVigencias: paramPpm.hayHistorial,
       tasaConfigurada: settings?.tasaPpm ?? null,
       configuracionConfirmada: !!settings?.tasaPpmConfirmada,
-      tasaConfirmadaPrevia: tasaPrevia,
+      tasaConfirmadaPrevia: previos.tasaPpm,
     });
 
     const remanente = resolverRemanenteAnterior({
