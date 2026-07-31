@@ -105,7 +105,7 @@ function Autenticacion() {
       pie={
         <span className="text-muted-foreground">
           ¿Prefieres mirar primero?{" "}
-          <Link to="/" className="font-medium text-primary hover:underline">
+          <Link to="/demo" className="font-medium text-primary hover:underline">
             Ver la demostración
           </Link>
         </span>

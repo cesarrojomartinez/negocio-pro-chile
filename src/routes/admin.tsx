@@ -100,7 +100,7 @@ function AdminPage() {
             Uso interno. Muestra clientes, planes, consumo y alertas operativas.
           </p>
           <div className="flex flex-wrap items-center gap-3 text-sm">
-            <Link to="/" className="font-medium text-primary hover:underline">
+            <Link to="/demo" className="font-medium text-primary hover:underline">
               Volver al dashboard
             </Link>
             <span className="text-muted-foreground" aria-hidden>
