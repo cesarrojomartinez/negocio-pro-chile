@@ -8,7 +8,7 @@ import { PlanesGrid } from "@/components/landing/PlanesGrid";
 import { Testimonios } from "@/components/landing/Testimonios";
 import { Button } from "@/components/ui/button";
 import { landingPublicaFn } from "@/lib/landing.functions";
-import type { SeccionLanding } from "@/lib/landing";
+import type { LandingPublica, SeccionLanding } from "@/lib/landing";
 
 export const Route = createFileRoute("/")({
   loader: async () => landingPublicaFn(),
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
-  const { contenido, planes, testimonios } = Route.useLoaderData();
+  const { contenido, planes, testimonios } = Route.useLoaderData() as LandingPublica;
 
   const secciones: Record<SeccionLanding, React.ReactNode> = {
     problema: contenido.problema.visible ? (
