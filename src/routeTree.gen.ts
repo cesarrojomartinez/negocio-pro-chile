@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
 import { Route as CuentaRouteImport } from './routes/cuenta'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
@@ -58,6 +59,11 @@ const ConfiguracionRoute = ConfiguracionRouteImport.update({
 const CuentaRoute = CuentaRouteImport.update({
   id: '/cuenta',
   path: '/cuenta',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DocumentosRoute = DocumentosRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
   '/cuenta': typeof CuentaRoute
+  '/demo': typeof DemoRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/configuracion'
     | '/cuenta'
+    | '/demo'
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
@@ -215,6 +227,7 @@ export interface RootRouteChildren {
   ComprasRoute: typeof ComprasRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
   CuentaRoute: typeof CuentaRoute
+  DemoRoute: typeof DemoRoute
   DocumentosRoute: typeof DocumentosRoute
   ImpuestosRoute: typeof ImpuestosRoute
   InvitacionRoute: typeof InvitacionRoute
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/cuenta'
       fullPath: '/cuenta'
       preLoaderRoute: typeof CuentaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/documentos': {
@@ -343,6 +363,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComprasRoute: ComprasRoute,
   ConfiguracionRoute: ConfiguracionRoute,
   CuentaRoute: CuentaRoute,
+  DemoRoute: DemoRoute,
   DocumentosRoute: DocumentosRoute,
   ImpuestosRoute: ImpuestosRoute,
   InvitacionRoute: InvitacionRoute,

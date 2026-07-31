@@ -81,7 +81,7 @@ function InvitacionPage() {
     await refrescarEmpresas();
     seleccionarEmpresa(r.data.companyId);
     toast.success("Listo, ya tienes acceso a la empresa.");
-    void navigate({ to: "/" });
+    void navigate({ to: "/demo" });
   };
 
   return (
@@ -106,7 +106,7 @@ function InvitacionPage() {
         ) : error ? (
           <div className="space-y-3">
             <p className="text-sm text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => void navigate({ to: "/" })}>
+            <Button variant="outline" onClick={() => void navigate({ to: "/demo" })}>
               Volver al inicio
             </Button>
           </div>

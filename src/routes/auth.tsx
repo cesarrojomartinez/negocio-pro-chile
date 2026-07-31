@@ -45,7 +45,7 @@ function Autenticacion() {
   const [errorReg, setErrorReg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cargandoSesion && session) void navigate({ to: "/" });
+    if (!cargandoSesion && session) void navigate({ to: "/demo" });
   }, [cargandoSesion, session, navigate]);
 
   async function enviarLogin(e: React.FormEvent) {
@@ -66,7 +66,7 @@ function Autenticacion() {
       void navigate({ to: "/admin" });
       return;
     }
-    void navigate({ to: "/" });
+    void navigate({ to: "/demo" });
   }
 
   async function enviarRegistro(e: React.FormEvent) {
