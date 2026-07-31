@@ -169,9 +169,9 @@ describe("proyección de compatibilidad", () => {
 });
 
 describe("modos del núcleo unificado", () => {
-  it("parte en compatibility y nunca escala a authoritative", () => {
-    expect(resolverModoUnificado(null)).toBe("compatibility");
-    expect(resolverModoUnificado("authoritative")).toBe("compatibility");
+  it("parte en el modo seguro y nunca escala a authoritative", () => {
+    expect(resolverModoUnificado(null)).toBe("shadow");
+    expect(resolverModoUnificado("authoritative")).toBe("shadow");
     expect(MODOS_UNIFICADOS_PERMITIDOS).not.toContain("authoritative");
   });
 
