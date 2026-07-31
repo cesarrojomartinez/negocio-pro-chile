@@ -1054,6 +1054,51 @@ export type Database = {
           },
         ]
       }
+      tax_period_ppm_overrides: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          ppm_rate: number
+          tax_period_id: string
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ppm_rate: number
+          tax_period_id: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ppm_rate?: number
+          tax_period_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_period_ppm_overrides_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_period_ppm_overrides_tax_period_id_fkey"
+            columns: ["tax_period_id"]
+            isOneToOne: false
+            referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_period_sync_state: {
         Row: {
           cache_hit_count: number

@@ -73,6 +73,9 @@ interface DashboardState {
 
 const TaxDashboardContext = createContext<DashboardState | null>(null);
 
+/** Clave local donde el modo demostración recuerda la tasa de PPM del mes. */
+const clavePpmDemo = (periodoId: string) => `mnad.ppm.demo.${periodoId}`;
+
 export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   const {
     modo,
@@ -86,7 +89,10 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   const [periodoId, setPeriodoId] = useState(PERIODOS[0].id);
   const [escenario, setEscenarioState] = useState<EscenarioId>("equilibrado");
   const [margenPorcentaje, setMargenPorcentajeState] = useState(10);
-  const [tasaPpmPersonalizada, setTasaPpmPersonalizada] = useState<number | null>(null);
+  const [tasaPpmPersonalizada, setTasaPpmPersonalizadaState] = useState<number | null>(
+    null,
+  );
+  const [ppmCargado, setPpmCargado] = useState(false);
   const base = obtenerPeriodoData("equilibrado", PERIODOS[0].id);
   const [dineroReservado, setDineroReservadoState] = useState(base.dineroReservado);
   const [metaMensual, setMetaMensualState] = useState(base.metaMensual);
@@ -159,10 +165,51 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     };
   }, [esCloud, companyId]);
 
+  // Recupera la tasa de PPM guardada para el periodo activo.
+  useEffect(() => {
+    let vigente = true;
+    setPpmCargado(false);
+    if (esCloud) {
+      if (!companyId) {
+        setTasaPpmPersonalizadaState(null);
+        return;
+      }
+      void cloudTaxDataService
+        .getPpmOverride(companyId, periodoId)
+        .then((t) => {
+          if (vigente) setTasaPpmPersonalizadaState(t);
+        })
+        .catch((e) => console.error("[ppm]", e))
+        .finally(() => {
+          if (vigente) setPpmCargado(true);
+        });
+    } else {
+      let guardada: number | null = null;
+      try {
+        const bruto = window.localStorage.getItem(clavePpmDemo(periodoId));
+        if (bruto != null) {
+          const n = Number(bruto);
+          if (Number.isFinite(n) && n > 0 && n <= 1) guardada = n;
+        }
+      } catch {
+        guardada = null;
+      }
+      setTasaPpmPersonalizadaState(guardada);
+      setPpmCargado(true);
+    }
+    return () => {
+      vigente = false;
+    };
+  }, [esCloud, companyId, periodoId]);
+
   const cargar = useCallback(async () => {
     // Mientras la sesión no se resuelve no cargamos la demostración: así la
     // persona autenticada no ve primero datos de ejemplo y luego los suyos.
     if (sesionPendiente) {
+      setCargando(true);
+      return;
+    }
+    if (!ppmCargado && (esCloud ? !!companyId : true)) {
       setCargando(true);
       return;
     }
@@ -198,6 +245,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     esCloud,
     companyId,
     ajustesCargados,
+    ppmCargado,
     cargandoEmpresas,
     escenario,
     periodoId,
@@ -244,6 +292,26 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       }
     },
     [],
+  );
+
+  const setTasaPpmPersonalizada = useCallback(
+    (v: number | null) => {
+      setTasaPpmPersonalizadaState(v);
+      if (esCloud) {
+        if (!companyId || soloLectura) return;
+        void guardarCloud(() =>
+          cloudTaxDataService.updatePpmOverride(companyId, periodoId, v),
+        );
+        return;
+      }
+      try {
+        if (v == null) window.localStorage.removeItem(clavePpmDemo(periodoId));
+        else window.localStorage.setItem(clavePpmDemo(periodoId), String(v));
+      } catch {
+        // almacenamiento no disponible: el cambio queda solo en pantalla
+      }
+    },
+    [esCloud, companyId, periodoId, soloLectura, guardarCloud],
   );
 
   const cambiarMargen = useCallback(
@@ -558,6 +626,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       esCloud,
       cambiarPeriodo,
       cambiarEscenario,
+      setTasaPpmPersonalizada,
       cambiarMargen,
       cambiarReservado,
       cambiarMeta,

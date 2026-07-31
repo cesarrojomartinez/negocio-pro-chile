@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   actualizarConfiguracionFn,
   cambiarConexionDemoFn,
+  guardarTasaPpmPeriodoFn,
   recalcularPeriodoFn,
   registrarSincronizacionFn,
 } from "@/lib/companies.functions";
@@ -285,6 +286,13 @@ export const cloudTaxDataService: TaxDataService & {
   >;
   marcarAlertaLeida(id: string): Promise<void>;
   updateGoal(companyId: string, periodo: string, monto: number): Promise<void>;
+  /** Tasa de PPM elegida manualmente para el periodo (fracción) o `null`. */
+  getPpmOverride(companyId: string, periodo: string): Promise<number | null>;
+  updatePpmOverride(
+    companyId: string,
+    periodo: string,
+    tasa: number | null,
+  ): Promise<void>;
   updateReservedAmount(companyId: string, monto: number): Promise<void>;
   updatePreventiveMargin(companyId: string, porcentaje: number): Promise<void>;
   connectDemo(companyId: string): Promise<string | null>;
@@ -447,6 +455,25 @@ export const cloudTaxDataService: TaxDataService & {
   async updateGoal(companyId, periodo, monto) {
     const r = await actualizarConfiguracionFn({
       data: { companyId, periodo, metaMensual: monto },
+    });
+    if (!r.ok) throw new ErrorDatosCloud(r.error);
+  },
+
+  async getPpmOverride(companyId, periodo) {
+    const periodId = await periodoIdDe(companyId, periodo);
+    if (!periodId) return null;
+    const { data } = await supabase
+      .from("tax_period_ppm_overrides")
+      .select("ppm_rate")
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodId)
+      .maybeSingle();
+    return data ? Number(data.ppm_rate) : null;
+  },
+
+  async updatePpmOverride(companyId, periodo, tasa) {
+    const r = await guardarTasaPpmPeriodoFn({
+      data: { companyId, periodo, tasaPpm: tasa },
     });
     if (!r.ok) throw new ErrorDatosCloud(r.error);
   },

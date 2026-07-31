@@ -396,6 +396,50 @@ export async function actualizarConfiguracion(
   return { ok: true };
 }
 
+/**
+ * Guarda (o borra) la tasa de PPM elegida manualmente para un periodo.
+ * `tasaPpm` en fracción (0,10 = 10%); `null` vuelve a la tasa estimada.
+ */
+export async function guardarTasaPpmPeriodo(
+  userId: string,
+  entrada: { companyId: string; periodo: string; tasaPpm: number | null },
+) {
+  await exigirRol(userId, entrada.companyId, ["owner", "business_user", "accountant"]);
+  const periodId = await idPeriodo(entrada.companyId, entrada.periodo);
+  if (!periodId) throw new ErrorNegocio("No encontramos el periodo indicado.");
+
+  if (entrada.tasaPpm == null) {
+    await supabaseAdmin
+      .from("tax_period_ppm_overrides")
+      .delete()
+      .eq("company_id", entrada.companyId)
+      .eq("tax_period_id", periodId);
+  } else {
+    if (!(entrada.tasaPpm > 0 && entrada.tasaPpm <= 1))
+      throw new ErrorNegocio("La tasa de PPM debe estar entre 0% y 100%.");
+    const { error } = await supabaseAdmin.from("tax_period_ppm_overrides").upsert(
+      {
+        company_id: entrada.companyId,
+        tax_period_id: periodId,
+        ppm_rate: entrada.tasaPpm,
+        created_by: userId,
+      },
+      { onConflict: "company_id,tax_period_id" },
+    );
+    if (error) throw new ErrorNegocio("No pudimos guardar la tasa de PPM.");
+  }
+
+  await registrarActividad(
+    entrada.companyId,
+    userId,
+    "settings.updated",
+    "tax_period_ppm_overrides",
+    { campos: "ppm_rate", periodo: entrada.periodo },
+  );
+  return { ok: true };
+}
+
+
 export async function registrarSincronizacionDemo(
   userId: string,
   entrada: { companyId: string; periodo?: string | null },
