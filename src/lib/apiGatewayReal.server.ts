@@ -355,6 +355,15 @@ export async function ejecutarPruebaRealApiGateway(
     }
   }
 
+  // Presupuesto interno: se registra el consumo real de esta ejecución y, si
+  // hubo éxito, el recordatorio del mes queda cumplido. Nunca datos de acceso.
+  await registrarConsumoEnPresupuesto(
+    entrada.companyId,
+    Number(registro.creditosUsados.toFixed(4)),
+    registro.creditosDisponibles ?? null,
+  );
+  if (exito) await marcarRecordatorioCompletado(entrada.companyId);
+
 
   await registrarActividad(
     entrada.companyId,
