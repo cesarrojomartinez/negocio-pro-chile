@@ -311,9 +311,9 @@ export async function recalculateTaxPeriod(
     periodoAnteriorConfirmado: previo.confirmado,
   });
 
-  const tasaPrevia = esDemo
-    ? null
-    : await tasaPpmConfirmadaPrevia(entrada.companyId, entrada.periodo);
+  const previos = esDemo
+    ? { tasaPpm: null as number | null, anticipo: ANTICIPO_SIN_DATOS }
+    : await antecedentesPrevios(entrada.companyId, entrada.periodo);
   const paramPpm = esDemo
     ? { valor: null, hayHistorial: false }
     : await parametroVigente(entrada.companyId, "ppm_rate", entrada.periodo);
@@ -324,8 +324,9 @@ export async function recalculateTaxPeriod(
     hayHistorialVigencias: paramPpm.hayHistorial,
     tasaConfigurada: tasaPpmConfigurada,
     configuracionConfirmada: !!settings?.ppm_rate_confirmed,
-    tasaConfirmadaPrevia: tasaPrevia,
+    tasaConfirmadaPrevia: previos.tasaPpm,
   });
+
 
   const paramRetenciones = esDemo
     ? { valor: null, hayHistorial: false }
