@@ -811,6 +811,9 @@ export type Database = {
           estimated_withholdings: number
           exempt_purchases: number
           exempt_sales: number
+          f29_deviation_amount: number | null
+          f29_deviation_measured_at: string | null
+          f29_deviation_pct: number | null
           gross_vat_position: number
           id: string
           invoice_sales: number
@@ -822,6 +825,10 @@ export type Database = {
           ppm_rate: number | null
           ppm_source: string
           ppm_tax_base: number
+          pre_f29_ppm: number | null
+          pre_f29_tax_total: number | null
+          pre_f29_vat_payable: number | null
+          pre_f29_withholdings: number | null
           preventive_margin_amount: number
           preventive_margin_percent: number
           previous_vat_carryforward: number
@@ -868,6 +875,9 @@ export type Database = {
           estimated_withholdings?: number
           exempt_purchases?: number
           exempt_sales?: number
+          f29_deviation_amount?: number | null
+          f29_deviation_measured_at?: string | null
+          f29_deviation_pct?: number | null
           gross_vat_position?: number
           id?: string
           invoice_sales?: number
@@ -879,6 +889,10 @@ export type Database = {
           ppm_rate?: number | null
           ppm_source?: string
           ppm_tax_base?: number
+          pre_f29_ppm?: number | null
+          pre_f29_tax_total?: number | null
+          pre_f29_vat_payable?: number | null
+          pre_f29_withholdings?: number | null
           preventive_margin_amount?: number
           preventive_margin_percent?: number
           previous_vat_carryforward?: number
@@ -925,6 +939,9 @@ export type Database = {
           estimated_withholdings?: number
           exempt_purchases?: number
           exempt_sales?: number
+          f29_deviation_amount?: number | null
+          f29_deviation_measured_at?: string | null
+          f29_deviation_pct?: number | null
           gross_vat_position?: number
           id?: string
           invoice_sales?: number
@@ -936,6 +953,10 @@ export type Database = {
           ppm_rate?: number | null
           ppm_source?: string
           ppm_tax_base?: number
+          pre_f29_ppm?: number | null
+          pre_f29_tax_total?: number | null
+          pre_f29_vat_payable?: number | null
+          pre_f29_withholdings?: number | null
           preventive_margin_amount?: number
           preventive_margin_percent?: number
           previous_vat_carryforward?: number
