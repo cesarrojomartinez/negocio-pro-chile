@@ -103,7 +103,63 @@ function Compras() {
                 monto={formatCLP(data.compras.ivaNoRecuperable)}
                 descripcion="IVA de compras que no reduce tu impuesto del mes."
               />
+              <StatCard
+                titulo="Compras exentas / sin IVA"
+                monto={formatCLP(data.compras.ivaNoRecuperableDetalle.comprasSinIva)}
+                descripcion="Monto sin IVA incluido en tus compras totales."
+              />
             </div>
+
+            <SectionCard
+              titulo="Cómo se componen las compras totales"
+              descripcion="Estimación informativa. No reemplaza a tu contador."
+            >
+              <ul className="space-y-2">
+                {[
+                  {
+                    etiqueta: "Compras netas (base afecta)",
+                    monto: data.compras.comprasNetas,
+                    detalle: "Monto sin IVA de los documentos considerados.",
+                  },
+                  {
+                    etiqueta: "Más IVA crédito considerado",
+                    monto: data.compras.ivaCredito,
+                    detalle: "IVA de esas mismas compras, ya descontadas las notas de crédito.",
+                  },
+                  {
+                    etiqueta: "Más compras exentas / sin IVA",
+                    monto: data.compras.ivaNoRecuperableDetalle.comprasSinIva,
+                    detalle: "Montos exentos o no afectos que igual son compra del mes.",
+                  },
+                  {
+                    etiqueta: "Compras totales",
+                    monto: data.compras.comprasTotales,
+                    detalle: "Valor bruto de las compras consideradas en el periodo.",
+                  },
+                ].map((fila) => (
+                  <li
+                    key={fila.etiqueta}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{fila.etiqueta}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fila.detalle}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {formatCLP(fila.monto)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Las {formatNumero(data.compras.documentosPendientes)} compras pendientes no
+                están incluidas en ninguna de estas cifras: solo se suman cuando cambian de
+                estado a registrada o aceptada.
+              </p>
+            </SectionCard>
+
 
             <SectionCard
               titulo="Cómo se calcula el IVA crédito considerado"
