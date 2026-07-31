@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ interface FlipStatCardProps {
   notaReverso?: string;
   variacion?: number | null;
   interpretarComoPositivo?: boolean;
+  icono?: ReactNode;
   destacado?: boolean;
 }
 
