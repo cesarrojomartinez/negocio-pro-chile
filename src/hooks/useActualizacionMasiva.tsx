@@ -37,6 +37,8 @@ interface SolicitudActualizacion {
   rutUsuario: string;
   claveTributaria: string;
   periodos: string[];
+  /** Descarga también el detalle documento por documento del RCV. */
+  incluirDetalle?: boolean;
 }
 
 interface ActualizacionMasivaState {
