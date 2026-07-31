@@ -124,7 +124,8 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
 
   const confianza = calculateConfidenceLevel({
     hasSales: ventas.cantidadDocumentos > 0,
-    hasPurchases: data.documentosCompra.length > 0,
+    hasPurchases: data.documentosCompra.length > 0 || compras.comprasTotales !== 0,
+
     syncError: !!entrada.errorSincronizacion,
     carryforwardSource: resumen.fuenteRemanente,
     ppmSource: resumen.fuentePpm,
