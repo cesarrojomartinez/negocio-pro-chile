@@ -37,6 +37,7 @@ export const mockTaxDataService: TaxDataService = {
       diasDesdeSincronizacion: 0,
       configuradoManualmente: true,
       esDemo: true,
+      tasaPpmPersonalizada: consulta.tasaPpmPersonalizada ?? null,
     });
   },
 
