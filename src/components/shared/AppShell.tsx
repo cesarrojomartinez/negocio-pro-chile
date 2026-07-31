@@ -42,7 +42,7 @@ import { MENSAJE_PERIODO_SIN_SINCRONIZAR } from "@/lib/f29Antecedent";
 import type { FuentePeriodo } from "@/types/tax";
 import { formatearRut } from "@/lib/rut";
 import { cn } from "@/lib/utils";
-import { ConnectionBadge, FuentePeriodoBadge } from "./Badges";
+import { FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
   { to: "/", label: "Inicio", icon: Home },
@@ -272,13 +272,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 pb-3 sm:px-6">
               <span className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Empresa:</span>
-                <ConnectionBadge estado={estadoConexion} />
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">
-                  Fuente del periodo:
-                </span>
+                <span className="text-xs text-muted-foreground">Fuente del periodo:</span>
                 {fuentePeriodo ? (
                   <FuentePeriodoBadge fuente={fuentePeriodo} />
                 ) : (
@@ -288,9 +282,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="text-xs text-muted-foreground">
                 {fuentePeriodo === "accountant_confirmed"
                   ? "Antecedentes confirmados por tu contador."
-                  : estadoConexion === "stale"
-                    ? `Información desactualizada. Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`
-                    : `Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`}
+                  : `Última sincronización: ${formatFechaHora(ultimaSincronizacion)}`}
               </span>
             </div>
           </header>

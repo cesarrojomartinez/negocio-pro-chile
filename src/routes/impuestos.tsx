@@ -13,7 +13,7 @@ import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
-import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/impuestos")({
   head: () => ({
@@ -34,29 +34,6 @@ export const Route = createFileRoute("/impuestos")({
   }),
   component: Impuestos,
 });
-
-const CONFIABILIDAD = {
-  alta: {
-    titulo: "Confiabilidad alta",
-    texto: "Los antecedentes del periodo se encuentran actualizados.",
-    clase: "border-success/30 bg-success-soft text-success",
-  },
-  media: {
-    titulo: "Confiabilidad media",
-    texto: "Existen compras pendientes o información parcialmente actualizada.",
-    clase: "border-warning/40 bg-warning-soft text-warning-foreground",
-  },
-  baja: {
-    titulo: "Confiabilidad baja",
-    texto: "Faltan antecedentes importantes para realizar una estimación confiable.",
-    clase: "border-destructive/30 bg-danger-soft text-destructive",
-  },
-  desconocida: {
-    titulo: "Sin información suficiente",
-    texto: "Todavía no hay datos suficientes en este periodo para estimar.",
-    clase: "border-border bg-secondary/60 text-muted-foreground",
-  },
-} as const;
 
 const FACTORES = [
   "Compras pendientes.",
@@ -99,25 +76,13 @@ function Impuestos() {
           </>
         ) : (
           <>
-            <div
-              className={cn(
-                "flex items-start gap-3 rounded-2xl border p-4",
-                CONFIABILIDAD[data.confiabilidad].clase,
-              )}
-            >
+            <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success-soft p-4 text-success">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
               <div>
-                <p className="font-semibold">
-                  {CONFIABILIDAD[data.confiabilidad].titulo}
+                <p className="font-semibold">Información orientativa</p>
+                <p className="text-sm">
+                  Ante cualquier duda, consulta a tu contador.
                 </p>
-                <p className="text-sm">{CONFIABILIDAD[data.confiabilidad].texto}</p>
-                {data.razonesConfiabilidad.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-sm">
-                    {data.razonesConfiabilidad.map((razon) => (
-                      <li key={razon}>{razon}</li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
 
