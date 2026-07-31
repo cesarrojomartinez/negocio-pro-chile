@@ -4,7 +4,11 @@ import {
   estimarAnticipoIva,
   leerAnticipoF29,
 } from "@/lib/anticipoIva";
-import { evaluarCoherenciaPpmF29 } from "@/lib/f29Antecedent";
+import {
+  evaluarCoherenciaPpmF29,
+  interpretarAntecedenteF29,
+  tasaPpmEfectivaF29,
+} from "@/lib/f29Antecedent";
 
 describe("leerAnticipoF29", () => {
   it("devuelve null cuando la empresa no tiene cambio de sujeto", () => {
@@ -109,5 +113,43 @@ describe("evaluarCoherenciaPpmF29", () => {
       evaluarCoherenciaPpmF29({ "563": 15288385, "115": 0.1, "62": 15288 })
         .ppmCoherente,
     ).toBe(false);
+  });
+});
+
+describe("tasaPpmEfectivaF29 — lección de junio 2026", () => {
+  it("deduce la tasa real del formulario cuando el código 115 es ilegible", () => {
+    // Base 15.288.385 y PPM 15.288 ⇒ 0,1 %, aunque el 115 se leyó como 0,1 (10 %).
+    const r = tasaPpmEfectivaF29({ "563": 15288385, "115": 0.1, "62": 15288 }, 0.1);
+    expect(r.derivada).toBe(true);
+    expect(r.tasa).toBe(0.001);
+  });
+
+  it("respeta la tasa leída cuando el formulario es coherente", () => {
+    const r = tasaPpmEfectivaF29({ "563": 10092569, "115": 0.03, "62": 302777 }, 0.03);
+    expect(r).toEqual({ tasa: 0.03, derivada: false });
+  });
+
+  it("no deduce nada cuando el formulario no trae base imponible", () => {
+    // Sin base no hay contra qué validar: se conserva la tasa leída, sin deducir.
+    expect(tasaPpmEfectivaF29({ "115": 0.1, "62": 15288 }, 0.1)).toEqual({
+      tasa: 0.1,
+      derivada: false,
+    });
+  });
+
+  it("el antecedente entrega la tasa deducida para heredarla al mes siguiente", () => {
+    const a = interpretarAntecedenteF29({
+      declaration_status: "filed",
+      declared_vat: 726868,
+      declared_ppm: 15288,
+      declared_withholdings: 6298,
+      declared_total: 748454,
+      vat_carryforward: 15046,
+      source: "f29_pdf_extracted",
+      raw_data: { ppm_rate: 0.1, codigos: { "563": 15288385, "115": 0.1, "62": 15288 } },
+    });
+    expect(a?.tasaPpm).toBe(0.001);
+    expect(a?.tasaPpmDerivada).toBe(true);
+    expect(a?.ppmCoherente).toBe(false);
   });
 });

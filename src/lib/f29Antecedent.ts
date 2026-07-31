@@ -53,6 +53,12 @@ export interface AntecedenteF29 {
   incoherencias: string[];
   /** El bloque de PPM del formulario es aritméticamente consistente. */
   ppmCoherente: boolean;
+  /**
+   * La tasa de PPM no se leyó del código 115 sino que se dedujo dividiendo el
+   * PPM declarado (62) por su base (563). Ocurre cuando el formulario informa
+   * la tasa en una unidad ilegible o mal extraída del PDF.
+   */
+  tasaPpmDerivada: boolean;
 }
 
 /**
@@ -90,6 +96,41 @@ export function evaluarCoherenciaPpmF29(codigos: Record<string, number>): {
   return { ppmCoherente: true, motivo: null };
 }
 
+/** Tasa máxima de PPM que puede considerarse posible en un F29 real. */
+const TASA_PPM_MAXIMA = 0.5;
+
+/**
+ * Tasa de PPM realmente aplicada en el formulario.
+ *
+ * Junio 2026 dejó la lección: el código 115 se leyó como `0,1` (interpretado
+ * como 10 %) mientras el propio formulario declaraba una base de 15.288.385 y
+ * un PPM de 15.288, es decir 0,1 %. Antes se descartaba la tasa completa y el
+ * motor seguía arrastrando el 2 % del mes anterior, sobreestimando el PPM en
+ * casi $290.000. Ahora, cuando la tasa leída no cuadra, la tasa se DEDUCE del
+ * propio formulario (código 62 ÷ código 563), que es un hecho declarado y no
+ * una interpretación de unidades.
+ */
+export function tasaPpmEfectivaF29(
+  codigos: Record<string, number>,
+  tasaLeida: number | null,
+): { tasa: number | null; derivada: boolean } {
+  const { ppmCoherente } = evaluarCoherenciaPpmF29(codigos);
+  if (ppmCoherente && tasaLeida != null && tasaLeida > 0)
+    return { tasa: tasaLeida, derivada: false };
+
+  const base = codigos["563"];
+  const ppm = codigos["62"];
+  if (base == null || ppm == null || base <= 0 || ppm < 0)
+    return { tasa: ppmCoherente ? tasaLeida : null, derivada: false };
+
+  const implicita = ppm / base;
+  if (!Number.isFinite(implicita) || implicita < 0 || implicita > TASA_PPM_MAXIMA)
+    return { tasa: null, derivada: false };
+
+  // Las tasas de PPM se expresan con hasta dos decimales porcentuales.
+  const redondeada = Math.round(implicita * 100000) / 100000;
+  return { tasa: redondeada > 0 ? redondeada : implicita, derivada: true };
+}
 
 
 
@@ -135,13 +176,15 @@ export function interpretarAntecedenteF29(
 
   const coherencia = evaluarCoherenciaPpmF29(codigos);
   const tasaLeida = numero(bruto.ppm_rate);
+  const efectiva = tasaPpmEfectivaF29(codigos, tasaLeida);
 
   return {
     confirmado,
     remanenteAnterior: numero(fila.vat_carryforward),
-    // Una tasa que no cuadra con la base y el PPM del propio formulario no se
-    // entrega: arrastrarla contamina la estimación de los meses siguientes.
-    tasaPpm: coherencia.ppmCoherente ? tasaLeida : null,
+    // Si la tasa leída no cuadra con la base y el PPM del propio formulario, se
+    // deduce del formulario en vez de descartarse: dejarla en blanco hacía que
+    // el motor arrastrara la tasa del mes anterior y sobreestimara el PPM.
+    tasaPpm: efectiva.tasa,
     basePpmDeclarada: numero(bruto.ppm_tax_base),
     ppmDeclarado: numero(fila.declared_ppm),
     retenciones: numero(fila.declared_withholdings),
@@ -151,8 +194,15 @@ export function interpretarAntecedenteF29(
     ivaCreditoDeclarado: numero(bruto.vat_credit) ?? codigos["537"] ?? null,
     nuevoRemanenteDeclarado: numero(bruto.new_carryforward) ?? codigos["77"] ?? null,
     codigos,
-    incoherencias: coherencia.motivo ? [coherencia.motivo] : [],
+    incoherencias: coherencia.motivo
+      ? [
+          efectiva.derivada
+            ? `${coherencia.motivo} Se usó la tasa deducida del propio formulario (PPM ÷ base).`
+            : coherencia.motivo,
+        ]
+      : [],
     ppmCoherente: coherencia.ppmCoherente,
+    tasaPpmDerivada: efectiva.derivada,
   };
 }
 
