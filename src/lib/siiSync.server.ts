@@ -112,7 +112,7 @@ async function decisionPorPeriodo(
   periodo: string,
   ahora: Date,
 ): Promise<DecisionPeriodo> {
-  const [{ data: ultima }, { data: f29 }] = await Promise.all([
+  const [{ data: ultima }, { data: f29 }, { count: documentos }] = await Promise.all([
     supabaseAdmin
       .from("tax_sync_runs")
       .select("completed_at")
@@ -133,6 +133,13 @@ async function decisionPorPeriodo(
       .in("extraction_status", ["success", "needs_review", "partial"])
       .limit(1)
       .maybeSingle(),
+
+    // Un periodo sin documentos reales del RCV nunca puede quedarse en caché.
+    supabaseAdmin
+      .from("tax_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodId),
   ]);
   return decidirActualizacionPeriodo({
     periodo,
@@ -141,8 +148,10 @@ async function decisionPorPeriodo(
     ultimaSincronizacionRcv: (ultima?.completed_at as string | null) ?? null,
     tieneF29Vigente: !!f29,
     periodoCerrado: periodoYaCerrado(periodo, ahora),
+    tieneDocumentosRcv: (documentos ?? 0) > 0,
   });
 }
+
 
 
 /** Selecciona el proveedor activo. */
