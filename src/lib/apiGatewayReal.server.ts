@@ -160,6 +160,7 @@ export async function ejecutarPruebaRealApiGateway(
     userId,
     companyId: entrada.companyId,
     periodos: [entrada.periodo],
+    incluirDetalle: entrada.incluirDetalle === true,
   });
 
   const f29Omitido: ResultadoF29Automatico = {
@@ -203,7 +204,8 @@ export async function ejecutarPruebaRealApiGateway(
     registro,
     // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
     // detalle documento por documento ni estados secundarios de compras.
-    soloResumen: entrada.incluirDetalle !== true,
+    // Lo decide el PLAN, no el navegador.
+    soloResumen: !plan.allowsDocumentDetail,
     estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,

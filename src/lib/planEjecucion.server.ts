@@ -153,6 +153,11 @@ export interface EntradaPreparacion {
   companyId: string;
   periodos: string[];
   ahora?: Date;
+  /**
+   * Diagnóstico interno: autoriza el detalle documento por documento. La
+   * actualización normal jamás lo usa.
+   */
+  incluirDetalle?: boolean;
 }
 
 export type EstadoPreparacion = "aprobado" | "cache_only" | "bloqueado";
@@ -210,6 +215,7 @@ export async function prepararEjecucionPlanificada(
     estados,
     ahora,
     executionMode: "manual_secure",
+    permitirDetalleDocumental: entrada.incluirDetalle === true,
   });
   const control = new ControlPlanEjecucion(plan);
 

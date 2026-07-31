@@ -92,6 +92,11 @@ export interface SyncExecutionPlan {
   skippedResources: RecursoOmitido[];
   skipReasons: string[];
   requiresCredentials: boolean;
+  /**
+   * Detalle documento por documento. Falso en la actualización normal: solo se
+   * habilita cuando el propio plan lo autoriza de forma explícita.
+   */
+  allowsDocumentDetail: boolean;
   executionMode: "manual_secure" | "automated_authorized";
 }
 
@@ -270,6 +275,7 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
     skippedResources,
     skipReasons: Array.from(skipReasons),
     requiresCredentials: expectedProviderCalls > 0,
+    allowsDocumentDetail: entrada.permitirDetalleDocumental === true,
     executionMode: entrada.executionMode,
   };
 }
@@ -302,6 +308,7 @@ export function verificarLimitesPlan(plan: SyncExecutionPlan): GuardaCreditos {
   if (foliosDuplicados) detalle.push("Hay más de una descarga para el mismo folio.");
 
   if (
+    plan.allowsDocumentDetail !== true &&
     plan.skippedResources.some((r) => r.recurso === "detalle_documental") === false &&
     plan.requestedPeriods.length > 0
   )
