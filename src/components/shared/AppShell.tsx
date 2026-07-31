@@ -11,7 +11,7 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
@@ -19,7 +19,9 @@ import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -83,6 +85,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const esCloud = modo === "cloud";
+
+  // Agrupa los periodos por año para poder ubicar rápido 2025, 2024, etc.
+  const periodosPorAnio = useMemo(() => {
+    const grupos = new Map<string, typeof periodosDisponibles>();
+    for (const p of periodosDisponibles) {
+      const anio = p.id.slice(0, 4);
+      const lista = grupos.get(anio) ?? [];
+      lista.push(p);
+      grupos.set(anio, lista);
+    }
+    return [...grupos.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [periodosDisponibles]);
+
   // El encabezado describe el periodo seleccionado, no la conexión de la empresa.
   // Mientras no haya datos cargados no se afirma nada sobre el origen.
   const fuentePeriodo: FuentePeriodo | null =
@@ -190,11 +205,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 >
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  {periodosDisponibles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.etiqueta}
-                    </SelectItem>
+                <SelectContent className="max-h-[320px]">
+                  {periodosPorAnio.map(([anio, lista]) => (
+                    <SelectGroup key={anio}>
+                      <SelectLabel>{anio}</SelectLabel>
+                      {lista.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.etiqueta}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
