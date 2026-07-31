@@ -64,7 +64,9 @@ export type CodigoErrorF29 =
   | "F29_TEXT_EXTRACTION_FAILED"
   | "F29_PARTIAL_EXTRACTION"
   | "F29_VALIDATION_FAILED"
-  | "F29_STORAGE_FAILED";
+  | "F29_STORAGE_FAILED"
+  | "F29_UNKNOWN_ERROR";
+
 
 export const MENSAJE_ERROR_F29: Record<CodigoErrorF29, string> = {
   F29_NOT_DECLARED: "Este periodo todavía no tiene un Formulario 29 declarado en el SII.",
@@ -79,6 +81,9 @@ export const MENSAJE_ERROR_F29: Record<CodigoErrorF29, string> = {
   F29_PARTIAL_EXTRACTION: "El formulario se leyó de forma parcial.",
   F29_VALIDATION_FAILED: "Las cifras leídas no cuadran entre sí y quedan en revisión.",
   F29_STORAGE_FAILED: "Los valores se guardaron, pero el archivo no pudo almacenarse.",
+  F29_UNKNOWN_ERROR:
+    "No pudimos leer el Formulario 29 de este periodo. Tus ventas y compras sí quedaron actualizadas.",
+
 };
 
 export class ErrorF29 extends Error {
@@ -635,11 +640,23 @@ export async function extraerF29Compacto(
     });
 
     // ---------- 7. Antecedente tributario y recálculo ----------
+    // Basta con que el formulario entregue alguna cifra tributaria: si trae el
+    // PPM, el remanente o las retenciones, ese antecedente debe guardarse aunque
+    // el total a pagar no haya podido leerse.
+    const hayCifrasF29 = [
+      campos.declared_total_payable,
+      campos.declared_vat_payable,
+      campos.declared_ppm,
+      campos.declared_withholdings,
+      campos.declared_previous_carryforward,
+      campos.declared_new_carryforward,
+    ].some((v) => typeof v === "number" && Number.isFinite(v));
     if (
-      ["success", "needs_review"].includes(evaluacion.estado) &&
-      campos.declared_total_payable != null &&
+      ["success", "needs_review", "partial"].includes(evaluacion.estado) &&
+      hayCifrasF29 &&
       periodId
     ) {
+
       await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,
@@ -753,7 +770,36 @@ export async function extraerF29Compacto(
         mensaje: MENSAJE_ERROR_F29.F29_PDF_DOWNLOAD_FAILED,
         recalculado: false,
       };
-    throw error;
+    // Cualquier otro fallo queda registrado con su detalle técnico para poder
+    // corregirlo sin volver a consultar al proveedor. Nunca interrumpe la
+    // actualización de ventas y compras.
+    const detalle =
+      error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    await registrarActividad(
+      entrada.companyId,
+      userId,
+      "sii.f29_pdf_extraction_failed",
+      "tax_f29_extractions",
+      {
+        periodo: entrada.periodo,
+        detalle: detalle.slice(0, 300),
+        consultas: registro.consultas,
+      },
+    ).catch(() => undefined);
+    return {
+      extraccion: anterior,
+      declaraciones: [],
+      seleccion: "ambiguous",
+      motivoSeleccion: "La lectura no pudo completarse.",
+      llamadas,
+      creditosConsumidos: Number(registro.creditosUsados.toFixed(4)),
+      creditosDisponibles: registro.creditosDisponibles,
+      errorCodigo: "F29_UNKNOWN_ERROR",
+      mensaje:
+        "No pudimos leer el Formulario 29 de este periodo. Tus ventas y compras sí quedaron actualizadas.",
+      recalculado: false,
+    };
+
   } finally {
     // La Clave Tributaria se descarta siempre, con éxito o con error.
     if (cuerpo) cuerpo.auth.pass.clave = "";

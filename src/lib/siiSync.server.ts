@@ -989,14 +989,30 @@ export async function syncSiiCompanyPeriod(
     });
     for (const fila of normalizarF29(historial)) {
       const p = await asegurarPeriodo(entrada.companyId, fila.period);
-      // Nunca sobreescribimos un F29 confirmado por el contador.
+      // Nunca sobreescribimos un F29 confirmado por el contador ni el leído
+      // del Formulario 29 oficial: el listado del proveedor solo trae folio,
+      // fecha y estado, sin cifras tributarias.
       const { data: existente } = await supabaseAdmin
         .from("tax_f29_history")
         .select("source")
         .eq("company_id", entrada.companyId)
         .eq("tax_period_id", p.id)
         .maybeSingle();
-      if (existente?.source === "accountant") continue;
+      if (existente?.source === "accountant" || existente?.source === "f29_pdf_extracted")
+        continue;
+
+      /**
+       * El listado sin montos NO puede guardarse como declaración en cero:
+       * eso apagaría el PPM, el remanente y las retenciones del periodo.
+       */
+      const traeMontos = [
+        fila.declared_vat,
+        fila.declared_ppm,
+        fila.declared_withholdings,
+        fila.declared_total,
+        fila.vat_carryforward,
+      ].some((v) => v != null && v !== 0);
+
       await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,
@@ -1005,18 +1021,22 @@ export async function syncSiiCompanyPeriod(
             fila.declaration_status === "pending"
               ? ("draft" as const)
               : fila.declaration_status,
-          declared_vat: fila.declared_vat,
-          declared_ppm: fila.declared_ppm,
-          declared_withholdings: fila.declared_withholdings,
-          declared_total: fila.declared_total,
-          vat_carryforward: fila.vat_carryforward,
+          declared_vat: traeMontos ? fila.declared_vat : null,
+          declared_ppm: traeMontos ? fila.declared_ppm : null,
+          declared_withholdings: traeMontos ? fila.declared_withholdings : null,
+          declared_total: traeMontos ? fila.declared_total : null,
+          vat_carryforward: traeMontos ? fila.vat_carryforward : null,
           filed_at: fila.filed_at,
-          source: "mock_gateway",
-          raw_data: { origen: "proveedor_simulado" },
+          source: fuente,
+          raw_data: {
+            origen: fuente === "api_gateway" ? "listado_proveedor" : "proveedor_simulado",
+            solo_listado: !traeMontos,
+          },
         },
         { onConflict: "company_id,tax_period_id" },
       );
     }
+
   });
 
   // 4. Retenciones
@@ -1036,11 +1056,13 @@ export async function syncSiiCompanyPeriod(
         company_id: entrada.companyId,
         tax_period_id: periodoRow.id,
         estimated_withholdings: n.total,
-        withholdings_source: "documents",
-        source: "mock_gateway",
+        // Sin detalle de retenciones no afirmamos que sean cero.
+        withholdings_source: n.detalle.length > 0 || n.total > 0 ? "documents" : "unknown",
+        source: fuente,
       },
       { onConflict: "company_id,tax_period_id" },
     );
+
   });
 
   const hubieron = completados.length > 0;
