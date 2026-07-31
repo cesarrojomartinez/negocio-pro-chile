@@ -94,7 +94,7 @@ function Compras() {
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <StatCard
                 titulo="Compras totales"
                 monto={formatCLP(data.compras.comprasTotales)}
@@ -122,6 +122,11 @@ function Compras() {
                 titulo="Compras exentas / sin IVA"
                 monto={formatCLP(data.compras.ivaNoRecuperableDetalle.comprasSinIva)}
                 descripcion="Monto exento informado en tus compras del periodo."
+              />
+              <StatCard
+                titulo="Otros montos del documento"
+                monto={formatCLP(otrosMontosCompras)}
+                descripcion="Impuestos específicos u otras partidas informadas en el total."
               />
             </div>
 
