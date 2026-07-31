@@ -63,8 +63,7 @@ export function F29OficialPanel({
     }
     try {
       setAntecedente(await cloudTaxDataService.getAntecedenteF29(companyId, periodo));
-    } catch (e) {
-      console.error("F29_ANTECEDENTE", e);
+    } catch {
       setAntecedente(null);
     } finally {
       setCargando(false);
