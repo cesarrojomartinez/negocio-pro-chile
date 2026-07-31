@@ -887,7 +887,8 @@ export function construirResumenCompras(
       .reduce((a, d) => a + ivaAbsoluto(d), 0) + Math.abs(seguro(aggNotas?.iva ?? 0)),
   );
   const comprasSinIva = redondear(
-    consideradas.reduce((a, d) => a + Math.abs(seguro(d.exento)), 0),
+    consideradas.reduce((a, d) => a + Math.abs(seguro(d.exento)), 0) +
+      Math.max(0, agregado("exento")),
   );
 
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
