@@ -469,44 +469,37 @@ export async function extraerF29Compacto(
       .maybeSingle();
     const periodId = periodoFila ? String(periodoFila.id) : null;
 
-    // ---------- 1. Listado de declaraciones (con caché diaria) ----------
-    const rutaListado = recursoDe("f29_periods").path.replace("{periodo}", entrada.periodo);
-    let crudoListado = await listadoEnCache(entrada.companyId, entrada.periodo);
+    // ---------- 1. Listado ANUAL de declaraciones (agrupado y con caché) ----
+    // Actualizar varios meses del mismo año consulta el listado una sola vez.
+    const anio = entrada.periodo.slice(0, 4);
+    const listado = await obtenerListadoF29Anual({
+      companyId: entrada.companyId,
+      anio,
+      config,
+      cuerpo,
+      registro,
+    });
+    llamadas.push(
+      listado.log
+        ? desdeLlamada(listado.log, listado.recurso, "No había listado vigente del año.")
+        : {
+            endpoint: listado.recurso,
+            providerRequestId: null,
+            actualCredits: 0,
+            creditsBalance: registro.creditosDisponibles,
+            cacheHit: true,
+            preventedProviderCall: true,
+            reasonForProviderCall:
+              "El listado anual ya estaba disponible: no se consultó al proveedor.",
+          },
+    );
 
-    if (crudoListado) {
-      llamadas.push({
-        endpoint: rutaListado,
-        providerRequestId: null,
-        actualCredits: 0,
-        creditsBalance: null,
-        cacheHit: true,
-        preventedProviderCall: true,
-        reasonForProviderCall: "Listado del día ya disponible: no se consultó al proveedor.",
-      });
-    } else {
-      const { datos, log } = await requestApiGateway<typeof cuerpo & object, unknown>({
-        config,
-        modulo: "f29_periods",
-        metodo: "POST",
-        ruta: rutaListado,
-        body: cuerpo,
-        registro,
-        sinReintentos: true,
-      });
-      crudoListado = sanitizarProfundo(datos);
-      await guardarSnapshot({
-        companyId: entrada.companyId,
-        periodId,
-        modulo: "f29_periods",
-        referencia: `f29_pdf:listado:${entrada.periodo}`,
-        payload: crudoListado,
-      });
-      llamadas.push(
-        desdeLlamada(log, rutaListado, "No había listado vigente del día para este periodo."),
-      );
-    }
+    // El listado es anual: solo se consideran las declaraciones del periodo
+    // pedido, nunca las de otros meses.
+    const declaraciones = listarDeclaraciones(listado.crudo).filter(
+      (d) => d.periodo === entrada.periodo,
+    );
 
-    const declaraciones = listarDeclaraciones(crudoListado);
     const resumenDeclaraciones = declaraciones.map((d) => ({
       folio: d.folio,
       fecha: d.fecha,
