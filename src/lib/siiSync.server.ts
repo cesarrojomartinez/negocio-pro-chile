@@ -1056,7 +1056,12 @@ export async function syncSiiCompanyPeriod(
 
 
   // 3. Historial de F29
+  // En la actualización real el listado de declaraciones se pide UNA vez por
+  // año dentro de la lectura del Formulario 29 oficial. Repetirlo aquí, mes a
+  // mes, sería pagar dos veces la misma información.
   await ejecutar(["f29_periods"], async () => {
+    if (opciones.politicaPorPeriodo) return;
+
     const historial = await proveedor.fetchF29History({ ...consulta, months: MESES_F29 });
     await guardarSnapshot({
       companyId: entrada.companyId,
