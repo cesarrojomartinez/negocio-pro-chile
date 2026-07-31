@@ -27,6 +27,7 @@ import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as VentasRouteImport } from './routes/ventas'
+import { Route as AdminLandingRouteImport } from './routes/admin_.landing'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -118,6 +119,11 @@ const VentasRoute = VentasRouteImport.update({
   path: '/ventas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLandingRoute = AdminLandingRouteImport.update({
+  id: '/admin_/landing',
+  path: '/admin/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -138,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin/landing': typeof AdminLandingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin/landing': typeof AdminLandingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/admin_/landing': typeof AdminLandingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin/landing'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin/landing'
   id:
     | '__root__'
     | '/'
@@ -241,6 +252,7 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/admin_/landing'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,6 +274,7 @@ export interface RootRouteChildren {
   RegistroRoute: typeof RegistroRoute
   SoporteRoute: typeof SoporteRoute
   VentasRoute: typeof VentasRoute
+  AdminLandingRoute: typeof AdminLandingRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,6 +405,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VentasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin_/landing': {
+      id: '/admin_/landing'
+      path: '/admin/landing'
+      fullPath: '/admin/landing'
+      preLoaderRoute: typeof AdminLandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -414,6 +434,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegistroRoute: RegistroRoute,
   SoporteRoute: SoporteRoute,
   VentasRoute: VentasRoute,
+  AdminLandingRoute: AdminLandingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

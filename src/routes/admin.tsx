@@ -106,6 +106,12 @@ function AdminPage() {
             <span className="text-muted-foreground" aria-hidden>
               ·
             </span>
+            <Link to="/admin/landing" className="font-medium text-primary hover:underline">
+              Editar la landing
+            </Link>
+            <span className="text-muted-foreground" aria-hidden>
+              ·
+            </span>
             <Link to="/cuenta" className="text-muted-foreground hover:underline">
               Cambiar mi contraseña
             </Link>
