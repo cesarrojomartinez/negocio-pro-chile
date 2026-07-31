@@ -62,18 +62,28 @@ export function ReservaCard({
             TEXTO_ESTADO[estado],
           )}
         >
-          {MENSAJE_SEMAFORO[estado]}
+          {aFavor
+            ? `Este mes no pagas IVA: te queda ${formatCLP(remanente)} a favor.`
+            : MENSAJE_SEMAFORO[estado]}
         </span>
       </div>
 
       <p className="num-xl mt-4 break-words sm:text-[2.75rem]">
-        {formatCLP(resumen.reservaRecomendada)}
+        {aFavor ? formatCLP(remanente) : formatCLP(resumen.reservaRecomendada)}
       </p>
+      {aFavor && (
+        <p className="mt-1 text-sm font-semibold text-success">
+          Remanente de IVA a tu favor
+        </p>
+      )}
       <p className="mt-2 max-w-xl text-sm text-muted-foreground">
         {incompleto
           ? "Faltan antecedentes por confirmar, así que este monto es el mínimo conocido y podría aumentar."
-          : "Procura mantener este monto separado para cubrir tus impuestos estimados del mes."}
+          : aFavor
+            ? "No necesitas reservar dinero este mes. Este monto es crédito de IVA que se descuenta de tus impuestos del próximo periodo."
+            : "Procura mantener este monto separado para cubrir tus impuestos estimados del mes."}
       </p>
+
 
       {incompleto && contexto && (
         <ul className="mt-3 space-y-1">
