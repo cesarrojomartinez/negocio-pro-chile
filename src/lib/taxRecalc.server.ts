@@ -18,7 +18,11 @@ import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
 import type { DocumentoTributario, PeriodoData } from "@/types/tax";
-import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
+import {
+  agregadosComprasDeResumen,
+  agregadosVentasDeResumen,
+} from "@/integrations/sii/rcvSummary";
+
 import type { Empresa } from "@/types/company";
 
 interface FilaDocumento {
