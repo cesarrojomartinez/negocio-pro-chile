@@ -33,7 +33,7 @@ export function FlipStatCard({
   return (
     <article
       className={cn(
-        "group relative min-h-[160px] cursor-pointer perspective-[1000px]",
+        "group relative min-h-[160px] cursor-pointer perspective-1000",
         destacado && "",
       )}
       onClick={() => setVolteada((v) => !v)}
