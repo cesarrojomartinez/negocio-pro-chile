@@ -25,7 +25,11 @@ import {
   leerConfiguracion,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
-import type { ControlPlanEjecucion } from "@/lib/syncPlan";
+import { ErrorPlanEjecucion, type ControlPlanEjecucion } from "@/lib/syncPlan";
+import {
+  CODIGO_AMPLIACION_RECHAZADA,
+  recursoPdfF29,
+} from "@/lib/planAmendment";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import { obtenerListadoF29Anual } from "@/lib/f29Listing.server";
 import { HORAS_ESPERA_FALLO_DESCARGA_F29 } from "@/lib/syncEconomica";
