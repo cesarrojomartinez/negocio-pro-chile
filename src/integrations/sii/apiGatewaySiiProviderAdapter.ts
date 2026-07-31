@@ -384,20 +384,24 @@ export function crearAdaptadorApiGateway(
         diagnostics,
       );
 
-      // El detalle se pide SOLO por los tipos que el resumen declara con
-      // documentos: no se depende de una consulta genérica DTE 0.
-      const documentos = await detallesPorTipo(
-        "rcv_sales_documents",
-        tiposConDocumentos(resumen),
-        (dte) =>
-          detalleRecurso.path
-            .replace("{emisor}", emisor)
-            .replace("{periodo}", periodo)
-            .replace("{dte}", String(dte)),
-        "sale",
-        "registered",
-        diagnostics,
-      );
+      // En modo económico no se pide detalle: los totales del periodo salen
+      // íntegramente del resumen oficial. Fuera de ese modo, el detalle se pide
+      // SOLO por los tipos que el resumen declara con documentos.
+      const documentos = soloResumen
+        ? []
+        : await detallesPorTipo(
+            "rcv_sales_documents",
+            tiposConDocumentos(resumen),
+            (dte) =>
+              detalleRecurso.path
+                .replace("{emisor}", emisor)
+                .replace("{periodo}", periodo)
+                .replace("{dte}", String(dte)),
+            "sale",
+            "registered",
+            diagnostics,
+          );
+
 
       return {
         period: query.period,
