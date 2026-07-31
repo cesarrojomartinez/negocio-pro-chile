@@ -254,8 +254,12 @@ export function construirContextoTributario(
   );
   const posicion = redondear(debito + otrosDebitos + debitosEspeciales - totalCreditos);
 
-  const ivaPorPagar = posicion > 0 ? posicion : 0;
+  const ivaBruto = posicion > 0 ? posicion : 0;
   const nuevoRemanente = posicion < 0 ? Math.abs(posicion) : 0;
+
+  // El anticipo por cambio de sujeto se imputa al IVA ya determinado.
+  const anticipo = aplicarAnticipoIva(ivaBruto, entrada.vatAdvanceAvailable ?? 0);
+  const ivaPorPagar = anticipo.ivaPorPagar;
 
   const basePpm = Math.max(0, redondear(entrada.ppmTaxBase ?? 0));
   const tasaPpm =
@@ -267,6 +271,7 @@ export function construirContextoTributario(
 
   const retenciones = Math.max(0, redondear(entrada.withholdings ?? 0));
   const total = redondear(ivaPorPagar + ppm + retenciones);
+
 
   const faltantes: ComponenteFaltante[] = [];
   const agregar = (clave: ClaveComponente) =>
