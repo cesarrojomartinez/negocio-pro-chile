@@ -227,6 +227,25 @@ export function ventasAgregadasDeResumenGuardado(
 /** Boletas y comprobantes de pago electrónico (nunca tienen detalle individual). */
 export const TIPOS_BOLETA = new Set([35, 38, 39, 41, 48]);
 
+/**
+ * Factura de compra electrónica. En el registro de VENTAS el comprador es
+ * quien retiene y entera el IVA (cambio de sujeto), así que ese IVA no forma
+ * parte del débito fiscal del vendedor aunque el neto sí sea venta suya.
+ */
+export const DTE_IVA_RETENIDO_POR_COMPRADOR = new Set([46]);
+
+/** IVA de las ventas cuyo IVA retiene el comprador (DTE 46). */
+export function ivaRetenidoPorCompradorEnVentas(
+  rcvSummary: unknown,
+): number {
+  const ventas = resumenGuardado(rcvSummary, "ventas");
+  if (!ventas || !Array.isArray(ventas.lines)) return 0;
+  return ventas.lines
+    .filter((l) => DTE_IVA_RETENIDO_POR_COMPRADOR.has(l.documentTypeCode))
+    .reduce((s, l) => s + Math.abs(aNumero(l.vatAmount)), 0);
+}
+
+
 export type CategoriaDte = "factura" | "boleta" | "notaCredito";
 
 /** Categoría comercial de un tipo de DTE. Nunca se infiere un código nuevo. */
