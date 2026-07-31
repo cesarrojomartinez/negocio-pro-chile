@@ -9,8 +9,13 @@
  * contiene periodos, recursos, cupos y cifras.
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { MAX_REAL_PROVIDER_REQUESTS_PER_SYNC } from "@/integrations/sii/apiGatewayClient";
 import { ErrorNegocio, exigirRol } from "@/lib/companies.server";
 import { normalizarPeriodo } from "@/lib/periodo";
+import {
+  construirPropuestaAmpliacionF29,
+  evaluarAmpliacion,
+} from "@/lib/planAmendment";
 import {
   CODIGO_GUARDA_CREDITOS,
   ControlPlanEjecucion,
