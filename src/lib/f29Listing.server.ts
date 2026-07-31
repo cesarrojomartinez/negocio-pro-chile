@@ -20,6 +20,7 @@ import {
 import { recursoDe } from "@/integrations/sii/apiGatewayResourceMap";
 import { sanitizarProfundo } from "@/integrations/sii/sanitize";
 import { claveIdempotencia } from "@/lib/syncEconomica";
+import type { ControlPlanEjecucion } from "@/lib/syncPlan";
 
 /** Referencia con la que se guarda el listado anual en los respaldos. */
 export function referenciaListadoAnual(anio: string): string {
@@ -69,6 +70,8 @@ export interface EntradaListadoF29 {
   /** Contador único de la ejecución: el gasto queda en el registro principal. */
   registro: RegistroConsumo;
   tipo?: string;
+  /** Portero del plan aprobado. Sin permiso no se consulta al proveedor. */
+  control?: ControlPlanEjecucion;
 }
 
 /**
@@ -92,7 +95,11 @@ export async function obtenerListadoF29Anual(
     const recurso = recursoDe("f29_periods").path.replace("{periodo}", entrada.anio);
 
     const guardado = await listadoDelDia(entrada.companyId, entrada.anio);
-    if (guardado)
+    if (guardado) {
+      entrada.control?.registrarCache(
+        `f29_listado:${entrada.anio}`,
+        "listado_anual_en_cache",
+      );
       return {
         crudo: guardado,
         desdeCache: true,
@@ -100,7 +107,9 @@ export async function obtenerListadoF29Anual(
         log: null,
         recurso,
       };
+    }
 
+    entrada.control?.autorizar(`f29_listado:${entrada.anio}`);
     const { datos, log } = await requestApiGateway<object, unknown>({
       config: entrada.config,
       modulo: "f29_periods",

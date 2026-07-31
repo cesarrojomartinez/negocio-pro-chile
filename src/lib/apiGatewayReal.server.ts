@@ -22,10 +22,18 @@ import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
 import { NORMAL_SYNC_PURCHASE_STATES } from "@/lib/syncEconomica";
-import { evaluarPresupuesto } from "@/lib/syncPreferences";
+import {
+  cerrarEjecucionPlanificada,
+  MENSAJE_CACHE_ONLY,
+  prepararEjecucionPlanificada,
+} from "@/lib/planEjecucion.server";
+import {
+  CODIGO_LLAMADA_NO_PLANIFICADA,
+  ErrorPlanEjecucion,
+  type SyncExecutionPlan,
+} from "@/lib/syncPlan";
 import {
   marcarRecordatorioCompletado,
-  obtenerPreferenciasSync,
   registrarConsumoEnPresupuesto,
 } from "@/lib/syncPreferences.server";
 
@@ -88,6 +96,8 @@ export interface ResultadoPruebaReal {
   errorCodigo: string | null;
   /** Lectura automática del Formulario 29 oficial del mismo periodo. */
   f29: ResultadoF29Automatico;
+  /** Plan aprobado por el servidor. Nunca contiene datos de acceso. */
+  plan: SyncExecutionPlan | null;
 }
 
 
@@ -142,16 +152,44 @@ export async function ejecutarPruebaRealApiGateway(
     .maybeSingle();
   if (!empresa) throw new ErrorNegocio("No pudimos cargar la empresa.");
 
-  // Guarda de presupuesto: se evalúa ANTES de cualquier consulta al proveedor.
-  const preferencias = await obtenerPreferenciasSync(userId, entrada.companyId);
-  if (preferencias.syncMode !== "manual_secure")
-    throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
-  const presupuesto = evaluarPresupuesto(preferencias);
-  if (presupuesto.estado === "bloqueado")
-    throw new ErrorNegocio(
-      "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
-    );
+  // ---------------------------------------------------------------------
+  // PLAN DE EJECUCIÓN. Se construye en el servidor con datos guardados y
+  // gobierna todo lo que viene después. La clave no participa de este paso.
+  // ---------------------------------------------------------------------
+  const preparacion = await prepararEjecucionPlanificada({
+    userId,
+    companyId: entrada.companyId,
+    periodos: [entrada.periodo],
+  });
 
+  const f29Omitido: ResultadoF29Automatico = {
+    estado: "omitido",
+    mensaje: "No se revisó el Formulario 29 en esta actualización.",
+    codigo: null,
+    folio: null,
+    recalculado: false,
+  };
+
+  if (preparacion.estado === "bloqueado")
+    throw new ErrorNegocio(preparacion.mensaje);
+
+  // Plan de CERO llamadas: no se inicia el proveedor, no se usa la clave, no
+  // se consumen créditos ni presupuesto.
+  if (preparacion.estado === "cache_only")
+    return {
+      conexion: null,
+      sincronizacion: null,
+      consultas: 0,
+      creditosConsumidos: 0,
+      creditosDisponibles: null,
+      proxyUsado: null,
+      f29: f29Omitido,
+      mensaje: MENSAJE_CACHE_ONLY,
+      errorCodigo: null,
+      plan: preparacion.plan,
+    };
+
+  const { plan, control, planId } = preparacion;
 
   const registro = new RegistroConsumo(MAX_REAL_PROVIDER_REQUESTS_PER_SYNC);
   const credenciales: CredencialesTemporales = {
@@ -169,6 +207,8 @@ export async function ejecutarPruebaRealApiGateway(
     estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,
+    // Portero del plan: cada consulta real debe estar aprobada.
+    control,
   });
 
   const ahora = new Date().toISOString();
