@@ -609,17 +609,57 @@ export async function extraerF29Compacto(
       };
     }
 
-    // ---------- 3. Descarga del PDF compacto ----------
-    const binario = await requestApiGatewayBinary({
-      config,
-      modulo: "f29_compact_pdf",
-      ruta: rutaPdfRecurso,
-      body: cuerpo,
-      registro,
-    });
-    llamadas.push(
-      desdeLlamada(binario.log, rutaPdfRecurso, "Folio nuevo sin PDF guardado previamente."),
-    );
+    // ---------- 3. Obtención del PDF compacto ----------
+    // Regla: un folio se paga UNA sola vez. Si ya está guardado el archivo
+    // (aunque la validación anterior haya fallado), se vuelve a leer localmente
+    // sin consultar al proveedor.
+    let bytesPdf: Uint8Array | null = null;
+
+    if (existente?.pdf_storage_path) {
+      const descarga = await supabaseAdmin.storage
+        .from(BUCKET_F29)
+        .download(String(existente.pdf_storage_path));
+      if (!descarga.error && descarga.data) {
+        bytesPdf = new Uint8Array(await descarga.data.arrayBuffer());
+        llamadas.push({
+          endpoint: rutaPdfRecurso,
+          providerRequestId: null,
+          actualCredits: 0,
+          creditsBalance: registro.creditosDisponibles,
+          cacheHit: true,
+          preventedProviderCall: true,
+          reasonForProviderCall:
+            "El archivo de este folio ya estaba guardado: se relee sin volver a descargarlo.",
+        });
+      }
+    }
+
+    if (!bytesPdf) {
+      // Tras un fallo de descarga se espera antes de volver a pagar otra.
+      if (await esperaPorFalloReciente(entrada.companyId, entrada.periodo, ahora))
+        throw new ErrorF29("F29_PDF_DOWNLOAD_FAILED");
+
+      const binario = await requestApiGatewayBinary({
+        config,
+        modulo: "f29_compact_pdf",
+        ruta: rutaPdfRecurso,
+        body: cuerpo,
+        registro,
+      }).catch(async (error: unknown) => {
+        await anotarFalloDescarga(
+          entrada.companyId,
+          entrada.periodo,
+          "La descarga del formulario no pudo completarse.",
+        );
+        throw error;
+      });
+      llamadas.push(
+        desdeLlamada(binario.log, rutaPdfRecurso, "Folio nuevo sin PDF guardado previamente."),
+      );
+      bytesPdf = binario.bytes;
+      var contentTypePdf: string | null = binario.contentType;
+    }
+
 
     const decodificado = decodificarRespuestaPdf({
       contentType: binario.contentType,
