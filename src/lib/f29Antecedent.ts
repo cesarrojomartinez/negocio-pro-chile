@@ -127,8 +127,8 @@ export function tasaPpmEfectivaF29(
   if (!Number.isFinite(implicita) || implicita < 0 || implicita > TASA_PPM_MAXIMA)
     return { tasa: null, derivada: false };
 
-  // Las tasas de PPM se expresan con un decimal porcentual (0,1 % · 2,5 %).
-  const redondeada = Math.round(implicita * 1000) / 1000;
+  // Las tasas de PPM se expresan con hasta dos decimales porcentuales.
+  const redondeada = Math.round(implicita * 100000) / 100000;
   return { tasa: redondeada > 0 ? redondeada : implicita, derivada: true };
 }
 
