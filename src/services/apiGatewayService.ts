@@ -48,6 +48,8 @@ export const apiGatewayService = {
     claveTributaria: string;
     /** Solo tras un error de sesión: fuerza `auth_cache=0` una vez. */
     sesionNueva?: boolean;
+    /** Descarga también el detalle documento por documento del RCV. */
+    incluirDetalle?: boolean;
   }): Promise<ResultadoPruebaReal> {
     const r = await pruebaRealApiGatewayFn({
       data: { ...entrada, consentimiento: true },
