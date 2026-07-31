@@ -220,6 +220,23 @@ export async function ejecutarPruebaRealApiGateway(
     proxyUsado: registro.proxyUsado,
   });
 
+  // Cierre del plan: libera el bloqueo de concurrencia y deja la comparación
+  // entre lo planificado y lo realmente consumido. Se ejecuta una sola vez.
+  let planCerrado = false;
+  const cerrarPlan = async (fallo: boolean, codigo: string | null) => {
+    if (planCerrado) return;
+    planCerrado = true;
+    await cerrarEjecucionPlanificada(
+      planId,
+      control,
+      registro.creditosUsados,
+      fallo,
+      codigo,
+    );
+  };
+
+  try {
+
   // 1. Preparar la referencia local de conexión. NO consulta al proveedor ni
   //    gasta créditos: la validación real ocurre en la primera consulta al RCV.
   const conexionProveedor = await proveedor.connectCompany({
@@ -287,11 +304,19 @@ export async function ejecutarPruebaRealApiGateway(
       },
     );
   } catch (error) {
-    const codigo = error instanceof SiiProviderError ? error.code : "INTERNAL";
+    const codigo =
+      error instanceof ErrorPlanEjecucion
+        ? CODIGO_LLAMADA_NO_PLANIFICADA
+        : error instanceof SiiProviderError
+          ? error.code
+          : "INTERNAL";
     const mensaje =
-      error instanceof SiiProviderError
+      error instanceof ErrorPlanEjecucion
         ? error.message
-        : "No pudimos completar la consulta con el proveedor real.";
+        : error instanceof SiiProviderError
+          ? error.message
+          : "No pudimos completar la consulta con el proveedor real.";
+    await cerrarPlan(true, codigo);
     await supabaseAdmin
       .from("tax_sii_connections")
       .update({
@@ -322,6 +347,7 @@ export async function ejecutarPruebaRealApiGateway(
       },
       mensaje,
       errorCodigo: codigo,
+      plan,
     };
   }
 
@@ -359,7 +385,7 @@ export async function ejecutarPruebaRealApiGateway(
         },
         // Contador compartido: los créditos del Formulario 29 quedan sumados
         // en el mismo registro que el RCV y se informan completos.
-        { registro },
+        { registro, control },
       );
 
       f29 = {
@@ -448,7 +474,15 @@ export async function ejecutarPruebaRealApiGateway(
     f29,
     mensaje: sincronizacion.mensaje,
     errorCodigo: sincronizacion.errorCodigo,
+    plan,
   };
+  } finally {
+    // El plan se cierra siempre: ninguna ejecución queda bloqueando la empresa.
+    await cerrarPlan(false, null);
+    // La clave temporal deja de existir en el servidor al terminar.
+    credenciales.claveTributaria = "";
+    entrada = { ...entrada, claveTributaria: "" };
+  }
 }
 
 
