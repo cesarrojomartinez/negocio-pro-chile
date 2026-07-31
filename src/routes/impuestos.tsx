@@ -50,6 +50,8 @@ function Impuestos() {
     data,
     cargando,
     margenPorcentaje,
+    tasaPpmPersonalizada,
+    setTasaPpmPersonalizada,
     setMargenPorcentaje,
     modo,
     companyId,

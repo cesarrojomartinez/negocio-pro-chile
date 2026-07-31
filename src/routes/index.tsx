@@ -45,6 +45,8 @@ function Inicio() {
     cargando,
     error,
     margenPorcentaje,
+    tasaPpmPersonalizada,
+    setTasaPpmPersonalizada,
     setMargenPorcentaje,
     setDineroReservado,
     setMetaMensual,
