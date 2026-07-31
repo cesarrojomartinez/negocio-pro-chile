@@ -36,6 +36,10 @@ import {
   marcarRecordatorioCompletado,
   registrarConsumoEnPresupuesto,
 } from "@/lib/syncPreferences.server";
+import {
+  exigirActualizacionDisponible,
+  registrarUsoComercial,
+} from "@/lib/cuenta.server";
 
 
 
@@ -189,6 +193,10 @@ export async function ejecutarPruebaRealApiGateway(
       errorCodigo: null,
       plan: preparacion.plan,
     };
+
+  // Puerta comercial: solo cuando la ejecución sí hará consultas reales.
+  // Las lecturas desde caché nunca se bloquean por plan o estado de cuenta.
+  await exigirActualizacionDisponible(entrada.companyId);
 
   const { plan, control, planId } = preparacion;
 
@@ -431,6 +439,16 @@ export async function ejecutarPruebaRealApiGateway(
     Number(registro.creditosUsados.toFixed(4)),
     registro.creditosDisponibles ?? null,
   );
+  // Registro comercial paralelo: solo cifras de uso, para el panel de costos.
+  await registrarUsoComercial({
+    companyId: entrada.companyId,
+    categoria: "rcv",
+    periodo: entrada.periodo,
+    consultas: registro.consultas,
+    errores: exito ? 0 : 1,
+    unidades: Number(registro.creditosUsados.toFixed(4)),
+    descuentaActualizacion: registro.consultas > 0,
+  });
   if (exito) await marcarRecordatorioCompletado(entrada.companyId);
 
 

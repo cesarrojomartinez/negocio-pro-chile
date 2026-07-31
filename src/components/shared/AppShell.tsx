@@ -256,6 +256,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <DropdownMenuItem asChild>
                     <Link to="/impuestos">Estimación tributaria</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/cuenta">Mi cuenta y plan</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/soporte">Ayuda y soporte</Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {esCloud ? (
                     <DropdownMenuItem onSelect={() => void cerrarSesion()}>
