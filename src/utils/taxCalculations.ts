@@ -857,10 +857,19 @@ export function construirResumenMensual(
   data: PeriodoData,
   opciones: { margenPorcentaje: number; dineroReservado: number },
 ): ResumenMensual {
-  const ventas = construirResumenVentas(data.documentosVenta);
+  const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
   const compras = construirResumenCompras(data.documentosCompra);
 
-  const debito = calculateVatDebit(data.documentosVenta);
+  const debitoDocumentos = calculateVatDebit(data.documentosVenta);
+  /**
+   * IVA de las boletas y comprobantes informados solo como total del mes:
+   * cifra oficial del resumen del RCV, sin detalle documento por documento.
+   */
+  const ivaAgregado = Math.max(0, redondear(data.ventasAgregadasResumen?.iva ?? 0));
+  const debito = {
+    ...debitoDocumentos,
+    vatDebit: debitoDocumentos.vatDebit + ivaAgregado,
+  };
   const otrosDebitos = Math.max(
     0,
     redondear((data.otrosDebitosIva ?? 0) + (data.debitosEspeciales ?? 0)),
