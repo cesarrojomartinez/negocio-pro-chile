@@ -515,7 +515,8 @@ export async function extraerF29Compacto(
     if (
       existente &&
       ["success", "needs_review", "partial"].includes(String(existente.extraction_status)) &&
-      existente.pdf_sha256
+      existente.pdf_sha256 &&
+      existente.parser_version === F29_PARSER_VERSION
     ) {
       llamadas.push({
         endpoint: rutaPdfRecurso,
@@ -563,7 +564,10 @@ export async function extraerF29Compacto(
     // ---------- 4. Lectura determinística ----------
     let lectura: Awaited<ReturnType<typeof leerPdf>>;
     try {
-      lectura = await leerPdf(decodificado.bytes);
+      // Algunos lectores PDF transfieren (y separan) el ArrayBuffer recibido.
+      // Se entrega una copia exclusiva al parser para conservar intactos los
+      // bytes que luego deben archivarse en almacenamiento privado.
+      lectura = await leerPdf(Uint8Array.from(decodificado.bytes));
     } catch {
       throw new ErrorF29("F29_TEXT_EXTRACTION_FAILED");
     }
@@ -577,7 +581,7 @@ export async function extraerF29Compacto(
       periodoDocumento: detectarPeriodo(lectura.texto),
       folioListado: elegida.folio,
       folioDocumento: detectarFolio(lectura.texto),
-    });
+    }, codigos);
     const evaluacion = evaluarExtraccion({ codigos, campos, validaciones });
 
     const rutDistinto = validaciones.some((v) => v.id === "rut" && v.estado === "error");
@@ -702,7 +706,7 @@ export async function extraerF29Compacto(
           tax_period_id: periodId,
           declaration_status: "filed",
           folio: elegida.folio,
-          filed_at: elegida.fecha ? new Date(elegida.fecha).toISOString() : null,
+          filed_at: fechaIsoODescartar(elegida.fecha),
           declared_vat: campos.declared_vat_payable,
           declared_ppm: campos.declared_ppm,
           // `null` significa que el código no se pudo leer; solo un cero
@@ -786,7 +790,9 @@ export async function extraerF29Compacto(
       creditosConsumidos: Number(registro.creditosUsados.toFixed(4)),
       creditosDisponibles: registro.creditosDisponibles,
       errorCodigo:
-        evaluacion.estado === "partial"
+        evaluacion.estado === "failed"
+          ? "F29_VALIDATION_FAILED"
+          : evaluacion.estado === "partial"
           ? "F29_PARTIAL_EXTRACTION"
           : evaluacion.estado === "needs_review"
             ? "F29_VALIDATION_FAILED"
@@ -796,6 +802,8 @@ export async function extraerF29Compacto(
       mensaje:
         evaluacion.estado === "success"
           ? "Formulario 29 oficial descargado y leído correctamente."
+          : evaluacion.estado === "failed"
+            ? MENSAJE_ERROR_F29.F29_VALIDATION_FAILED
           : evaluacion.estado === "partial"
             ? MENSAJE_ERROR_F29.F29_PARTIAL_EXTRACTION
             : MENSAJE_ERROR_F29.F29_VALIDATION_FAILED,

@@ -61,6 +61,19 @@ describe("lectura determinística del F29", () => {
     expect(codigos["089"]).toBeUndefined();
   });
 
+  it("conserva códigos no catalogados para empresas con formularios distintos", () => {
+    const codigos = extraerCodigos({ items: fila("888", "45.600", 700), texto: "" });
+    expect(codigos["888"].normalized_value).toBe(45600);
+  });
+
+  it("prefiere el total consolidado de la última página cuando un código se repite", () => {
+    const primera = fila("91", "100.000", 700);
+    const segunda = fila("91", "125.000", 700).map((item) => ({ ...item, pagina: 2 }));
+    const codigos = extraerCodigos({ items: [...primera, ...segunda], texto: "" });
+    expect(codigos["91"].normalized_value).toBe(125000);
+    expect(codigos["91"].page).toBe(2);
+  });
+
   it("normaliza los campos tributarios a partir de los códigos", () => {
     const campos = construirCamposNormalizados(extraerCodigosDesdeItems(ITEMS_COHERENTES));
     expect(campos.declared_vat_debit).toBe(2489260);
@@ -81,11 +94,53 @@ describe("lectura determinística del F29", () => {
       periodoDocumento: "2026-06",
       folioListado: "1234567890",
       folioDocumento: "1234567890",
-    });
+    }, codigos);
     expect(validaciones.filter((v) => v.estado === "error")).toHaveLength(0);
     const evaluacion = evaluarExtraccion({ codigos, campos, validaciones });
     expect(evaluacion.estado).toBe("success");
     expect(evaluacion.confianza).toBe("high");
+  });
+
+  it("no marca revisión falsa cuando el F29 incluye retenciones u otros códigos", () => {
+    const items = [
+      ...ITEMS_COHERENTES.filter((i) => i.y !== 600),
+      ...fila("151", "75.000", 610),
+      ...fila("91", "1.614.260", 600),
+    ];
+    const codigos = extraerCodigos({ items, texto: "" });
+    const campos = construirCamposNormalizados(codigos);
+    const validaciones = validarF29(campos, {
+      rutEmpresa: "77.976.228-9",
+      rutDocumento: "77.976.228-9",
+      periodoSolicitado: "2026-06",
+      periodoDocumento: "2026-06",
+      folioListado: "1234567890",
+      folioDocumento: "1234567890",
+    }, codigos);
+    expect(validaciones.find((v) => v.id === "total")?.estado).toBe("sin_datos");
+    expect(evaluarExtraccion({ codigos, campos, validaciones }).estado).toBe("success");
+  });
+
+  it("acepta un F29 sin movimientos de IVA cuando informa el total oficial", () => {
+    const codigos = extraerCodigos({
+      items: [...fila("151", "80.000", 620), ...fila("91", "80.000", 600)],
+      texto: "",
+    });
+    const campos = construirCamposNormalizados(codigos);
+    const evaluacion = evaluarExtraccion({
+      codigos,
+      campos,
+      validaciones: validarF29(campos, {
+        rutEmpresa: "77.976.228-9",
+        rutDocumento: "77.976.228-9",
+        periodoSolicitado: "2026-06",
+        periodoDocumento: "2026-06",
+        folioListado: "1234567890",
+        folioDocumento: "1234567890",
+      }, codigos),
+    });
+    expect(evaluacion.estado).toBe("success");
+    expect(campos.declared_total_payable).toBe(80000);
   });
 
   it("marca revisión cuando el total declarado no cuadra", () => {

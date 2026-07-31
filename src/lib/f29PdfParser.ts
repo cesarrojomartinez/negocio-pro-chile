@@ -218,7 +218,15 @@ export function extraerCodigosDesdeItems(items: ItemTextoPdf[]): MapaCodigos {
 
       const previo = resultado[codigo];
       const confianza = elegido ? (ancla ? 0.95 : 0.9) : 0.4;
-      if (previo && previo.confidence >= confianza && previo.normalized_value != null) return;
+      // En formularios de varias páginas un código puede repetirse. A igual
+      // confianza se conserva la aparición de la página más avanzada, donde el
+      // compacto presenta los totales consolidados, no un subtotal intermedio.
+      if (
+        previo &&
+        previo.normalized_value != null &&
+        (previo.confidence > confianza ||
+          (previo.confidence === confianza && (previo.page ?? 0) >= tokens[indice].pagina))
+      ) return;
 
       resultado[codigo] = {
         code: codigo,
@@ -335,6 +343,7 @@ const TOLERANCIA = 1;
 export function validarF29(
   campos: CamposNormalizadosF29,
   contexto: ContextoValidacion,
+  codigos: MapaCodigos = {},
 ): ValidacionF29[] {
   const validaciones: ValidacionF29[] = [];
 
@@ -342,13 +351,14 @@ export function validarF29(
   if (campos.declared_ppm_base != null && campos.declared_ppm_rate != null) {
     const esperado = Math.round(campos.declared_ppm_base * campos.declared_ppm_rate);
     const obtenido = campos.declared_ppm;
+    const toleranciaPpm = Math.max(TOLERANCIA, 2);
     validaciones.push({
       id: "ppm",
       titulo: "PPM declarado",
       estado:
         obtenido == null
           ? "sin_datos"
-          : Math.abs(esperado - obtenido) <= TOLERANCIA
+          : Math.abs(esperado - obtenido) <= toleranciaPpm
             ? "ok"
             : "advertencia",
       detalle:
@@ -397,12 +407,31 @@ export function validarF29(
     });
   }
 
-  // C. Total
+  // C. Total. El F29 puede contener retenciones, impuesto único, créditos,
+  // débitos especiales, postergaciones y otros componentes. Solo comprobamos
+  // IVA + PPM cuando no se leyó ningún componente adicional; de lo contrario
+  // el código 91 sigue siendo el total oficial y no se marca una falsa falla.
   const componentes = [campos.declared_vat_payable, campos.declared_ppm].filter(
     (v): v is number => v != null,
   );
   const referencia = campos.declared_total_payable ?? campos.declared_total_determined;
-  if (componentes.length && referencia != null) {
+  const gruposQueAlteranTotal = new Set([
+    "retenciones",
+    "impuesto_unico",
+    "honorarios",
+    "creditos_especiales",
+    "debitos_especiales",
+    "postergacion",
+    "recargos",
+  ]);
+  const hayOtrosComponentes = Object.entries(codigos).some(([codigo, dato]) => {
+    if ((dato.normalized_value ?? 0) === 0) return false;
+    const definicion = definicionDeCodigo(codigo);
+    // Un código todavía no catalogado se conserva y obliga a no reconstruir
+    // el total: podría ser un tributo válido de una actividad distinta.
+    return !definicion || gruposQueAlteranTotal.has(definicion.group) || ["64", "66"].includes(codigo);
+  });
+  if (componentes.length && referencia != null && !hayOtrosComponentes) {
     const esperado = componentes.reduce((a, b) => a + b, 0);
     validaciones.push({
       id: "total",
@@ -418,7 +447,9 @@ export function validarF29(
       id: "total",
       titulo: "Total declarado",
       estado: "sin_datos",
-      detalle: "No hay componentes suficientes para verificar el total.",
+      detalle: hayOtrosComponentes
+        ? "El formulario incluye otros componentes tributarios; se conserva el total oficial del código 91."
+        : "No hay componentes suficientes para verificar el total.",
     });
   }
 
@@ -519,7 +550,7 @@ export function evaluarExtraccion(entrada: {
     .every((v) => v.estado === "ok");
   const cuadran = entrada.validaciones
     .filter((v) => v.id === "ppm" || v.id === "iva" || v.id === "total")
-    .every((v) => v.estado === "ok");
+    .every((v) => v.estado === "ok" || v.estado === "sin_datos");
 
   if (!totalPresente || faltantes.length)
     return {
