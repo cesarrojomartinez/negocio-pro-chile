@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { mockTaxDataService } from "@/services/mockTaxDataService";
 import { cloudTaxDataService } from "@/services/cloudTaxDataService";
 import { siiConnectionService } from "@/services/siiConnectionService";
+import { recalcularPeriodoFn } from "@/lib/companies.functions";
+
 import type { ConexionSii } from "@/lib/siiSync.server";
 import type { TipoActivacion } from "@/lib/syncPolicy";
 import { obtenerPeriodoData, PERIODOS } from "@/data/mockTaxData";
@@ -316,19 +318,32 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   }, [cargar, esCloud, companyId, sincronizarCloud]);
 
   const actualizar = useCallback(async () => {
-    // Conexión real: la clave tributaria solo se pide en el formulario seguro.
+    // Conexión real: la clave tributaria solo se pide en el formulario seguro,
+    // pero "Actualizar" igualmente rehace el cálculo del periodo con la
+    // información ya guardada (documentos, F29 y parámetros vigentes).
     if (conexionReal) {
       setSolicitudActualizacionReal((n) => n + 1);
-      await refrescarDatos();
+      setActualizando(true);
+      try {
+        if (companyId) {
+          const r = await recalcularPeriodoFn({ data: { companyId, periodo: periodoId } });
+          if (!r.ok) {
+            toast.error("No pudimos rehacer el cálculo del periodo", { description: r.error });
+          }
+        }
+        await refrescarDatos();
+      } finally {
+        setActualizando(false);
+      }
       // Si el formulario seguro está en pantalla, el propio panel se enfoca y
       // no hace falta un aviso: la persona escribe su clave y actualiza.
       const formularioVisible =
         typeof document !== "undefined" &&
         document.querySelector('[data-panel="sii-real"]') !== null;
       if (!formularioVisible) {
-        toast.info("Falta un paso para traer datos nuevos", {
+        toast.success("Cálculo actualizado con la información guardada", {
           description:
-            "Abre Configuración e ingresa tu Clave Tributaria en el formulario de actualización segura.",
+            "Para traer documentos nuevos del SII necesitas tu Clave Tributaria en Configuración.",
           action: {
             label: "Ir a Configuración",
             onClick: () => {
@@ -339,6 +354,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       }
       return;
     }
+
 
     setActualizando(true);
     try {
@@ -353,7 +369,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     } finally {
       setActualizando(false);
     }
-  }, [conexionReal, refrescarDatos, actualizarMock]);
+  }, [conexionReal, companyId, periodoId, refrescarDatos, actualizarMock]);
 
   const conectarDemo = useCallback(async () => {
     if (esCloud && companyId) {

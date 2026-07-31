@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { DataRow, SectionCard } from "@/components/shared/SectionCard";
 import { Button } from "@/components/ui/button";
 import { f29PdfService } from "@/services/f29PdfService";
+import { cloudTaxDataService } from "@/services/cloudTaxDataService";
+import type { AntecedenteF29 } from "@/lib/f29Antecedent";
+
 import type { ExtraccionF29 } from "@/lib/f29PdfExtraction.server";
 import { formatCLP } from "@/utils/currency";
 
@@ -44,6 +47,10 @@ export function F29OficialPanel({
   onCambio?: () => void;
 }) {
   const [extraccion, setExtraccion] = useState<ExtraccionF29 | null>(null);
+  const [antecedente, setAntecedente] = useState<{
+    antecedente: AntecedenteF29;
+    folio: string | null;
+  } | null>(null);
   const [cargando, setCargando] = useState(false);
 
   const cargar = useCallback(async () => {
@@ -53,6 +60,11 @@ export function F29OficialPanel({
       setExtraccion(await f29PdfService.obtener(companyId, periodo));
     } catch {
       setExtraccion(null);
+    }
+    try {
+      setAntecedente(await cloudTaxDataService.getAntecedenteF29(companyId, periodo));
+    } catch {
+      setAntecedente(null);
     } finally {
       setCargando(false);
     }
@@ -61,6 +73,7 @@ export function F29OficialPanel({
   useEffect(() => {
     void cargar();
   }, [cargar]);
+
 
   if (!companyId) return null;
 
@@ -76,7 +89,42 @@ export function F29OficialPanel({
     }
   }
 
-  const leido = extraccion && extraccion.estadoExtraccion !== "failed";
+  const leidoPdf = extraccion && extraccion.estadoExtraccion !== "failed";
+  // Se muestran las cifras leídas del PDF y, para todo campo que el PDF no
+  // entregue, las del F29 ya guardado (confirmado por el contador). Así el
+  // periodo nunca aparece "sin Formulario 29" cuando sí existe.
+  const campos: { clave: string; etiqueta: string; texto: string }[] = [];
+  const a = antecedente?.antecedente;
+  const respaldo: Record<string, [number | null, "money" | "rate"]> = a
+    ? {
+        declared_vat_debit: [a.ivaDebitoDeclarado, "money"],
+        declared_vat_credit: [a.ivaCreditoDeclarado, "money"],
+        declared_previous_carryforward: [a.remanenteAnterior, "money"],
+        declared_vat_payable: [a.ivaDeclarado, "money"],
+        declared_new_carryforward: [a.nuevoRemanenteDeclarado, "money"],
+        declared_ppm_base: [a.basePpmDeclarada, "money"],
+        declared_ppm_rate: [a.tasaPpm, "rate"],
+        declared_ppm: [a.ppmDeclarado, "money"],
+        declared_withholdings: [a.retenciones, "money"],
+        declared_total_payable: [a.totalDeclarado, "money"],
+      }
+    : {};
+  for (const campo of CAMPOS_VISIBLES) {
+    const desdePdf =
+      leidoPdf && extraccion
+        ? valorFormateado(
+            (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
+            campo.tipo,
+          )
+        : null;
+    const alternativo = respaldo[campo.clave];
+    const texto =
+      desdePdf ?? (alternativo ? valorFormateado(alternativo[0], alternativo[1]) : null);
+    if (texto) campos.push({ ...campo, texto });
+  }
+
+  const leido = campos.length > 0;
+  const folio = extraccion?.folio ?? antecedente?.folio ?? null;
 
   return (
     <SectionCard
@@ -97,22 +145,17 @@ export function F29OficialPanel({
     >
       {cargando ? (
         <p className="text-sm text-muted-foreground">Revisando este periodo…</p>
-      ) : leido && extraccion ? (
+      ) : leido ? (
         <div className="space-y-3">
           <p className="flex items-center gap-2 rounded-2xl border border-success/30 bg-success-soft p-3 text-sm font-medium text-success">
             <CheckCircle2 className="h-4 w-4" aria-hidden />
-            Resultado confirmado según Formulario 29 oficial.
+            Resultado confirmado según Formulario 29 oficial
+            {folio ? ` · Folio ${folio}` : ""}.
           </p>
           <div className="rounded-2xl bg-secondary/60 p-4">
-            {CAMPOS_VISIBLES.map((campo) => {
-              const texto = valorFormateado(
-                (extraccion.campos as unknown as Record<string, unknown>)[campo.clave],
-                campo.tipo,
-              );
-              return texto ? (
-                <DataRow key={campo.clave} label={campo.etiqueta} value={texto} />
-              ) : null;
-            })}
+            {campos.map((campo) => (
+              <DataRow key={campo.clave} label={campo.etiqueta} value={campo.texto} />
+            ))}
           </div>
         </div>
       ) : (
@@ -121,6 +164,7 @@ export function F29OficialPanel({
           aplicación lo buscará sola y completará las cifras cuando exista.
         </p>
       )}
+
 
       <p className="mt-3 text-xs text-muted-foreground">
         Estimación informativa: no reemplaza a tu contador.

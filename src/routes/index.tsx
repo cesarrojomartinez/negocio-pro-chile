@@ -15,6 +15,8 @@ import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompany } from "@/hooks/useCompany";
 import { EMPRESA_DEMO, PERIODOS } from "@/data/mockTaxData";
+import { etiquetaPeriodo } from "@/lib/periodo";
+
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -52,8 +54,9 @@ function Inicio() {
   const { perfil } = useAuth();
   const { modo, empresaActiva } = useCompany();
 
-  const etiquetaPeriodo =
-    PERIODOS.find((p) => p.id === periodoId)?.etiqueta ?? periodoId;
+  const etiquetaPeriodoActual =
+    PERIODOS.find((p) => p.id === periodoId)?.etiqueta ?? etiquetaPeriodo(periodoId);
+
 
   const nombreSaludo =
     modo === "cloud"
@@ -72,7 +75,7 @@ function Inicio() {
             {nombreSaludo ? `Hola, ${nombreSaludo}` : "Hola"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Así va {nombreEmpresa} en {etiquetaPeriodo}.
+            Así va {nombreEmpresa} en {etiquetaPeriodoActual}.
           </p>
         </header>
 

@@ -593,19 +593,34 @@ export async function extraerF29Compacto(
     // ---------- 5. Almacenamiento privado (no bloquea el parser) ----------
     let rutaArchivo: string | null = rutaPdf(entrada.companyId, entrada.periodo, elegida.folio);
     let advertencias = [...evaluacion.advertencias];
-    const subida = await supabaseAdmin.storage
-      .from(BUCKET_F29)
-      .upload(rutaArchivo, decodificado.bytes as unknown as ArrayBuffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (subida.error) {
+    // Algunos runtimes rechazan el Uint8Array crudo: se reintenta con Blob para
+    // que el archivo quede guardado igualmente, y si falla se registra el
+    // motivo exacto en las advertencias para poder diagnosticarlo.
+    const cuerpoPdf = new Blob([decodificado.bytes as unknown as ArrayBuffer], {
+      type: "application/pdf",
+    });
+    let errorSubida: { message: string } | null = null;
+    for (const cuerpo of [cuerpoPdf, decodificado.bytes as unknown as ArrayBuffer]) {
+      const subida = await supabaseAdmin.storage
+        .from(BUCKET_F29)
+        .upload(rutaArchivo!, cuerpo, {
+          contentType: "application/pdf",
+          upsert: true,
+        });
+      if (!subida.error) {
+        errorSubida = null;
+        break;
+      }
+      errorSubida = { message: subida.error.message };
+    }
+    if (errorSubida) {
       rutaArchivo = null;
       advertencias = [
         ...advertencias,
-        "El archivo no pudo guardarse en el almacenamiento privado; los valores sí quedaron registrados.",
+        `El archivo no pudo guardarse en el almacenamiento privado; los valores sí quedaron registrados. (${errorSubida.message})`,
       ];
     }
+
 
     // ---------- 6. Persistencia ----------
     const esRectificatoria = elegida.esRectificatoria;

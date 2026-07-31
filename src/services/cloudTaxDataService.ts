@@ -18,6 +18,8 @@ import {
   resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+import type { AntecedenteF29 } from "@/lib/f29Antecedent";
+
 import {
   hayHistorialDeVigencias,
   seleccionarParametroVigente,
@@ -281,8 +283,37 @@ export const cloudTaxDataService: TaxDataService & {
     companyId: string,
     periodo: string,
   ): Promise<ConciliacionRemanenteCloud | null>;
+  /** Antecedente del F29 guardado del periodo (contador o lectura del PDF). */
+  getAntecedenteF29(
+    companyId: string,
+    periodo: string,
+  ): Promise<{ antecedente: AntecedenteF29; folio: string | null } | null>;
 } = {
   esDemo: false,
+
+  async getAntecedenteF29(companyId, periodo) {
+    const { data: periodRow } = await supabase
+      .from("tax_periods")
+      .select("id")
+      .eq("company_id", companyId)
+      .eq("period", periodo)
+      .maybeSingle();
+    if (!periodRow) return null;
+    const { data } = await supabase
+      .from("tax_f29_history")
+      .select(
+        "declaration_status, declared_vat, declared_ppm, declared_withholdings, declared_total, vat_carryforward, source, raw_data",
+      )
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodRow.id)
+      .maybeSingle();
+    const antecedente = interpretarAntecedenteF29(data);
+    if (!antecedente?.confirmado) return null;
+    const bruto = (data?.raw_data ?? {}) as Record<string, unknown>;
+    const folio = typeof bruto.folio === "string" ? bruto.folio : null;
+    return { antecedente, folio };
+  },
+
 
   async getConciliacionRemanente(companyId, periodo) {
     const { data: periodRow } = await supabase
