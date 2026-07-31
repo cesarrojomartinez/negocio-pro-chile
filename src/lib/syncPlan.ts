@@ -169,13 +169,20 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
       skipReasons.add(decision.mensaje);
     }
 
-    if (decision.revisarListadoF29) anios.add(periodo.slice(0, 4));
+    // El listado anual solo se pide si aporta algo: si el periodo ya tiene su
+    // F29 leído y su RCV vigente, no hay nada nuevo que revisar.
+    const listadoUtil =
+      decision.revisarListadoF29 &&
+      !(estado.tieneF29Vigente && !decision.consultarRcv);
+    if (listadoUtil) anios.add(periodo.slice(0, 4));
     else
       skippedResources.push({
         periodo,
         recurso: "f29_listado",
-        motivo: decision.motivo,
-        mensaje: decision.mensaje,
+        motivo: decision.revisarListadoF29 ? "sin_folio_nuevo" : decision.motivo,
+        mensaje: decision.revisarListadoF29
+          ? "Este periodo ya tiene su Formulario 29 leído."
+          : decision.mensaje,
       });
 
     // PDF del F29: solo con folio nuevo posible, sin fallo reciente y sin
@@ -198,7 +205,7 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
         motivo: "espera_tras_fallo",
         mensaje: "La descarga anterior falló: se reintenta después de 24 horas.",
       });
-    } else if (decision.revisarListadoF29 && !estado.tieneF29Vigente) {
+    } else if (listadoUtil && !estado.tieneF29Vigente) {
       possibleNewFolios.push(periodo);
     } else {
       skippedResources.push({
