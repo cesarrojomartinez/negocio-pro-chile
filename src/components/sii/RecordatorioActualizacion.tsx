@@ -44,6 +44,13 @@ export function RecordatorioActualizacion({
   });
   const presupuesto = evaluarPresupuesto(prefs);
 
+  const mensajePresupuesto =
+    presupuesto.estado === "advertencia"
+      ? "Estás cerca del límite mensual de consultas que definiste."
+      : presupuesto.estado === "bloqueado"
+        ? "Alcanzaste el límite mensual de consultas que definiste. Puedes seguir viendo la última información guardada."
+        : null;
+
   const cambiar = async (cambio: Parameters<typeof syncPreferencesService.actualizar>[0]) => {
     setOcupado(true);
     try {
@@ -78,8 +85,8 @@ export function RecordatorioActualizacion({
         </div>
       )}
 
-      {presupuesto.mensaje && (
-        <p className="text-xs text-muted-foreground">{presupuesto.mensaje}</p>
+      {mensajePresupuesto && (
+        <p className="text-xs text-muted-foreground">{mensajePresupuesto}</p>
       )}
 
       <div className="flex items-center justify-between gap-4">
