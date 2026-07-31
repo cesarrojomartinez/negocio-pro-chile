@@ -661,6 +661,21 @@ export const cloudTaxDataService: TaxDataService & {
         periodRow?.rcv_summary,
         docs.compra.length > 0,
       ),
+      /**
+       * El IVA de las facturas de compra (DTE 46) lo retiene el comprador: no
+       * es débito del vendedor.
+       */
+      ivaRetenidoPorComprador: ivaRetenidoPorCompradorEnVentas(periodRow?.rcv_summary),
+      /**
+       * Anticipo de IVA por cambio de sujeto. Si el periodo ya tiene F29
+       * confirmado se usa su cifra oficial; si no, la estimación con el
+       * historial del propio contribuyente.
+       */
+      anticipoIvaDisponible:
+        (confirmado ? leerAnticipoF29(antecedenteF29?.codigos)?.disponible : null) ??
+        previos.anticipo.disponible,
+
+
 
       remanenteAnterior: parametros.remanenteAnterior,
       fuenteRemanente: parametros.fuenteRemanente,
