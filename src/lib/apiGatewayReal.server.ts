@@ -235,6 +235,7 @@ export async function ejecutarPruebaRealApiGateway(
       f29: {
         estado: "omitido",
         mensaje: "No se revisó el Formulario 29 en esta actualización.",
+        codigo: null,
         folio: null,
         recalculado: false,
       },
@@ -254,10 +255,12 @@ export async function ejecutarPruebaRealApiGateway(
 
   // 4. Formulario 29 oficial del mismo periodo: ocurre solo, sin pasos extra
   //    para la persona. Si el periodo aún no tiene declaración, simplemente se
-  //    mantiene la estimación del RCV. Nunca interrumpe la actualización.
+  //    mantiene la estimación del RCV. Nunca interrumpe la actualización ni
+  //    borra las ventas y compras ya guardadas.
   let f29: ResultadoF29Automatico = {
     estado: "omitido",
     mensaje: "No se revisó el Formulario 29 en esta actualización.",
+    codigo: null,
     folio: null,
     recalculado: false,
   };
@@ -278,21 +281,32 @@ export async function ejecutarPruebaRealApiGateway(
             ? "revisar"
             : "leido",
         mensaje: r.errorCodigo
-          ? r.mensaje
+          ? `${r.mensaje} Tus ventas y compras sí quedaron actualizadas.`
           : "Leímos el Formulario 29 oficial de este periodo.",
+        codigo: r.errorCodigo ?? null,
         folio: r.extraccion?.folio ?? null,
         recalculado: r.recalculado,
       };
-    } catch {
+    } catch (error) {
+      const codigoF29 =
+        error && typeof error === "object" && "codigo" in error
+          ? String((error as { codigo: unknown }).codigo)
+          : error instanceof SiiProviderError
+            ? error.code
+            : "F29_UNKNOWN_ERROR";
       f29 = {
-        estado: "revisar",
+        estado: codigoF29 === "F29_NOT_DECLARED" ? "no_declarado" : "revisar",
         mensaje:
-          "Actualizamos tus ventas y compras, pero no pudimos leer el Formulario 29 de este periodo.",
+          error instanceof Error && error.name === "ErrorF29"
+            ? `${error.message} Tus ventas y compras sí quedaron actualizadas.`
+            : "Las ventas y compras fueron actualizadas, pero no pudimos leer el Formulario 29.",
+        codigo: codigoF29,
         folio: null,
         recalculado: false,
       };
     }
   }
+
 
   await registrarActividad(
     entrada.companyId,
