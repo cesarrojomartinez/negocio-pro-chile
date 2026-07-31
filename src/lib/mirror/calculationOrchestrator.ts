@@ -83,6 +83,9 @@ export interface ResultadoCalculoPeriodo {
   runStatus: RunStatus;
   /** Contrato entregado a la interfaz y la persistencia antigua. */
   productive: ProductiveTaxSummary;
+  /** Cifra que produce el núcleo unificado, exista o no promoción. */
+  compatibility: ProductiveTaxSummary | null;
+
   unified: PeriodCalculationResult | null;
   projection: LegacyCompatibilityProjection | null;
   parity: ReporteParidad | null;
@@ -154,6 +157,7 @@ export function calculateTaxPeriod(
       calculationRunId: entrada.existingRun.calculationRunId,
       runStatus: "reused",
       productive: entrada.existingRun.productive,
+      compatibility: null,
       unified: null,
       projection: null,
       parity: null,
@@ -197,6 +201,7 @@ export function calculateTaxPeriod(
       calculationRunId: null,
       runStatus: "failed",
       productive: conservada,
+      compatibility: null,
       unified: null,
       projection: null,
       parity: null,
@@ -240,6 +245,7 @@ export function calculateTaxPeriod(
     calculationRunId: entrada.calculationRunId ?? null,
     runStatus: "completed",
     productive,
+    compatibility,
     unified,
     projection,
     parity,

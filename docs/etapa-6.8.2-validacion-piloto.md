@@ -81,3 +81,33 @@ monetaria distinta de cero, estado visible distinto, etiqueta principal distinta
 fuente visible distinta, fallback no registrado, error sin clasificar, periodo sin
 cálculo completo, run fallido, huella faltante, comparación no persistida o
 invocación legada en `compatibility`. No existe tolerancia de $1.
+
+## Cierre Fase 6 — hallazgo crítico y reversión
+
+Al conectar los metadatos productivos se detectó que la validación dual
+comparaba el motor antiguo **consigo mismo**: fuera de modo `compatibility`,
+`calculateTaxPeriod` devolvía la cifra antigua en `productive`, y
+`pilot.server.ts` la usaba también como cifra del núcleo unificado. Por eso los
+informes anteriores reportaban paridad exacta.
+
+Correcciones aplicadas:
+
+- `calculationOrchestrator.ts` expone `compatibility`, la cifra real del núcleo,
+  independiente del modo.
+- `pilot.server.ts` valida contra `compatibility`.
+- `engineConfig.server.ts` ya no falla en silencio: valida el formato de
+  `changed_by` / `approved_by` y lanza error si la escritura no queda guardada.
+- `persistirCorridaProductiva` registra la corrida del núcleo y enlaza
+  `calculation_run_id`, `certainty_status` y `legacy_fallback_count` en el
+  resumen mensual.
+
+Resultado de la validación honesta (sin llamadas al proveedor, 0 créditos):
+
+| Empresa | Periodos | Exactos | Diferencias |
+| --- | --- | --- | --- |
+| pilot_wood_company | 13 | 5 | 38 |
+| pilot_bakery_company | 14 | 2 | 28 |
+
+Ninguna empresa cumple los criterios de promoción. Ambas quedaron en modo
+`shadow` y sus cifras visibles fueron restauradas con el motor antiguo
+(enero 2026 de la maderera: IVA 574.605 y total 617.475, coincidente con el F29).
