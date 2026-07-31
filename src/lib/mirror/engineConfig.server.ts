@@ -90,7 +90,13 @@ export async function volverAModoSombra(entrada: {
 /** Deja constancia de la evaluación de promoción a `compatibility`. */
 export async function registrarPromocionMotor(
   evaluacion: EvaluacionPromocion,
-  extras: { fromMode: UnifiedEngineMode; approvedBy?: string | null },
+  extras: {
+    fromMode: UnifiedEngineMode;
+    approvedBy?: string | null;
+    goldenCasesPassed?: number;
+    goldenCasesTotal?: number;
+    visualSnapshotsApproved?: boolean;
+  },
 ): Promise<void> {
   if (!evaluacion.companyId) return;
   await supabaseAdmin.from("tax_engine_promotions").insert({
@@ -100,9 +106,9 @@ export async function registrarPromocionMotor(
     to_mode: "compatibility",
     periods_validated: evaluacion.periodsValidated,
     differences_found: evaluacion.differencesFound,
-    golden_cases_passed: evaluacion.goldenCasesPassed,
-    golden_cases_total: evaluacion.goldenCasesTotal,
-    visual_snapshots_approved: evaluacion.visualSnapshotsApproved,
+    golden_cases_passed: extras.goldenCasesPassed ?? 0,
+    golden_cases_total: extras.goldenCasesTotal ?? 0,
+    visual_snapshots_approved: extras.visualSnapshotsApproved ?? false,
     blocking_reasons: evaluacion.blockingReasons,
     approved_by: extras.approvedBy ?? null,
     approved_at: evaluacion.approvedAt ?? null,
