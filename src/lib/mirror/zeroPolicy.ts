@@ -73,13 +73,17 @@ export function validarPoliticaCero(valor: TaxComponentValue): string[] {
   return infracciones;
 }
 
-/** Auditoría de todos los ceros de un periodo. */
-export function auditarCeros(valores: TaxComponentValue[]): {
+export interface EntradaAuditoriaCero {
   concept: string;
   ruleId: string;
   policy: ZeroPolicy;
   violations: string[];
-}[] {
+}
+
+export type AuditoriaCeros = EntradaAuditoriaCero[];
+
+/** Auditoría de todos los ceros de un periodo. */
+export function auditarCeros(valores: TaxComponentValue[]): AuditoriaCeros {
   return valores
     .filter((v) => v.amount === 0)
     .map((v) => ({
