@@ -13,6 +13,7 @@ import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
 import { ModoActualizacionPanel } from "@/components/sii/ModoActualizacionPanel";
 import { RecordatorioActualizacion } from "@/components/sii/RecordatorioActualizacion";
 import { AutomatizacionAvanzadaPanel } from "@/components/sii/AutomatizacionAvanzadaPanel";
+import { PrecisionTributariaPanel } from "@/components/tax/PrecisionTributariaPanel";
 
 
 
@@ -193,6 +194,7 @@ function Configuracion() {
                 ultimaSincronizacion={ultimaSincronizacion}
               />
             </SectionCard>
+            <PrecisionTributariaPanel companyId={empresaActiva?.id ?? null} />
             <SiiConnectionPanel />
             <RealGatewayPanel />
             <AutomatizacionAvanzadaPanel />

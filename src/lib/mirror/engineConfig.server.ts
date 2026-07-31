@@ -150,6 +150,9 @@ export async function calcularPeriodoProductivo(entrada: {
     official: oficial.official,
     officialTotal: oficial.officialTotal,
     existingRun: entrada.existingRun ?? null,
+    configFingerprint: {
+      optionalConfig: antecedentes.optionalConfig,
+    },
     calculatedAt: entrada.calculatedAt,
   });
 
