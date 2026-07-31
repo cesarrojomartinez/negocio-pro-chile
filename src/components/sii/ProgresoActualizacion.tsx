@@ -11,8 +11,18 @@ import { etiquetaPeriodo } from "@/lib/periodo";
  * cuando se cierra con la equis.
  */
 export function ProgresoActualizacion() {
-  const { items, enCurso, terminado, visible, periodoActual, totales, cerrar, version } =
-    useActualizacionMasiva();
+  const {
+    items,
+    enCurso,
+    terminado,
+    visible,
+    periodoActual,
+    totales,
+    cerrar,
+    version,
+    creditosUsados,
+    creditosDisponibles,
+  } = useActualizacionMasiva();
   const { refrescarDatos } = useTaxDashboard();
   const ultimaVersion = useRef(0);
 
