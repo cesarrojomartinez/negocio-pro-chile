@@ -142,6 +142,7 @@ export function sumarRetencionesOficiales(
     const valor = leerCodigo(ctx, codigo);
     if (valor == null) continue;
     detalle[codigo] = valor;
+    // TAX_ZERO_JUSTIFIED: acumulador de códigos presentes; si ninguno existe el total queda en null.
     total = (total ?? 0) + valor;
   }
   return { total, detalle };

@@ -1032,6 +1032,7 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
     // declaración de la empresa no hay anticipo que imputar.
     const afectaAnticipo =
       ctx.optionalConfig?.vatAdvanceRegime === true ||
+      // TAX_ZERO_JUSTIFIED: largo de una lista ausente es cero elementos, no un monto.
       (ctx.vatAdvanceHistory?.length ?? 0) > 0;
     if (ctx.official == null && anticipo == null && afectaAnticipo) {
       faltantes.push("vat_advance_change_of_subject");
@@ -1055,6 +1056,7 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
     const anticipoImputado = anticipo ?? 0;
     // Las retenciones son un sumando: sin antecedente no hay nada que sumar y
     // el faltante queda declarado como aviso, no como total desconocido.
+    // TAX_ZERO_JUSTIFIED: sin antecedente de retenciones no hay sumando; queda declarado en avisos.
     const retencionesSumadas = retenciones ?? 0;
     const avisos = retenciones == null ? ["retenciones_no_informadas"] : [];
     const total =
