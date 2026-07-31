@@ -28,7 +28,7 @@ function cifrasVisibles(escenarioId: string, periodoId: string) {
       ? obtenerPeriodoData(escenarioId as never, anteriorId)
       : null,
     idPeriodoAnterior: anteriorId,
-    margenPorcentaje: data.margenPorcentaje ?? 10,
+    margenPorcentaje: 10,
     dineroReservado: data.dineroReservado,
     metaMensual: data.metaMensual,
     esDemo: true,
