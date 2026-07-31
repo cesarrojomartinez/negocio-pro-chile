@@ -635,11 +635,23 @@ export async function extraerF29Compacto(
     });
 
     // ---------- 7. Antecedente tributario y recálculo ----------
+    // Basta con que el formulario entregue alguna cifra tributaria: si trae el
+    // PPM, el remanente o las retenciones, ese antecedente debe guardarse aunque
+    // el total a pagar no haya podido leerse.
+    const hayCifrasF29 = [
+      campos.declared_total_payable,
+      campos.declared_vat_payable,
+      campos.declared_ppm,
+      campos.declared_withholdings,
+      campos.declared_previous_carryforward,
+      campos.declared_new_carryforward,
+    ].some((v) => typeof v === "number" && Number.isFinite(v));
     if (
-      ["success", "needs_review"].includes(evaluacion.estado) &&
-      campos.declared_total_payable != null &&
+      ["success", "needs_review", "partial"].includes(evaluacion.estado) &&
+      hayCifrasF29 &&
       periodId
     ) {
+
       await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,
