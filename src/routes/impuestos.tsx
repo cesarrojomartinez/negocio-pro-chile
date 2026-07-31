@@ -128,11 +128,6 @@ function Impuestos() {
               periodo={periodoId}
               onCambio={refrescarDatos}
             />
-            <CierreMensual
-              companyId={companyId}
-              periodo={periodoId}
-              onCambio={refrescarDatos}
-            />
 
 
 
