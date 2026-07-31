@@ -52,6 +52,9 @@ export function RealGatewayPanel() {
     texto: string;
     tono: "success" | "warning" | "error" | "info";
     f29: string;
+    /** Verdadero cuando el RCV quedó al día pero el F29 no se pudo leer. */
+    f29Pendiente: boolean;
+
   } | null>(null);
 
   const esDueno = empresaActiva?.rol === "owner";
