@@ -15,6 +15,8 @@ import { TaxDashboardProvider } from "@/hooks/useTaxDashboard";
 import { AuthProvider } from "@/hooks/useAuth";
 import { CompanyProvider } from "@/hooks/useCompany";
 import { Toaster } from "@/components/ui/sonner";
+import { ActualizacionMasivaProvider } from "@/hooks/useActualizacionMasiva";
+import { ProgresoActualizacion } from "@/components/sii/ProgresoActualizacion";
 
 
 function NotFoundComponent() {
