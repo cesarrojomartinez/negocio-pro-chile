@@ -865,7 +865,7 @@ export function construirResumenCompras(
     montoFirmado(d[campo], efectoTributario(d.tipoDocumento as string));
   const aggFacturas = agregadas?.facturas;
   const aggNotas = agregadas?.notasCredito;
-  const agregado = (campo: "neto" | "iva" | "total") =>
+  const agregado = (campo: "neto" | "iva" | "total" | "exento") =>
     redondear((aggFacturas?.[campo] ?? 0) - (aggNotas?.[campo] ?? 0));
 
   const comprasTotales =
