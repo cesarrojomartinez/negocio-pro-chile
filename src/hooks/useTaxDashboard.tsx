@@ -320,12 +320,26 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     if (conexionReal) {
       setSolicitudActualizacionReal((n) => n + 1);
       await refrescarDatos();
-      toast.info("Mostrando la última información guardada", {
-        description:
-          "Para traer datos nuevos del SII, completa el formulario de actualización segura en Configuración.",
-      });
+      // Si el formulario seguro está en pantalla, el propio panel se enfoca y
+      // no hace falta un aviso: la persona escribe su clave y actualiza.
+      const formularioVisible =
+        typeof document !== "undefined" &&
+        document.querySelector('[data-panel="sii-real"]') !== null;
+      if (!formularioVisible) {
+        toast.info("Falta un paso para traer datos nuevos", {
+          description:
+            "Abre Configuración e ingresa tu Clave Tributaria en el formulario de actualización segura.",
+          action: {
+            label: "Ir a Configuración",
+            onClick: () => {
+              window.location.href = "/configuracion#actualizar-sii";
+            },
+          },
+        });
+      }
       return;
     }
+
     setActualizando(true);
     try {
       await actualizarMock();
