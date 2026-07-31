@@ -548,19 +548,42 @@ const MESES: Record<string, string> = {
   diciembre: "12",
 };
 
-/** Busca el periodo tributario declarado (AAAA-MM). */
+/**
+ * Busca el periodo tributario declarado (AAAA-MM).
+ *
+ * Se prioriza siempre el texto rotulado como «periodo»: en el formulario
+ * conviven fechas de presentación (16/02/2026) que antes se confundían con el
+ * periodo y provocaban un falso «otro periodo».
+ */
 export function detectarPeriodo(texto: string): string | null {
   const plano = sinTildes(texto);
-  const iso = /(20\d{2})\s*[-/]\s*(0[1-9]|1[0-2])/.exec(plano);
-  if (iso) return `${iso[1]}-${iso[2]}`;
-  const compacto = /periodo\s*(?:tributario)?\s*:?\s*(20\d{2})(0[1-9]|1[0-2])/.exec(plano);
-  if (compacto) return `${compacto[1]}-${compacto[2]}`;
-  const conMes = new RegExp(`(${Object.keys(MESES).join("|")})\\s*(?:de\\s*)?(20\\d{2})`).exec(plano);
+  const nombresMes = Object.keys(MESES).join("|");
+
+  const rotulado: [RegExp, (m: RegExpExecArray) => string][] = [
+    [/periodo\s*(?:tributario)?\s*:?\s*(20\d{2})\s*[-/]?\s*(0[1-9]|1[0-2])(?!\d)/, (m) => `${m[1]}-${m[2]}`],
+    [/periodo\s*(?:tributario)?\s*:?\s*(0[1-9]|1[0-2])\s*[-/]\s*(20\d{2})/, (m) => `${m[2]}-${m[1]}`],
+    [
+      new RegExp(`periodo\\s*(?:tributario)?\\s*:?\\s*(${nombresMes})\\s*(?:de\\s*)?(20\\d{2})`),
+      (m) => `${m[2]}-${MESES[m[1]]}`,
+    ],
+  ];
+  for (const [patron, arma] of rotulado) {
+    const m = patron.exec(plano);
+    if (m) return arma(m);
+  }
+
+  const conMes = new RegExp(`(${nombresMes})\\s*(?:de\\s*)?(20\\d{2})`).exec(plano);
   if (conMes) return `${conMes[2]}-${MESES[conMes[1]]}`;
-  const mesAnio = /(0[1-9]|1[0-2])\s*[-/]\s*(20\d{2})/.exec(plano);
+
+  // Sin rótulo: se aceptan AAAA-MM o MM/AAAA solo si no forman parte de una
+  // fecha completa (dd/mm/aaaa o aaaa-mm-dd), que corresponde a otra cosa.
+  const iso = /(?<![\d/-])(20\d{2})\s*[-/]\s*(0[1-9]|1[0-2])(?![\d/-])/.exec(plano);
+  if (iso) return `${iso[1]}-${iso[2]}`;
+  const mesAnio = /(?<![\d/-])(0[1-9]|1[0-2])\s*[-/]\s*(20\d{2})(?![\d/-])/.exec(plano);
   if (mesAnio) return `${mesAnio[2]}-${mesAnio[1]}`;
   return null;
 }
+
 
 /** Busca el folio impreso en el formulario. */
 export function detectarFolio(texto: string): string | null {

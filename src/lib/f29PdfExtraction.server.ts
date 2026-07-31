@@ -557,8 +557,13 @@ export async function extraerF29Compacto(
 
     const rutDistinto = validaciones.some((v) => v.id === "rut" && v.estado === "error");
     const periodoDistinto = validaciones.some((v) => v.id === "periodo" && v.estado === "error");
+    // El folio impreso coincidiendo con el del listado ya prueba la identidad
+    // del documento: en ese caso una lectura dudosa del periodo no descarta el
+    // formulario, solo queda como advertencia.
+    const folioCoincide = validaciones.some((v) => v.id === "folio" && v.estado === "ok");
     if (rutDistinto) throw new ErrorF29("F29_RUT_MISMATCH");
-    if (periodoDistinto) throw new ErrorF29("F29_PERIOD_MISMATCH");
+    if (periodoDistinto && !folioCoincide) throw new ErrorF29("F29_PERIOD_MISMATCH");
+
 
     // ---------- 5. Almacenamiento privado (no bloquea el parser) ----------
     let rutaArchivo: string | null = rutaPdf(entrada.companyId, entrada.periodo, elegida.folio);
