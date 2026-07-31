@@ -216,6 +216,9 @@ export interface DashboardData {
   contexto: import("@/lib/taxContext").ContextoTributario;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
+  /** Comparación interna entre la estimación y el F29 oficial del periodo. */
+  conciliacionF29: import("@/lib/f29Reconciliation").ConciliacionF29;
+
   meta: MetaComercial;
   comparacion: ComparacionMensual;
   proyeccion: Proyeccion;
