@@ -65,9 +65,12 @@ export function FlipStatCard({
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {tituloFrente}
-            </h3>
+            <div className="flex items-center gap-2">
+              {icono && <span className="text-primary">{icono}</span>}
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {tituloFrente}
+              </h3>
+            </div>
             <span
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Ver compras netas"
