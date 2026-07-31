@@ -559,18 +559,24 @@ export async function extraerF29Compacto(
     });
     if (!decodificado.ok) throw new ErrorF29("F29_INVALID_PDF");
 
-    const sha256 = await huellaSha256(decodificado.bytes);
+    // Copia inmediata y exclusiva del archivo: el lector de PDF puede
+    // "transferir" (y dejar inservible) el búfer que recibe, por lo que se
+    // conserva un respaldo propio para el almacenamiento privado.
+    const bytesArchivo = new Uint8Array(decodificado.bytes.length);
+    bytesArchivo.set(decodificado.bytes);
+
+    const sha256 = await huellaSha256(bytesArchivo);
 
     // ---------- 4. Lectura determinística ----------
     let lectura: Awaited<ReturnType<typeof leerPdf>>;
     try {
-      // Algunos lectores PDF transfieren (y separan) el ArrayBuffer recibido.
-      // Se entrega una copia exclusiva al parser para conservar intactos los
-      // bytes que luego deben archivarse en almacenamiento privado.
-      lectura = await leerPdf(Uint8Array.from(decodificado.bytes));
+      const copiaParser = new Uint8Array(bytesArchivo.length);
+      copiaParser.set(bytesArchivo);
+      lectura = await leerPdf(copiaParser);
     } catch {
       throw new ErrorF29("F29_TEXT_EXTRACTION_FAILED");
     }
+
 
     const codigos = extraerCodigos({ items: lectura.items, texto: lectura.texto });
     const campos = construirCamposNormalizados(codigos);
@@ -597,25 +603,22 @@ export async function extraerF29Compacto(
     // ---------- 5. Almacenamiento privado (no bloquea el parser) ----------
     let rutaArchivo: string | null = rutaPdf(entrada.companyId, entrada.periodo, elegida.folio);
     let advertencias = [...evaluacion.advertencias];
-    // Algunos runtimes rechazan el Uint8Array crudo: se reintenta con Blob para
-    // que el archivo quede guardado igualmente, y si falla se registra el
-    // motivo exacto en las advertencias para poder diagnosticarlo.
-    const cuerpoPdf = new Blob([decodificado.bytes as unknown as ArrayBuffer], {
-      type: "application/pdf",
-    });
+    // El guardado del archivo nunca puede invalidar la lectura: cualquier
+    // problema del almacenamiento queda como advertencia, con su motivo exacto.
     let errorSubida: { message: string } | null = null;
-    for (const cuerpo of [cuerpoPdf, decodificado.bytes as unknown as ArrayBuffer]) {
+    try {
+      const cuerpoPdf = new Blob([bytesArchivo as unknown as ArrayBuffer], {
+        type: "application/pdf",
+      });
       const subida = await supabaseAdmin.storage
         .from(BUCKET_F29)
-        .upload(rutaArchivo!, cuerpo, {
+        .upload(rutaArchivo!, cuerpoPdf, {
           contentType: "application/pdf",
           upsert: true,
         });
-      if (!subida.error) {
-        errorSubida = null;
-        break;
-      }
-      errorSubida = { message: subida.error.message };
+      errorSubida = subida.error ? { message: subida.error.message } : null;
+    } catch (error) {
+      errorSubida = { message: error instanceof Error ? error.message : "error desconocido" };
     }
     if (errorSubida) {
       rutaArchivo = null;
@@ -624,6 +627,7 @@ export async function extraerF29Compacto(
         `El archivo no pudo guardarse en el almacenamiento privado; los valores sí quedaron registrados. (${errorSubida.message})`,
       ];
     }
+
 
 
     // ---------- 6. Persistencia ----------
