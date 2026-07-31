@@ -127,6 +127,8 @@ export function RealGatewayPanel() {
         texto: m.texto,
         tono: m.tono as "success" | "warning" | "error" | "info",
         f29: r.f29.mensaje,
+        f29Pendiente: r.f29.estado === "revisar" || r.f29.estado === "no_declarado",
+
       });
 
       if (m.tono === "error") toast.error(m.texto);
