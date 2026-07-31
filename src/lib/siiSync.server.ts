@@ -148,7 +148,7 @@ async function decisionPorPeriodo(
     ultimaSincronizacionRcv: (ultima?.completed_at as string | null) ?? null,
     tieneF29Vigente: !!f29,
     periodoCerrado: periodoYaCerrado(periodo, ahora),
-    tieneDocumentosRcv: (documentos ?? 0) > 0,
+    tieneDatosRcv: (documentos ?? 0) > 0,
   });
 }
 

@@ -66,7 +66,7 @@ export interface EntradaDecisionPeriodo {
    * El periodo ya tiene documentos reales del RCV guardados. Si es false, la
    * caché nunca puede saltarse la descarga: un periodo vacío siempre se baja.
    */
-  tieneDocumentosRcv: boolean;
+  tieneDatosRcv: boolean;
 
 }
 
@@ -104,7 +104,7 @@ export function decidirActualizacionPeriodo(
 
   // Regla de oro: un periodo sin documentos reales del RCV SIEMPRE se descarga.
   // Ninguna caché, F29 ni cierre puede dejar el panel en cero.
-  if (!entrada.tieneDocumentosRcv) return armar(true, true, "sin_documentos_rcv");
+  if (!entrada.tieneDatosRcv) return armar(true, true, "sin_documentos_rcv");
 
   // Periodo cerrado por el usuario: no se consulta nada más.
   if (entrada.periodoCerrado) return armar(false, false, "periodo_cerrado");

@@ -23,7 +23,7 @@ const base = {
   ultimaSincronizacionRcv: null,
   tieneF29Vigente: false,
   periodoCerrado: false,
-  tieneDocumentosRcv: true,
+  tieneDatosRcv: true,
 };
 
 
