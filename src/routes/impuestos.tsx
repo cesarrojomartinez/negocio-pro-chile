@@ -142,6 +142,7 @@ function Impuestos() {
               margenPorcentaje={margenPorcentaje}
               onCambiarMargen={setMargenPorcentaje}
               fuentePeriodo={data.fuentePeriodo}
+              conciliacion={data.conciliacionF29}
             />
 
             <AuditoriaMontos data={data} />

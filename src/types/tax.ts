@@ -180,6 +180,11 @@ export interface PeriodoData {
   ppmDeclarado?: number | null;
   retencionesDeclaradas?: number | null;
   totalDeclarado?: number | null;
+  /** Débito, crédito y remanente siguiente declarados en el F29 oficial. */
+  ivaDebitoDeclarado?: number | null;
+  ivaCreditoDeclarado?: number | null;
+  nuevoRemanenteDeclarado?: number | null;
+
   metaMensual: number;
   dineroReservado: number;
   diasTranscurridos: number;
@@ -211,6 +216,9 @@ export interface DashboardData {
   contexto: import("@/lib/taxContext").ContextoTributario;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
+  /** Comparación interna entre la estimación y el F29 oficial del periodo. */
+  conciliacionF29: import("@/lib/f29Reconciliation").ConciliacionF29;
+
   meta: MetaComercial;
   comparacion: ComparacionMensual;
   proyeccion: Proyeccion;
