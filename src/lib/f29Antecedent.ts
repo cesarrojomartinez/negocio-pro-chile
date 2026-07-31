@@ -133,10 +133,15 @@ export function interpretarAntecedenteF29(
       bruto.origin === ORIGEN_F29_CONTADOR ||
       bruto.origin === ORIGEN_F29_PDF);
 
+  const coherencia = evaluarCoherenciaPpmF29(codigos);
+  const tasaLeida = numero(bruto.ppm_rate);
+
   return {
     confirmado,
     remanenteAnterior: numero(fila.vat_carryforward),
-    tasaPpm: numero(bruto.ppm_rate),
+    // Una tasa que no cuadra con la base y el PPM del propio formulario no se
+    // entrega: arrastrarla contamina la estimación de los meses siguientes.
+    tasaPpm: coherencia.ppmCoherente ? tasaLeida : null,
     basePpmDeclarada: numero(bruto.ppm_tax_base),
     ppmDeclarado: numero(fila.declared_ppm),
     retenciones: numero(fila.declared_withholdings),
@@ -146,8 +151,11 @@ export function interpretarAntecedenteF29(
     ivaCreditoDeclarado: numero(bruto.vat_credit) ?? codigos["537"] ?? null,
     nuevoRemanenteDeclarado: numero(bruto.new_carryforward) ?? codigos["77"] ?? null,
     codigos,
+    incoherencias: coherencia.motivo ? [coherencia.motivo] : [],
+    ppmCoherente: coherencia.ppmCoherente,
   };
 }
+
 
 
 export interface ParametrosTributarios {
