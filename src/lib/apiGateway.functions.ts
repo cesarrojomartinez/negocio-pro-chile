@@ -15,19 +15,38 @@ export const diagnosticarApiGatewayFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     envolver(async () => {
       const { exigirRol } = await import("@/lib/companies.server");
-      const { diagnoseApiGatewayConfiguration, empresaAutorizadaParaPruebaReal } = await import(
-        "@/lib/apiGateway.server"
-      );
+      const { diagnoseApiGatewayConfiguration, empresaHabilitadaParaPruebaReal } =
+        await import("@/lib/apiGateway.server");
       const companyId = data.companyId;
       if (companyId) await exigirRol(context.userId, companyId, ["owner"]);
       return diagnoseApiGatewayConfiguration({
         probarProductos: data?.probarProductos === true,
         empresaAutorizada: companyId
-          ? empresaAutorizadaParaPruebaReal(companyId)
+          ? await empresaHabilitadaParaPruebaReal(companyId)
           : false,
       });
     }),
   );
+
+/** El dueño habilita (o deshabilita) su empresa para la prueba controlada. */
+export const habilitarPruebaRealFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string; habilitar: boolean }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(async () => {
+      const { exigirRol } = await import("@/lib/companies.server");
+      const { definirHabilitacionPruebaReal } = await import(
+        "@/lib/apiGateway.server"
+      );
+      await exigirRol(context.userId, data.companyId, ["owner"]);
+      return definirHabilitacionPruebaReal(
+        data.companyId,
+        context.userId,
+        data.habilitar !== false,
+      );
+    }),
+  );
+
 
 
 export const pruebaRealApiGatewayFn = createServerFn({ method: "POST" })
