@@ -334,34 +334,16 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
   supportsEstimation: true,
   testCaseReferences: ["golden:*", "mirror:credito"],
   calculate: (ctx) => {
-    // El código 537 es el crédito total del periodo: crédito de documentos
-    // del mes más el remanente anterior. Es el que el F29 usa para determinar
-    // el IVA, así que manda cuando existe. Queda marcado para que la posición
-    // de IVA no vuelva a restar el remanente.
-    const totalConRemanente = leerCodigo(ctx.official, CODIGO.creditoTotalConRemanente);
-    if (totalConRemanente != null) {
-      return {
-        amount: peso(totalConRemanente),
-        status: "official",
-        sources: [`f29:${CODIGO.creditoTotalConRemanente}`],
-        calculationDescription:
-          "Crédito fiscal total declarado en el F29 (código 537): crédito de documentos del mes más el remanente anterior.",
-        inputValues: {
-          codigo_537: totalConRemanente,
-          codigo_511: leerCodigo(ctx.official, CODIGO.creditoDocumentos),
-          codigo_504: leerCodigo(ctx.official, CODIGO.remanenteAnterior),
-        },
-        warnings: ["credito_incluye_remanente_anterior"],
-        confidence: "high",
-      };
-    }
-
+    // El crédito recuperable del periodo es el código 511. El 537 no sirve
+    // como reemplazo: incluye el remanente anterior, así que usarlo mezclaría
+    // dos conceptos distintos y duplicaría el remanente aguas abajo.
     const oficialF29 = oficial(
       ctx,
       CODIGO.creditoDocumentos,
       "Crédito fiscal recuperable declarado en el F29 (código 511).",
     );
     if (oficialF29) return oficialF29;
+
 
 
 
