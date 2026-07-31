@@ -141,9 +141,17 @@ describe("normalización", () => {
         excluded: [],
       },
     });
-    expect(r.documentos).toHaveLength(1);
-    expect(r.documentos[0].document_date).toBe(`${PERIODO}-05`);
-    expect(r.descartados).toHaveLength(1);
+    // El RCV agrupa por periodo de REGISTRO: una factura emitida en otro mes
+    // que el SII informa en este registro es válida y no se descarta.
+    expect(r.documentos).toHaveLength(2);
+    expect(r.documentos.find((d) => d.external_id === "a")?.document_date).toBe(
+      `${PERIODO}-05`,
+    );
+    expect(
+      r.documentos.find((d) => d.external_id === "b")?.raw_metadata.emitidoEnOtroMes,
+    ).toBe(true);
+    expect(r.descartados).toHaveLength(0);
+
   });
 
   it("no declara montos de F29 no presentados", () => {
