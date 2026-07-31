@@ -133,6 +133,20 @@ export interface ResumenCompras {
   comprasNetas: number;
   ivaCredito: number;
   ivaCreditoPotencial: number;
+  /**
+   * IVA de compras del periodo que NO reduce el impuesto: documentos
+   * reclamados, marcados como no incluir y notas de crédito de proveedores.
+   * Es una estimación informativa; no reemplaza a tu contador.
+   */
+  ivaNoRecuperable: number;
+  /** Desglose informativo del IVA no recuperable. */
+  ivaNoRecuperableDetalle: {
+    reclamadas: number;
+    noIncluidas: number;
+    notasCreditoProveedores: number;
+    /** Compras sin IVA (exentas o no afectas) del periodo. */
+    comprasSinIva: number;
+  };
   documentosRegistrados: number;
   documentosPendientes: number;
   documentosReclamados: number;

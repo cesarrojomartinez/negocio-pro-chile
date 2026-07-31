@@ -874,6 +874,22 @@ export function construirResumenCompras(
     consideradas.reduce((a, d) => a + firmado(d, "neto"), 0) + agregado("neto");
 
 
+  // IVA que quedó fuera del crédito del mes, con su desglose informativo.
+  const ivaAbsoluto = (d: DocumentoTributario) => Math.abs(seguro(d.iva));
+  const sumaIva = (filtro: (d: DocumentoTributario) => boolean) =>
+    redondear(docs.filter(filtro).reduce((a, d) => a + ivaAbsoluto(d), 0));
+
+  const reclamadas = sumaIva((d) => (d.estado as string) === "reclamada");
+  const noIncluidas = sumaIva((d) => (d.estado as string) === "noIncluir");
+  const notasCreditoProveedores = redondear(
+    consideradas
+      .filter((d) => efectoTributario(d.tipoDocumento as string) === -1)
+      .reduce((a, d) => a + ivaAbsoluto(d), 0) + Math.abs(seguro(aggNotas?.iva ?? 0)),
+  );
+  const comprasSinIva = redondear(
+    consideradas.reduce((a, d) => a + Math.abs(seguro(d.exento)), 0),
+  );
+
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
   for (const d of consideradas) {
     const prev = porProveedor.get(d.contraparte) ?? { monto: 0, documentos: 0 };
@@ -888,6 +904,13 @@ export function construirResumenCompras(
     comprasNetas,
     ivaCredito: redondear(credito.vatCreditUsable + agregado("iva")),
     ivaCreditoPotencial: credito.vatCreditPotential,
+    ivaNoRecuperable: redondear(reclamadas + noIncluidas + notasCreditoProveedores),
+    ivaNoRecuperableDetalle: {
+      reclamadas,
+      noIncluidas,
+      notasCreditoProveedores,
+      comprasSinIva,
+    },
     documentosRegistrados:
       credito.usableDocuments +
       Math.max(0, Math.round(aggFacturas?.cantidad ?? 0)) +
