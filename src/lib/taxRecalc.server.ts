@@ -383,7 +383,15 @@ export async function recalculateTaxPeriod(
       docs.compra.length > 0,
     ),
 
+    /** El IVA de las facturas de compra (DTE 46) lo entera el comprador. */
+    ivaRetenidoPorComprador: ivaRetenidoPorCompradorEnVentas(periodoRow.rcv_summary),
+    /** Anticipo de IVA por cambio de sujeto (oficial si ya hay F29). */
+    anticipoIvaDisponible:
+      (confirmado ? leerAnticipoF29(antecedente?.codigos)?.disponible : null) ??
+      previos.anticipo.disponible,
+
     remanenteAnterior: parametros.remanenteAnterior,
+
     fuenteRemanente: parametros.fuenteRemanente,
     remanenteConocido:
       remanente.conocido || parametros.fuenteRemanente !== remanente.fuenteRemanente,
