@@ -115,7 +115,7 @@ describe("normalización", () => {
     expect(r.documentos[0].vat_amount).toBe(19000);
   });
 
-  it("descarta documentos fuera del periodo y deduplica por identificador", () => {
+  it("deduplica por identificador y conserva documentos registrados de otro mes", () => {
     const base = {
       documentType: "factura" as const,
       folio: 10,
@@ -141,9 +141,17 @@ describe("normalización", () => {
         excluded: [],
       },
     });
-    expect(r.documentos).toHaveLength(1);
-    expect(r.documentos[0].document_date).toBe(`${PERIODO}-05`);
-    expect(r.descartados).toHaveLength(1);
+    // El RCV agrupa por periodo de REGISTRO: una factura emitida en otro mes
+    // que el SII informa en este registro es válida y no se descarta.
+    expect(r.documentos).toHaveLength(2);
+    expect(r.documentos.find((d) => d.external_id === "a")?.document_date).toBe(
+      `${PERIODO}-05`,
+    );
+    expect(
+      r.documentos.find((d) => d.external_id === "b")?.raw_metadata.emitidoEnOtroMes,
+    ).toBe(true);
+    expect(r.descartados).toHaveLength(0);
+
   });
 
   it("no declara montos de F29 no presentados", () => {

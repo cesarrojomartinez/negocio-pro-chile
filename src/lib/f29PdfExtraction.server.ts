@@ -26,7 +26,10 @@ import {
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
+import { obtenerListadoF29Anual } from "@/lib/f29Listing.server";
+import { HORAS_ESPERA_FALLO_DESCARGA_F29 } from "@/lib/syncEconomica";
 import { F29_PARSER_VERSION } from "@/lib/f29Codes";
+
 import {
   construirCamposNormalizados,
   detectarFolio,
@@ -352,10 +355,78 @@ export async function urlFirmadaF29(
 
 // -------------------------------------------------------------------- proceso
 
+/** Folio reservado para anotar un fallo de descarga y su espera obligatoria. */
+export function folioFalloDescarga(periodo: string): string {
+  return `fallo-descarga:${periodo}`;
+}
+
+/**
+ * ¿Hay un fallo de descarga reciente para este periodo? Tras un fallo se espera
+ * 24 horas antes de volver a pagar una descarga.
+ */
+async function esperaPorFalloReciente(
+  companyId: string,
+  periodo: string,
+  ahora: Date,
+): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("tax_f29_extractions")
+    .select("updated_at, created_at")
+    .eq("company_id", companyId)
+    .eq("folio", folioFalloDescarga(periodo))
+    .maybeSingle();
+  if (!data) return false;
+  const marca = String(data.updated_at ?? data.created_at ?? "");
+  if (!marca) return false;
+  const horas = (ahora.getTime() - new Date(marca).getTime()) / 3_600_000;
+  return horas < HORAS_ESPERA_FALLO_DESCARGA_F29;
+}
+
+/** Anota el fallo de descarga para respetar la espera. Nunca se muestra. */
+async function anotarFalloDescarga(
+  companyId: string,
+  periodo: string,
+  motivo: string,
+): Promise<void> {
+  await supabaseAdmin
+    .from("tax_f29_extractions")
+    .upsert(
+      {
+        company_id: companyId,
+        period: periodo,
+        folio: folioFalloDescarga(periodo),
+        parser_version: F29_PARSER_VERSION,
+        extraction_status: "download_failed",
+        confidence_level: "unknown",
+        // Queda fuera de las consultas de pantalla.
+        superseded: true,
+        warnings: [motivo] as never,
+        code_values: {} as never,
+        normalized_fields: {} as never,
+        validation_results: [] as never,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "company_id,folio" },
+    )
+    .then(() => undefined, () => undefined);
+}
+
+export interface OpcionesExtraccionF29 {
+  /**
+   * Contador compartido de la ejecución. Cuando la extracción ocurre dentro de
+   * una sincronización, el gasto del F29 se suma al mismo registro del RCV para
+   * que los créditos informados sean los reales.
+   */
+  registro?: RegistroConsumo;
+  ahora?: Date;
+}
+
 export async function extraerF29Compacto(
   userId: string,
   entrada: EntradaExtraccionF29,
+  opciones: OpcionesExtraccionF29 = {},
 ): Promise<ResultadoExtraccionF29> {
+
   await exigirRol(userId, entrada.companyId, ["owner", "accountant"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La consulta real con el proveedor no está habilitada.");
@@ -379,7 +450,11 @@ export async function extraerF29Compacto(
   let cuerpo: { auth: { pass: { rut: string; clave: string } } } | null =
     construirCuerpoAuth(rutUsuario, entrada.claveTributaria);
 
-  const registro = new RegistroConsumo(2);
+  // Contador único: si viene de una sincronización, el gasto del F29 se suma
+  // al mismo registro del RCV y no queda oculto en un contador aparte.
+  const registro = opciones.registro ?? new RegistroConsumo(2);
+  const ahora = opciones.ahora ?? new Date();
+
   const llamadas: LlamadaProveedor[] = [];
   let recalculado = false;
 
@@ -397,44 +472,37 @@ export async function extraerF29Compacto(
       .maybeSingle();
     const periodId = periodoFila ? String(periodoFila.id) : null;
 
-    // ---------- 1. Listado de declaraciones (con caché diaria) ----------
-    const rutaListado = recursoDe("f29_periods").path.replace("{periodo}", entrada.periodo);
-    let crudoListado = await listadoEnCache(entrada.companyId, entrada.periodo);
+    // ---------- 1. Listado ANUAL de declaraciones (agrupado y con caché) ----
+    // Actualizar varios meses del mismo año consulta el listado una sola vez.
+    const anio = entrada.periodo.slice(0, 4);
+    const listado = await obtenerListadoF29Anual({
+      companyId: entrada.companyId,
+      anio,
+      config,
+      cuerpo,
+      registro,
+    });
+    llamadas.push(
+      listado.log
+        ? desdeLlamada(listado.log, listado.recurso, "No había listado vigente del año.")
+        : {
+            endpoint: listado.recurso,
+            providerRequestId: null,
+            actualCredits: 0,
+            creditsBalance: registro.creditosDisponibles,
+            cacheHit: true,
+            preventedProviderCall: true,
+            reasonForProviderCall:
+              "El listado anual ya estaba disponible: no se consultó al proveedor.",
+          },
+    );
 
-    if (crudoListado) {
-      llamadas.push({
-        endpoint: rutaListado,
-        providerRequestId: null,
-        actualCredits: 0,
-        creditsBalance: null,
-        cacheHit: true,
-        preventedProviderCall: true,
-        reasonForProviderCall: "Listado del día ya disponible: no se consultó al proveedor.",
-      });
-    } else {
-      const { datos, log } = await requestApiGateway<typeof cuerpo & object, unknown>({
-        config,
-        modulo: "f29_periods",
-        metodo: "POST",
-        ruta: rutaListado,
-        body: cuerpo,
-        registro,
-        sinReintentos: true,
-      });
-      crudoListado = sanitizarProfundo(datos);
-      await guardarSnapshot({
-        companyId: entrada.companyId,
-        periodId,
-        modulo: "f29_periods",
-        referencia: `f29_pdf:listado:${entrada.periodo}`,
-        payload: crudoListado,
-      });
-      llamadas.push(
-        desdeLlamada(log, rutaListado, "No había listado vigente del día para este periodo."),
-      );
-    }
+    // El listado es anual: solo se consideran las declaraciones del periodo
+    // pedido, nunca las de otros meses.
+    const declaraciones = listarDeclaraciones(listado.crudo).filter(
+      (d) => d.periodo === entrada.periodo,
+    );
 
-    const declaraciones = listarDeclaraciones(crudoListado);
     const resumenDeclaraciones = declaraciones.map((d) => ({
       folio: d.folio,
       fecha: d.fecha,
@@ -541,22 +609,65 @@ export async function extraerF29Compacto(
       };
     }
 
-    // ---------- 3. Descarga del PDF compacto ----------
-    const binario = await requestApiGatewayBinary({
-      config,
-      modulo: "f29_compact_pdf",
-      ruta: rutaPdfRecurso,
-      body: cuerpo,
-      registro,
-    });
-    llamadas.push(
-      desdeLlamada(binario.log, rutaPdfRecurso, "Folio nuevo sin PDF guardado previamente."),
-    );
+    // ---------- 3. Obtención del PDF compacto ----------
+    // Regla: un folio se paga UNA sola vez. Si ya está guardado el archivo
+    // (aunque la validación anterior haya fallado), se vuelve a leer localmente
+    // sin consultar al proveedor.
+    let bytesPdf: Uint8Array | null = null;
+    let contentTypePdf: string | null = "application/pdf";
+
+
+    if (existente?.pdf_storage_path) {
+      const descarga = await supabaseAdmin.storage
+        .from(BUCKET_F29)
+        .download(String(existente.pdf_storage_path));
+      if (!descarga.error && descarga.data) {
+        bytesPdf = new Uint8Array(await descarga.data.arrayBuffer());
+        llamadas.push({
+          endpoint: rutaPdfRecurso,
+          providerRequestId: null,
+          actualCredits: 0,
+          creditsBalance: registro.creditosDisponibles,
+          cacheHit: true,
+          preventedProviderCall: true,
+          reasonForProviderCall:
+            "El archivo de este folio ya estaba guardado: se relee sin volver a descargarlo.",
+        });
+      }
+    }
+
+    if (!bytesPdf) {
+      // Tras un fallo de descarga se espera antes de volver a pagar otra.
+      if (await esperaPorFalloReciente(entrada.companyId, entrada.periodo, ahora))
+        throw new ErrorF29("F29_PDF_DOWNLOAD_FAILED");
+
+      const binario = await requestApiGatewayBinary({
+        config,
+        modulo: "f29_compact_pdf",
+        ruta: rutaPdfRecurso,
+        body: cuerpo,
+        registro,
+      }).catch(async (error: unknown) => {
+        await anotarFalloDescarga(
+          entrada.companyId,
+          entrada.periodo,
+          "La descarga del formulario no pudo completarse.",
+        );
+        throw error;
+      });
+      llamadas.push(
+        desdeLlamada(binario.log, rutaPdfRecurso, "Folio nuevo sin PDF guardado previamente."),
+      );
+      bytesPdf = binario.bytes;
+      contentTypePdf = binario.contentType;
+    }
+
 
     const decodificado = decodificarRespuestaPdf({
-      contentType: binario.contentType,
-      bytes: binario.bytes,
+      contentType: contentTypePdf,
+      bytes: bytesPdf,
     });
+
     if (!decodificado.ok) throw new ErrorF29("F29_INVALID_PDF");
 
     // Copia inmediata y exclusiva del archivo: el lector de PDF puede
@@ -676,6 +787,15 @@ export async function extraerF29Compacto(
       .eq("company_id", entrada.companyId)
       .eq("period", entrada.periodo)
       .neq("folio", elegida.folio);
+
+    // La lectura resultó: se levanta la espera por fallos anteriores.
+    await supabaseAdmin
+      .from("tax_f29_extractions")
+      .delete()
+      .eq("company_id", entrada.companyId)
+      .eq("folio", folioFalloDescarga(entrada.periodo));
+
+
 
     await guardarSnapshot({
       companyId: entrada.companyId,

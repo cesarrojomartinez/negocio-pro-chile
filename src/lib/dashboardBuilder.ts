@@ -102,7 +102,11 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     { margenPorcentaje: entrada.margenPorcentaje },
   );
   const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
-  const compras = construirResumenCompras(data.documentosCompra);
+  const compras = construirResumenCompras(
+    data.documentosCompra,
+    data.comprasAgregadasResumen,
+  );
+
   const meta = construirMeta(data, resumen.ventasTotales, entrada.metaMensual);
 
 
@@ -120,7 +124,8 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
 
   const confianza = calculateConfidenceLevel({
     hasSales: ventas.cantidadDocumentos > 0,
-    hasPurchases: data.documentosCompra.length > 0,
+    hasPurchases: data.documentosCompra.length > 0 || compras.comprasTotales !== 0,
+
     syncError: !!entrada.errorSincronizacion,
     carryforwardSource: resumen.fuenteRemanente,
     ppmSource: resumen.fuentePpm,

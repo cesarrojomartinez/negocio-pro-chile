@@ -18,7 +18,11 @@ import { diasDePeriodo, estadoDesdeRcv, periodoAnterior } from "@/lib/taxMappers
 import { estadoDelPeriodo, nivelDesdeEspanol } from "@/utils/taxCalculations";
 import type { CarryforwardSource, PpmSource, WithholdingsSource } from "@/types/engine";
 import type { DocumentoTributario, PeriodoData } from "@/types/tax";
-import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
+import {
+  agregadosComprasDeResumen,
+  agregadosVentasDeResumen,
+} from "@/integrations/sii/rcvSummary";
+
 import type { Empresa } from "@/types/company";
 
 interface FilaDocumento {
@@ -338,11 +342,26 @@ export async function recalculateTaxPeriod(
   const reservado = Number(settings?.reserved_amount ?? 0);
   const metaMensual = Number(metaRow?.goal_amount ?? settings?.monthly_sales_goal ?? 0);
 
+  /**
+   * Cuando el periodo tiene documentos guardados, el resumen oficial solo
+   * aporta las boletas (comportamiento de siempre). Cuando no hay detalle
+   * documento por documento —actualización económica—, el resumen oficial
+   * aporta también facturas y notas de crédito, para que los totales sean
+   * exactamente los mismos que se obtenían descargando el detalle.
+   */
   const periodoData: PeriodoData = {
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
-    ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodoRow.rcv_summary),
+    ventasAgregadasResumen: agregadosVentasDeResumen(
+      periodoRow.rcv_summary,
+      docs.venta.length > 0,
+    ),
     documentosCompra: docs.compra,
+    comprasAgregadasResumen: agregadosComprasDeResumen(
+      periodoRow.rcv_summary,
+      docs.compra.length > 0,
+    ),
+
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
     remanenteConocido:
@@ -388,14 +407,25 @@ export async function recalculateTaxPeriod(
     empresa,
     periodo: periodoData,
     periodoAnterior:
-      docsPrevios.venta.length || docsPrevios.compra.length
+      docsPrevios.venta.length ||
+      docsPrevios.compra.length ||
+      agregadosVentasDeResumen(previoRow?.rcv_summary, false)
         ? {
             ...periodoData,
             periodo: previoNombre,
             documentosVenta: docsPrevios.venta,
             documentosCompra: docsPrevios.compra,
             ventasAgregadasResumen: previoRow
-              ? ventasAgregadasDeResumenGuardado(previoRow.rcv_summary)
+              ? agregadosVentasDeResumen(
+                  previoRow.rcv_summary,
+                  docsPrevios.venta.length > 0,
+                )
+              : null,
+            comprasAgregadasResumen: previoRow
+              ? agregadosComprasDeResumen(
+                  previoRow.rcv_summary,
+                  docsPrevios.compra.length > 0,
+                )
               : null,
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
@@ -404,6 +434,7 @@ export async function recalculateTaxPeriod(
             estadoPeriodo: estadoDelPeriodo(previoNombre),
           }
         : null,
+
     idPeriodoAnterior: previoNombre,
     margenPorcentaje: margen,
     dineroReservado: reservado,

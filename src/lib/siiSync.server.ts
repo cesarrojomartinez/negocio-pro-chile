@@ -55,6 +55,12 @@ import {
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { diaCivil } from "@/lib/syncPolicy";
+import {
+  decidirActualizacionPeriodo,
+  periodoEnCurso,
+  type DecisionPeriodo,
+} from "@/lib/syncEconomica";
+
 import { registrarEstadoPeriodo } from "@/lib/periodSyncState.server";
 import { normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
@@ -88,7 +94,56 @@ export interface OpcionesInternas {
   registro?: RegistroConsumo;
   /** Omite la política de caché: la prueba real la controla su propio límite. */
   omitirPoliticaCache?: boolean;
+  /**
+   * Evalúa la caché periodo por periodo (frescura del propio mes, F29 vigente,
+   * periodo cerrado). Es lo que usa la actualización real: seleccionar varios
+   * meses no invalida la caché de todos.
+   */
+  politicaPorPeriodo?: boolean;
 }
+
+/**
+ * Decisión económica para UN periodo: mira su propia última sincronización
+ * exitosa, si ya tiene F29 leído y si está cerrado. No consulta al proveedor.
+ */
+async function decisionPorPeriodo(
+  companyId: string,
+  periodId: string,
+  periodo: string,
+  ahora: Date,
+): Promise<DecisionPeriodo> {
+  const [{ data: ultima }, { data: f29 }] = await Promise.all([
+    supabaseAdmin
+      .from("tax_sync_runs")
+      .select("completed_at")
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodId)
+      .eq("status", "success")
+      .not("completed_at", "is", null)
+      .order("completed_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+
+    supabaseAdmin
+      .from("tax_f29_extractions")
+      .select("extraction_status")
+      .eq("company_id", companyId)
+      .eq("period", periodo)
+      .eq("superseded", false)
+      .in("extraction_status", ["success", "needs_review", "partial"])
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return decidirActualizacionPeriodo({
+    periodo,
+    periodoActual: periodoEnCurso(ahora),
+    ahora,
+    ultimaSincronizacionRcv: (ultima?.completed_at as string | null) ?? null,
+    tieneF29Vigente: !!f29,
+    periodoCerrado: periodoYaCerrado(periodo, ahora),
+  });
+}
+
 
 /** Selecciona el proveedor activo. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
@@ -669,7 +724,25 @@ export async function syncSiiCompanyPeriod(
 
   const ahora = opciones.ahora ?? new Date();
   const periodoRow = await asegurarPeriodo(entrada.companyId, entrada.periodo);
-  const decision = opciones.omitirPoliticaCache
+  // La política por periodo es la de la actualización real: cada mes se evalúa
+  // solo. Un mes ya leído o cerrado no vuelve a consultarse aunque se hayan
+  // seleccionado varios meses a la vez.
+  const economica = opciones.politicaPorPeriodo
+    ? await decisionPorPeriodo(
+        entrada.companyId,
+        String(periodoRow.id),
+        entrada.periodo,
+        ahora,
+      )
+    : null;
+  const decision = economica
+    ? {
+        debeConsultar: economica.consultarRcv,
+        motivo: economica.motivo,
+        proximaActualizacion: null,
+        minutosDesdeUltima: null,
+      }
+    : opciones.omitirPoliticaCache
     ? {
         debeConsultar: true,
         motivo: "solicitud_manual" as const,
@@ -682,6 +755,7 @@ export async function syncSiiCompanyPeriod(
         tipo,
         periodoCerrado: periodoYaCerrado(entrada.periodo, ahora),
       });
+
 
   if (!decision.debeConsultar) {
     const { data: omitido } = await supabaseAdmin
@@ -982,7 +1056,12 @@ export async function syncSiiCompanyPeriod(
 
 
   // 3. Historial de F29
+  // En la actualización real el listado de declaraciones se pide UNA vez por
+  // año dentro de la lectura del Formulario 29 oficial. Repetirlo aquí, mes a
+  // mes, sería pagar dos veces la misma información.
   await ejecutar(["f29_periods"], async () => {
+    if (opciones.politicaPorPeriodo) return;
+
     const historial = await proveedor.fetchF29History({ ...consulta, months: MESES_F29 });
     await guardarSnapshot({
       companyId: entrada.companyId,

@@ -11,6 +11,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   crearAdaptadorApiGateway,
+
   type CredencialesTemporales,
 } from "@/integrations/sii/apiGatewaySiiProviderAdapter";
 import {
@@ -20,6 +21,8 @@ import {
 import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
+import { NORMAL_SYNC_PURCHASE_STATES } from "@/lib/syncEconomica";
+
 
 import {
   empresaHabilitadaParaPruebaReal,
@@ -137,9 +140,14 @@ export async function ejecutarPruebaRealApiGateway(
     config,
     credenciales,
     registro,
+    // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
+    // detalle documento por documento ni estados secundarios de compras.
+    soloResumen: true,
+    estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,
   });
+
   const ahora = new Date().toISOString();
 
   const consumo = () => ({
@@ -210,7 +218,9 @@ export async function ejecutarPruebaRealApiGateway(
         proveedor,
         proveedorId: "api_gateway",
         registro,
-        omitirPoliticaCache: true,
+        // Cada periodo decide por sí mismo si necesita volver a consultarse.
+        politicaPorPeriodo: true,
+
       },
     );
   } catch (error) {
@@ -275,13 +285,20 @@ export async function ejecutarPruebaRealApiGateway(
   if (exito) {
     try {
       const { extraerF29Compacto } = await import("@/lib/f29PdfExtraction.server");
-      const r = await extraerF29Compacto(userId, {
-        companyId: entrada.companyId,
-        periodo: entrada.periodo,
-        rutUsuario,
-        claveTributaria: entrada.claveTributaria,
-        consentimiento: true,
-      });
+      const r = await extraerF29Compacto(
+        userId,
+        {
+          companyId: entrada.companyId,
+          periodo: entrada.periodo,
+          rutUsuario,
+          claveTributaria: entrada.claveTributaria,
+          consentimiento: true,
+        },
+        // Contador compartido: los créditos del Formulario 29 quedan sumados
+        // en el mismo registro que el RCV y se informan completos.
+        { registro },
+      );
+
       f29 = {
         estado: r.errorCodigo === "F29_NOT_DECLARED"
           ? "no_declarado"

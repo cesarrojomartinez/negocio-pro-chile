@@ -154,9 +154,25 @@ export interface ResumenVentas {
 
 
 /**
+ * Totales de un grupo de documentos informado solo como agregado del resumen
+ * oficial del RCV. Los montos van en valor absoluto: el signo lo aporta la
+ * categoría (una nota de crédito siempre resta).
+ */
+export interface AgregadoDteResumen {
+  cantidad: number;
+  neto: number;
+  iva: number;
+  exento: number;
+  total: number;
+}
+
+/**
  * Totales que el SII entrega SOLO como agregado mensual (boletas electrónicas,
  * boletas exentas y comprobantes de pago electrónico). Son cifras oficiales del
  * resumen del RCV: se suman a las ventas del periodo sin inventar documentos.
+ *
+ * Cuando el periodo no tiene detalle documento por documento, se agregan
+ * además las facturas y notas de crédito del mismo resumen oficial.
  */
 export interface VentasAgregadasResumen {
   cantidadDocumentos: number;
@@ -164,6 +180,14 @@ export interface VentasAgregadasResumen {
   iva: number;
   exento: number;
   total: number;
+  facturas?: AgregadoDteResumen;
+  notasCredito?: AgregadoDteResumen;
+}
+
+/** Compras informadas solo por el resumen oficial, sin detalle individual. */
+export interface ComprasAgregadasResumen {
+  facturas: AgregadoDteResumen;
+  notasCredito: AgregadoDteResumen;
 }
 
 export interface PeriodoData {
@@ -172,6 +196,9 @@ export interface PeriodoData {
   documentosCompra: DocumentoTributario[];
   /** Ventas informadas solo como total del mes en el resumen oficial. */
   ventasAgregadasResumen?: VentasAgregadasResumen | null;
+  /** Compras informadas solo por el resumen oficial (sin detalle). */
+  comprasAgregadasResumen?: ComprasAgregadasResumen | null;
+
   remanenteAnterior: number;
   fuenteRemanente?: CarryforwardSource;
   /**

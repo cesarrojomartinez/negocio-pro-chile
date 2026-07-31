@@ -213,11 +213,150 @@ export function totalesSoloResumenMensual(
 export function ventasAgregadasDeResumenGuardado(
   rcvSummary: unknown,
 ): TotalesAgregadosMensuales | null {
-  const ventas =
-    rcvSummary && typeof rcvSummary === "object"
-      ? (rcvSummary as { ventas?: unknown }).ventas
-      : null;
-  if (!ventas || typeof ventas !== "object") return null;
-  const t = totalesSoloResumenMensual(ventas as ProviderRcvSummary);
+  const ventas = resumenGuardado(rcvSummary, "ventas");
+  if (!ventas) return null;
+  const t = totalesSoloResumenMensual(ventas);
   return t.total === 0 && t.iva === 0 && t.cantidadDocumentos === 0 ? null : t;
 }
+
+// ---------------------------------------------------------------------------
+// Agregados por categoría: permiten calcular el periodo completo desde el
+// RESUMEN oficial cuando no se descargó el detalle documento por documento.
+// ---------------------------------------------------------------------------
+
+/** Boletas y comprobantes de pago electrónico (nunca tienen detalle individual). */
+export const TIPOS_BOLETA = new Set([35, 38, 39, 41, 48]);
+
+export type CategoriaDte = "factura" | "boleta" | "notaCredito";
+
+/** Categoría comercial de un tipo de DTE. Nunca se infiere un código nuevo. */
+export function categoriaDte(codigo: number): CategoriaDte {
+  if (DTE_EFECTO_NEGATIVO.has(codigo)) return "notaCredito";
+  return TIPOS_BOLETA.has(codigo) ? "boleta" : "factura";
+}
+
+export interface AgregadoDte {
+  cantidad: number;
+  neto: number;
+  iva: number;
+  exento: number;
+  total: number;
+}
+
+export const AGREGADO_VACIO: AgregadoDte = {
+  cantidad: 0,
+  neto: 0,
+  iva: 0,
+  exento: 0,
+  total: 0,
+};
+
+export type AgregadosPorCategoria = Record<CategoriaDte, AgregadoDte>;
+
+export const AGREGADOS_VACIOS: AgregadosPorCategoria = {
+  factura: AGREGADO_VACIO,
+  boleta: AGREGADO_VACIO,
+  notaCredito: AGREGADO_VACIO,
+};
+
+/**
+ * Suma las líneas del resumen oficial agrupadas por categoría comercial.
+ * Los montos se devuelven en valor absoluto: el signo lo aporta la categoría,
+ * exactamente igual que con los documentos individuales.
+ */
+export function agregadosPorCategoria(
+  resumen: ProviderRcvSummary | null | undefined,
+): AgregadosPorCategoria {
+  const acumular: AgregadosPorCategoria = {
+    factura: { ...AGREGADO_VACIO },
+    boleta: { ...AGREGADO_VACIO },
+    notaCredito: { ...AGREGADO_VACIO },
+  };
+  if (!resumen || !Array.isArray(resumen.lines)) return acumular;
+  for (const l of resumen.lines) {
+    const destino = acumular[categoriaDte(l.documentTypeCode)];
+    destino.cantidad += Math.max(0, Math.round(l.documentCount));
+    destino.neto += Math.abs(l.netAmount);
+    destino.iva += Math.abs(l.vatAmount);
+    destino.exento += Math.abs(l.exemptAmount);
+    destino.total += Math.abs(l.totalAmount);
+  }
+  return acumular;
+}
+
+function resumenGuardado(
+  rcvSummary: unknown,
+  clave: "ventas" | "compras",
+): ProviderRcvSummary | null {
+  const valor =
+    rcvSummary && typeof rcvSummary === "object"
+      ? (rcvSummary as Record<string, unknown>)[clave]
+      : null;
+  return valor && typeof valor === "object" ? (valor as ProviderRcvSummary) : null;
+}
+
+/**
+ * Agregados de VENTAS a partir del resumen guardado.
+ *
+ * - `conDetalleGuardado = true` (el periodo tiene documentos individuales):
+ *   solo se agregan boletas y comprobantes, exactamente como hasta ahora.
+ * - `conDetalleGuardado = false` (actualización económica: no se descargó el
+ *   detalle): se agregan también facturas y notas de crédito, para que los
+ *   totales del periodo sean los mismos que se obtenían con el detalle.
+ */
+export function agregadosVentasDeResumen(
+  rcvSummary: unknown,
+  conDetalleGuardado: boolean,
+): (TotalesAgregadosMensuales & {
+  facturas?: AgregadoDte;
+  notasCredito?: AgregadoDte;
+}) | null {
+  const ventas = resumenGuardado(rcvSummary, "ventas");
+  if (!ventas) return null;
+  if (conDetalleGuardado) return ventasAgregadasDeResumenGuardado(rcvSummary);
+
+  const cat = agregadosPorCategoria(ventas);
+  const boleta = cat.boleta;
+  const vacio =
+    boleta.total === 0 &&
+    cat.factura.total === 0 &&
+    cat.notaCredito.total === 0 &&
+    boleta.cantidad + cat.factura.cantidad + cat.notaCredito.cantidad === 0;
+  if (vacio) return null;
+  return {
+    cantidadDocumentos: boleta.cantidad,
+    neto: boleta.neto,
+    iva: boleta.iva,
+    exento: boleta.exento,
+    total: boleta.total,
+    facturas: cat.factura,
+    notasCredito: cat.notaCredito,
+  };
+}
+
+/**
+ * Agregados de COMPRAS a partir del resumen guardado. Solo se usan cuando el
+ * periodo no tiene documentos de compra individuales.
+ */
+export function agregadosComprasDeResumen(
+  rcvSummary: unknown,
+  conDetalleGuardado: boolean,
+): { facturas: AgregadoDte; notasCredito: AgregadoDte } | null {
+  if (conDetalleGuardado) return null;
+  const compras = resumenGuardado(rcvSummary, "compras");
+  if (!compras) return null;
+  const cat = agregadosPorCategoria(compras);
+  // Las boletas de compra no dan crédito y no aparecen en el RCV de compras;
+  // si llegaran, se suman al bloque de facturas para no perder el monto.
+  const facturas: AgregadoDte = {
+    cantidad: cat.factura.cantidad + cat.boleta.cantidad,
+    neto: cat.factura.neto + cat.boleta.neto,
+    iva: cat.factura.iva + cat.boleta.iva,
+    exento: cat.factura.exento + cat.boleta.exento,
+    total: cat.factura.total + cat.boleta.total,
+  };
+  if (facturas.total === 0 && cat.notaCredito.total === 0 && facturas.cantidad === 0)
+    return null;
+  return { facturas, notasCredito: cat.notaCredito };
+}
+
