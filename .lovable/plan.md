@@ -1,37 +1,50 @@
-## Objetivo
+# Cómo se calculan compras y ventas totales
 
-Poder saber, con datos reales y no con supuestos, cuánto se desvía la estimación de la app respecto del F29 que entrega el contador.
+## Ventas totales
 
-## Hallazgo que motiva el plan
+**Fórmula:**
 
-Al conciliar un periodo con el F29 oficial, la app reemplaza el total estimado por el total declarado. El valor original de la estimación se pierde, así que no queda registro de la desviación.
+````text
+Ventas totales = Ventas con factura + Ventas con boleta − Notas de crédito de ventas
+````
 
-Evidencia en la base actual: 19 periodos tienen a la vez estimación y F29; 18 muestran diferencia exactamente $0 y solo uno conserva una diferencia real (abril 2026: estimado $828.350 vs declarado $863.997, –4,1%).
+En palabras simples:
 
-## Qué se construye
+- Suma el **total** (incluido IVA) de todas las facturas y boletas vigentes del mes.
+- Si hay notas de crédito de clientes, se restan porque reducen las ventas.
+- Si el periodo viene solo con totales del SII (resumen RCV), se usan esos totales oficiales.
+- Los documentos anulados no se consideran.
 
-**1. Conservar la estimación previa a la conciliación**
-- Se agregan columnas al resumen mensual para guardar el total estimado y sus componentes (IVA, PPM, retenciones) tal como estaban **antes** de aplicar el F29.
-- La conciliación sigue mostrando la cifra oficial en pantalla; solo deja de borrar el histórico.
+**Ventas netas** es el mismo concepto pero usando solo el monto **sin IVA** (neto) y restando las notas de crédito. Es la base sobre la que se calcula el IVA débito.
 
-**2. Registrar la desviación de cada periodo**
-- Al conciliar, se guarda la diferencia en monto y en porcentaje, y de qué componente vino (IVA, PPM o retenciones).
+---
 
-**3. Vista de precisión histórica**
-- Una sección en la pantalla de impuestos que muestre, por los últimos meses: estimado, F29 real, diferencia y porcentaje.
-- Un resumen arriba: "En los últimos N meses la estimación se desvió en promedio X% (rango entre A% y B%)".
-- Si hay menos de 3 periodos con dato, se indica que aún no hay historial suficiente.
+## Compras totales
 
-**4. Reconstrucción del pasado (mejor esfuerzo)**
-- Para periodos ya conciliados, se intenta recomponer la estimación desde los componentes guardados (IVA + PPM + retenciones) y se marca como "reconstruida", distinguiéndola de las mediciones nuevas.
+**Fórmula:**
 
-## Detalle técnico
+````text
+Compras totales = Suma del total (incluido IVA) de las compras registradas o aceptadas
+````
 
-- Migración: columnas nuevas en `tax_monthly_summaries` (`pre_f29_tax_total`, `pre_f29_vat_payable`, `pre_f29_ppm`, `pre_f29_withholdings`, `f29_deviation_amount`, `f29_deviation_pct`), sin romper filas existentes.
-- `src/lib/f29Reconciliation.ts`: antes de sobrescribir con el total oficial, copiar los valores estimados a los campos `pre_f29_*` y calcular la desviación.
-- Nuevo componente `PrecisionEstimacion.tsx` en la ruta de impuestos, alimentado por una consulta al resumen mensual.
-- Pruebas unitarias del cálculo de desviación (con F29, sin F29, F29 en cero).
+En palabras simples:
 
-## Fuera de alcance
+- Suma el **total** (incluido IVA) de las facturas de compra que estén como **registradas** o **aceptadas**.
+- No incluye compras pendientes, reclamadas ni marcadas como "no incluir".
+- Si hay notas de crédito de proveedores, restan del total.
+- Los montos se toman en valor absoluto; el signo lo define el tipo de documento.
 
-No se cambia la fórmula de la estimación ni la reserva recomendada. Este paso solo mide. Con dos o tres meses de mediciones reales recién tiene sentido calibrar.
+**Compras netas** es la misma suma pero usando el monto **sin IVA** (neto). Es la base sobre la que se calcula el IVA crédito.
+
+---
+
+## Diferencia clave
+
+| Concepto | Qué suma | Para qué sirve |
+| --- | --- | --- |
+| Ventas totales | Total con IVA de facturas + boletas − notas de crédito | Ver cuánto vendiste en bruto |
+| Ventas netas | Neto sin IVA de facturas + boletas − notas de crédito | Base del IVA débito |
+| Compras totales | Total con IVA de compras aceptadas/registradas − notas de crédito proveedores | Ver cuánto compraste en bruto |
+| Compras netas | Neto sin IVA de compras aceptadas/registradas − notas de crédito proveedores | Base del IVA crédito |
+
+Todas estas cifras son **estimaciones informativas** y no reemplazan a tu contador ni a una declaración oficial del SII.
