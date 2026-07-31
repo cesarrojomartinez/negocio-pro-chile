@@ -66,7 +66,18 @@ export function ResumenTributario({
             formatCLP,
           )}
         />
+        {(resumen.anticipoIvaAplicado ?? 0) > 0 && (
+          <DataRow
+            label="Anticipo de IVA imputado"
+            value={`−${formatCLP(resumen.anticipoIvaAplicado ?? 0)}`}
+            tone="success"
+            hint={`Anticipo por cambio de sujeto disponible: ${formatCLP(
+              resumen.anticipoIvaDisponible ?? 0,
+            )}. Estimación informativa.`}
+          />
+        )}
         <DataRow
+
           label="IVA estimado por pagar"
           value={formatCLP(resumen.ivaEstimado)}
           strong
