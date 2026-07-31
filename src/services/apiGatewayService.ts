@@ -32,6 +32,14 @@ export const apiGatewayService = {
     return r.data;
   },
 
+  /** Habilita esta empresa para la prueba controlada (solo el dueño). */
+  async habilitarEmpresa(companyId: string, habilitar = true): Promise<void> {
+    const r = await habilitarPruebaRealFn({ data: { companyId, habilitar } });
+    if (!r.ok) throw new ErrorApiGateway(r.error);
+  },
+
+
+
 
   async ejecutarPrueba(entrada: {
     companyId: string;
