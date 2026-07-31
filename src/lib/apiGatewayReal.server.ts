@@ -285,13 +285,20 @@ export async function ejecutarPruebaRealApiGateway(
   if (exito) {
     try {
       const { extraerF29Compacto } = await import("@/lib/f29PdfExtraction.server");
-      const r = await extraerF29Compacto(userId, {
-        companyId: entrada.companyId,
-        periodo: entrada.periodo,
-        rutUsuario,
-        claveTributaria: entrada.claveTributaria,
-        consentimiento: true,
-      });
+      const r = await extraerF29Compacto(
+        userId,
+        {
+          companyId: entrada.companyId,
+          periodo: entrada.periodo,
+          rutUsuario,
+          claveTributaria: entrada.claveTributaria,
+          consentimiento: true,
+        },
+        // Contador compartido: los créditos del Formulario 29 quedan sumados
+        // en el mismo registro que el RCV y se informan completos.
+        { registro },
+      );
+
       f29 = {
         estado: r.errorCodigo === "F29_NOT_DECLARED"
           ? "no_declarado"
