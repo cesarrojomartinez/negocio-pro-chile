@@ -760,51 +760,63 @@ export type Database = {
       }
       tax_engine_promotions: {
         Row: {
+          approval_reason: string | null
           approved_at: string | null
           approved_by: string | null
           blocking_reasons: Json
           company_id: string
           created_at: string
           differences_found: number
+          engine_version: string | null
           from_mode: string
           golden_cases_passed: number
           golden_cases_total: number
           id: string
           periods_validated: number
+          projection_version: string | null
           promotion_status: string
           to_mode: string
+          validation_report_id: string | null
           visual_snapshots_approved: boolean
         }
         Insert: {
+          approval_reason?: string | null
           approved_at?: string | null
           approved_by?: string | null
           blocking_reasons?: Json
           company_id: string
           created_at?: string
           differences_found?: number
+          engine_version?: string | null
           from_mode: string
           golden_cases_passed?: number
           golden_cases_total?: number
           id?: string
           periods_validated?: number
+          projection_version?: string | null
           promotion_status: string
           to_mode: string
+          validation_report_id?: string | null
           visual_snapshots_approved?: boolean
         }
         Update: {
+          approval_reason?: string | null
           approved_at?: string | null
           approved_by?: string | null
           blocking_reasons?: Json
           company_id?: string
           created_at?: string
           differences_found?: number
+          engine_version?: string | null
           from_mode?: string
           golden_cases_passed?: number
           golden_cases_total?: number
           id?: string
           periods_validated?: number
+          projection_version?: string | null
           promotion_status?: string
           to_mode?: string
+          validation_report_id?: string | null
           visual_snapshots_approved?: boolean
         }
         Relationships: [
@@ -813,6 +825,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_engine_promotions_validation_report_id_fkey"
+            columns: ["validation_report_id"]
+            isOneToOne: false
+            referencedRelation: "tax_pilot_validation_reports"
             referencedColumns: ["id"]
           },
         ]
@@ -1440,6 +1459,148 @@ export type Database = {
           },
         ]
       }
+      tax_parity_results: {
+        Row: {
+          blocking: boolean
+          calculation_input_hash: string
+          company_alias: string
+          company_id: string
+          compatibility_value: string | null
+          created_at: string
+          difference_category: string
+          explanation: string
+          field: string
+          id: string
+          legacy_value: string | null
+          legacy_vs_compatibility_difference: number | null
+          official_value: string | null
+          period: string
+          unified_raw_value: string | null
+          unified_vs_official_difference: number | null
+          validated_at: string
+        }
+        Insert: {
+          blocking?: boolean
+          calculation_input_hash: string
+          company_alias: string
+          company_id: string
+          compatibility_value?: string | null
+          created_at?: string
+          difference_category: string
+          explanation: string
+          field: string
+          id?: string
+          legacy_value?: string | null
+          legacy_vs_compatibility_difference?: number | null
+          official_value?: string | null
+          period: string
+          unified_raw_value?: string | null
+          unified_vs_official_difference?: number | null
+          validated_at?: string
+        }
+        Update: {
+          blocking?: boolean
+          calculation_input_hash?: string
+          company_alias?: string
+          company_id?: string
+          compatibility_value?: string | null
+          created_at?: string
+          difference_category?: string
+          explanation?: string
+          field?: string
+          id?: string
+          legacy_value?: string | null
+          legacy_vs_compatibility_difference?: number | null
+          official_value?: string | null
+          period?: string
+          unified_raw_value?: string | null
+          unified_vs_official_difference?: number | null
+          validated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_parity_results_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_parity_snapshots: {
+        Row: {
+          calculation_input_hash: string
+          company_alias: string
+          company_id: string
+          created_at: string
+          credits_used: number
+          engine_version: string
+          has_official_f29: boolean
+          id: string
+          main_labels: Json
+          official_reference_hash: string | null
+          period: string
+          period_state: string
+          projection_version: string
+          provider_called: boolean
+          rules_version: string
+          updated_at: string
+          visible_sources: Json
+          visible_states: Json
+          visible_values: Json
+        }
+        Insert: {
+          calculation_input_hash: string
+          company_alias: string
+          company_id: string
+          created_at?: string
+          credits_used?: number
+          engine_version: string
+          has_official_f29?: boolean
+          id?: string
+          main_labels?: Json
+          official_reference_hash?: string | null
+          period: string
+          period_state: string
+          projection_version: string
+          provider_called?: boolean
+          rules_version: string
+          updated_at?: string
+          visible_sources?: Json
+          visible_states?: Json
+          visible_values?: Json
+        }
+        Update: {
+          calculation_input_hash?: string
+          company_alias?: string
+          company_id?: string
+          created_at?: string
+          credits_used?: number
+          engine_version?: string
+          has_official_f29?: boolean
+          id?: string
+          main_labels?: Json
+          official_reference_hash?: string | null
+          period?: string
+          period_state?: string
+          projection_version?: string
+          provider_called?: boolean
+          rules_version?: string
+          updated_at?: string
+          visible_sources?: Json
+          visible_states?: Json
+          visible_values?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_parity_snapshots_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_period_calculation_certainty: {
         Row: {
           blocking_concepts: string[]
@@ -1799,6 +1960,127 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tax_periods_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_pilot_companies: {
+        Row: {
+          alias: string
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          alias: string
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alias?: string
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_pilot_companies_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_pilot_validation_reports: {
+        Row: {
+          blocking_reasons: Json
+          calculation_ms: number
+          company_alias: string
+          company_id: string
+          compatibility_differences: number
+          compatibility_fallbacks: number
+          created_at: string
+          credits_used: number
+          engine_version: string
+          id: string
+          official_differences: number
+          period_from: string | null
+          period_to: string | null
+          periods_exact: number
+          periods_found: number
+          periods_validated: number
+          projection_version: string
+          promotion_ready: boolean
+          provider_calls: number
+          runs_reused: number
+          unknown_components: number
+          unsupported_components: number
+          updated_at: string
+        }
+        Insert: {
+          blocking_reasons?: Json
+          calculation_ms?: number
+          company_alias: string
+          company_id: string
+          compatibility_differences?: number
+          compatibility_fallbacks?: number
+          created_at?: string
+          credits_used?: number
+          engine_version: string
+          id?: string
+          official_differences?: number
+          period_from?: string | null
+          period_to?: string | null
+          periods_exact?: number
+          periods_found?: number
+          periods_validated?: number
+          projection_version: string
+          promotion_ready?: boolean
+          provider_calls?: number
+          runs_reused?: number
+          unknown_components?: number
+          unsupported_components?: number
+          updated_at?: string
+        }
+        Update: {
+          blocking_reasons?: Json
+          calculation_ms?: number
+          company_alias?: string
+          company_id?: string
+          compatibility_differences?: number
+          compatibility_fallbacks?: number
+          created_at?: string
+          credits_used?: number
+          engine_version?: string
+          id?: string
+          official_differences?: number
+          period_from?: string | null
+          period_to?: string | null
+          periods_exact?: number
+          periods_found?: number
+          periods_validated?: number
+          projection_version?: string
+          promotion_ready?: boolean
+          provider_calls?: number
+          runs_reused?: number
+          unknown_components?: number
+          unsupported_components?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_pilot_validation_reports_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "tax_companies"
