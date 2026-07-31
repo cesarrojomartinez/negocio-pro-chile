@@ -68,8 +68,8 @@ function proveedorFalso(control: ControlPlanEjecucion) {
       control.autorizar(`f29_listado:${anio}`);
       llamadas.push(`f29_listado:${anio}`);
     },
-    pdfF29(periodo: string, folio: string) {
-      control.autorizarDescargaF29(periodo, folio);
+    pdfF29(periodo: string, _folio: string) {
+      control.autorizar(`f29_pdf:${periodo}`);
       llamadas.push(`f29_pdf:${periodo}`);
     },
   };
