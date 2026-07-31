@@ -81,6 +81,9 @@ export const MENSAJE_ERROR_F29: Record<CodigoErrorF29, string> = {
   F29_PARTIAL_EXTRACTION: "El formulario se leyó de forma parcial.",
   F29_VALIDATION_FAILED: "Las cifras leídas no cuadran entre sí y quedan en revisión.",
   F29_STORAGE_FAILED: "Los valores se guardaron, pero el archivo no pudo almacenarse.",
+  F29_UNKNOWN_ERROR:
+    "No pudimos leer el Formulario 29 de este periodo. Tus ventas y compras sí quedaron actualizadas.",
+
 };
 
 export class ErrorF29 extends Error {
