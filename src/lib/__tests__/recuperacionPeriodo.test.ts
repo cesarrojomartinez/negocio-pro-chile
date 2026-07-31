@@ -104,11 +104,12 @@ describe("identidad del Formulario 29", () => {
           estado: null,
           esRectificatoria: false,
           vigente: true,
+          crudo: {},
         },
       ],
       "2026-01",
     );
-    expect(r.declaracion).toBeNull();
+    expect(r.seleccionada).toBeNull();
   });
 
   it("acepta la declaración del periodo solicitado", () => {
@@ -121,10 +122,12 @@ describe("identidad del Formulario 29", () => {
           estado: null,
           esRectificatoria: false,
           vigente: true,
+          crudo: {},
         },
       ],
       "2026-01",
     );
-    expect(r.declaracion?.folio).toBe("123");
+    expect(r.seleccionada?.folio).toBe("123");
   });
 });
+
