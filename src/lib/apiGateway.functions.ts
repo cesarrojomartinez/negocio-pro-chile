@@ -9,14 +9,22 @@ import { envolver } from "@/lib/serverResult";
  */
 export const diagnosticarApiGatewayFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data?: { probarProductos?: boolean }) => data ?? {})
-  .handler(async ({ data }) =>
+  .inputValidator(
+    (data?: { probarProductos?: boolean; companyId?: string }) => data ?? {},
+  )
+  .handler(async ({ data, context }) =>
     envolver(async () => {
-      const { diagnoseApiGatewayConfiguration } = await import(
+      const { exigirRol } = await import("@/lib/companies.server");
+      const { diagnoseApiGatewayConfiguration, empresaAutorizadaParaPruebaReal } = await import(
         "@/lib/apiGateway.server"
       );
+      const companyId = data.companyId;
+      if (companyId) await exigirRol(context.userId, companyId, ["owner"]);
       return diagnoseApiGatewayConfiguration({
         probarProductos: data?.probarProductos === true,
+        empresaAutorizada: companyId
+          ? empresaAutorizadaParaPruebaReal(companyId)
+          : false,
       });
     }),
   );

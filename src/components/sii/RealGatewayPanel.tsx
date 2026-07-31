@@ -61,9 +61,14 @@ export function RealGatewayPanel() {
   const esDueno = empresaActiva?.rol === "owner";
 
   useEffect(() => {
+    if (!empresaActiva?.id) {
+      setCargando(false);
+      return;
+    }
     let vigente = true;
+    setCargando(true);
     apiGatewayService
-      .diagnosticar()
+      .diagnosticar(empresaActiva.id)
       .then((d) => {
         if (vigente) setDiagnostico(d);
       })
@@ -76,7 +81,7 @@ export function RealGatewayPanel() {
     return () => {
       vigente = false;
     };
-  }, []);
+  }, [empresaActiva?.id]);
 
   // Cuando el usuario pide "Actualizar", traemos el formulario a la vista y
   // dejamos el cursor en el primer dato que falta (la clave nunca se guarda).
@@ -174,6 +179,12 @@ export function RealGatewayPanel() {
             enviar();
           }}
         >
+          {!diagnostico.empresaAutorizada && (
+            <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
+              Esta empresa no está habilitada para la prueba controlada de actualización.
+              No se realizó ninguna consulta ni se consumieron créditos.
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sii_username">RUT del usuario autorizado</Label>
