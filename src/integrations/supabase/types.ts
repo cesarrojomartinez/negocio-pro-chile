@@ -1493,6 +1493,83 @@ export type Database = {
           },
         ]
       }
+      tax_sync_plans: {
+        Row: {
+          actual_calls: number
+          actual_credits: number
+          calls_avoided_by_cache: number
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_code: string | null
+          execution_mode: string
+          id: string
+          in_progress: boolean
+          plan: Json
+          plan_status: string
+          planned_calls: number
+          planned_credit_max: number
+          planned_credit_min: number
+          requested_periods: string[]
+          requires_credentials: boolean
+          started_at: string
+          unplanned_calls_blocked: number
+        }
+        Insert: {
+          actual_calls?: number
+          actual_credits?: number
+          calls_avoided_by_cache?: number
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_code?: string | null
+          execution_mode?: string
+          id?: string
+          in_progress?: boolean
+          plan?: Json
+          plan_status?: string
+          planned_calls?: number
+          planned_credit_max?: number
+          planned_credit_min?: number
+          requested_periods?: string[]
+          requires_credentials?: boolean
+          started_at?: string
+          unplanned_calls_blocked?: number
+        }
+        Update: {
+          actual_calls?: number
+          actual_credits?: number
+          calls_avoided_by_cache?: number
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_code?: string | null
+          execution_mode?: string
+          id?: string
+          in_progress?: boolean
+          plan?: Json
+          plan_status?: string
+          planned_calls?: number
+          planned_credit_max?: number
+          planned_credit_min?: number
+          requested_periods?: string[]
+          requires_credentials?: boolean
+          started_at?: string
+          unplanned_calls_blocked?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_sync_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sync_preferences: {
         Row: {
           authorization_created_at: string | null

@@ -22,10 +22,18 @@ import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
 import { NORMAL_SYNC_PURCHASE_STATES } from "@/lib/syncEconomica";
-import { evaluarPresupuesto } from "@/lib/syncPreferences";
+import {
+  cerrarEjecucionPlanificada,
+  MENSAJE_CACHE_ONLY,
+  prepararEjecucionPlanificada,
+} from "@/lib/planEjecucion.server";
+import {
+  CODIGO_LLAMADA_NO_PLANIFICADA,
+  ErrorPlanEjecucion,
+  type SyncExecutionPlan,
+} from "@/lib/syncPlan";
 import {
   marcarRecordatorioCompletado,
-  obtenerPreferenciasSync,
   registrarConsumoEnPresupuesto,
 } from "@/lib/syncPreferences.server";
 
@@ -88,6 +96,8 @@ export interface ResultadoPruebaReal {
   errorCodigo: string | null;
   /** Lectura automática del Formulario 29 oficial del mismo periodo. */
   f29: ResultadoF29Automatico;
+  /** Plan aprobado por el servidor. Nunca contiene datos de acceso. */
+  plan: SyncExecutionPlan | null;
 }
 
 
@@ -142,16 +152,45 @@ export async function ejecutarPruebaRealApiGateway(
     .maybeSingle();
   if (!empresa) throw new ErrorNegocio("No pudimos cargar la empresa.");
 
-  // Guarda de presupuesto: se evalúa ANTES de cualquier consulta al proveedor.
-  const preferencias = await obtenerPreferenciasSync(userId, entrada.companyId);
-  if (preferencias.syncMode !== "manual_secure")
-    throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
-  const presupuesto = evaluarPresupuesto(preferencias);
-  if (presupuesto.estado === "bloqueado")
-    throw new ErrorNegocio(
-      "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
-    );
+  // ---------------------------------------------------------------------
+  // PLAN DE EJECUCIÓN. Se construye en el servidor con datos guardados y
+  // gobierna todo lo que viene después. La clave no participa de este paso.
+  // ---------------------------------------------------------------------
+  const preparacion = await prepararEjecucionPlanificada({
+    userId,
+    companyId: entrada.companyId,
+    periodos: [entrada.periodo],
+    incluirDetalle: entrada.incluirDetalle === true,
+  });
 
+  const f29Omitido: ResultadoF29Automatico = {
+    estado: "omitido",
+    mensaje: "No se revisó el Formulario 29 en esta actualización.",
+    codigo: null,
+    folio: null,
+    recalculado: false,
+  };
+
+  if (preparacion.estado === "bloqueado")
+    throw new ErrorNegocio(preparacion.mensaje);
+
+  // Plan de CERO llamadas: no se inicia el proveedor, no se usa la clave, no
+  // se consumen créditos ni presupuesto.
+  if (preparacion.estado === "cache_only")
+    return {
+      conexion: null,
+      sincronizacion: null,
+      consultas: 0,
+      creditosConsumidos: 0,
+      creditosDisponibles: null,
+      proxyUsado: null,
+      f29: f29Omitido,
+      mensaje: MENSAJE_CACHE_ONLY,
+      errorCodigo: null,
+      plan: preparacion.plan,
+    };
+
+  const { plan, control, planId } = preparacion;
 
   const registro = new RegistroConsumo(MAX_REAL_PROVIDER_REQUESTS_PER_SYNC);
   const credenciales: CredencialesTemporales = {
@@ -165,10 +204,13 @@ export async function ejecutarPruebaRealApiGateway(
     registro,
     // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
     // detalle documento por documento ni estados secundarios de compras.
-    soloResumen: entrada.incluirDetalle !== true,
+    // Lo decide el PLAN, no el navegador.
+    soloResumen: !plan.allowsDocumentDetail,
     estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,
+    // Portero del plan: cada consulta real debe estar aprobada.
+    control,
   });
 
   const ahora = new Date().toISOString();
@@ -179,6 +221,23 @@ export async function ejecutarPruebaRealApiGateway(
     creditosDisponibles: registro.creditosDisponibles,
     proxyUsado: registro.proxyUsado,
   });
+
+  // Cierre del plan: libera el bloqueo de concurrencia y deja la comparación
+  // entre lo planificado y lo realmente consumido. Se ejecuta una sola vez.
+  let planCerrado = false;
+  const cerrarPlan = async (fallo: boolean, codigo: string | null) => {
+    if (planCerrado) return;
+    planCerrado = true;
+    await cerrarEjecucionPlanificada(
+      planId,
+      control,
+      registro.creditosUsados,
+      fallo,
+      codigo,
+    );
+  };
+
+  try {
 
   // 1. Preparar la referencia local de conexión. NO consulta al proveedor ni
   //    gasta créditos: la validación real ocurre en la primera consulta al RCV.
@@ -247,11 +306,19 @@ export async function ejecutarPruebaRealApiGateway(
       },
     );
   } catch (error) {
-    const codigo = error instanceof SiiProviderError ? error.code : "INTERNAL";
+    const codigo =
+      error instanceof ErrorPlanEjecucion
+        ? CODIGO_LLAMADA_NO_PLANIFICADA
+        : error instanceof SiiProviderError
+          ? error.code
+          : "INTERNAL";
     const mensaje =
-      error instanceof SiiProviderError
+      error instanceof ErrorPlanEjecucion
         ? error.message
-        : "No pudimos completar la consulta con el proveedor real.";
+        : error instanceof SiiProviderError
+          ? error.message
+          : "No pudimos completar la consulta con el proveedor real.";
+    await cerrarPlan(true, codigo);
     await supabaseAdmin
       .from("tax_sii_connections")
       .update({
@@ -282,6 +349,7 @@ export async function ejecutarPruebaRealApiGateway(
       },
       mensaje,
       errorCodigo: codigo,
+      plan,
     };
   }
 
@@ -319,7 +387,7 @@ export async function ejecutarPruebaRealApiGateway(
         },
         // Contador compartido: los créditos del Formulario 29 quedan sumados
         // en el mismo registro que el RCV y se informan completos.
-        { registro },
+        { registro, control },
       );
 
       f29 = {
@@ -408,7 +476,15 @@ export async function ejecutarPruebaRealApiGateway(
     f29,
     mensaje: sincronizacion.mensaje,
     errorCodigo: sincronizacion.errorCodigo,
+    plan,
   };
+  } finally {
+    // El plan se cierra siempre: ninguna ejecución queda bloqueando la empresa.
+    await cerrarPlan(false, null);
+    // La clave temporal deja de existir en el servidor al terminar.
+    credenciales.claveTributaria = "";
+    entrada = { ...entrada, claveTributaria: "" };
+  }
 }
 
 

@@ -50,6 +50,7 @@ import {
   type FilaResumenRcv,
 } from "./rcvSummary";
 import { rutConGuion } from "@/lib/rut";
+import type { ControlPlanEjecucion } from "@/lib/syncPlan";
 
 
 export interface CredencialesTemporales {
@@ -203,6 +204,11 @@ export interface OpcionesAdaptadorReal {
   soloResumen?: boolean;
   /** Estados de compras a consultar. Por omisión, los del flujo normal. */
   estadosCompras?: readonly string[];
+  /**
+   * Portero del plan aprobado. Cada consulta real pide permiso antes de salir
+   * a la red: un recurso fuera del plan se detiene sin consumir créditos.
+   */
+  control?: ControlPlanEjecucion;
 }
 
 /**
@@ -213,6 +219,7 @@ export function crearAdaptadorApiGateway(
   opciones: OpcionesAdaptadorReal,
 ): SiiProviderAdapter {
   const { config, credenciales, registro } = opciones;
+  const control = opciones.control ?? null;
   const maxTipos = opciones.maxTiposPorModulo ?? 6;
   const soloResumen = opciones.soloResumen === true;
   const estadosPermitidos: readonly string[] =
@@ -371,6 +378,7 @@ export function crearAdaptadorApiGateway(
     },
 
     async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
+      control?.autorizar(`rcv:${query.period}`);
       const periodo = periodoCompacto(query.period);
       const emisor = rutConGuion(query.rut);
       const diagnostics: ProviderModuleDiagnostics[] = [];
@@ -419,6 +427,7 @@ export function crearAdaptadorApiGateway(
     },
 
     async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
+      control?.autorizar(`rcv:${query.period}`);
       const periodo = periodoCompacto(query.period);
       const receptor = rutConGuion(query.rut);
       const diagnostics: ProviderModuleDiagnostics[] = [];
@@ -505,6 +514,7 @@ export function crearAdaptadorApiGateway(
     ): Promise<ProviderF29Entry[]> {
       const recurso = recursoDe("f29_periods");
       const anio = query.period.slice(0, 4);
+      control?.autorizar(`f29_listado:${anio}`);
       const { datos } = await pedir<unknown>(
         "f29_periods",
         recurso.path.replace("{periodo}", anio),

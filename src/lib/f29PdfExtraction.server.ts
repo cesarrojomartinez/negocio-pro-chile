@@ -25,6 +25,7 @@ import {
   leerConfiguracion,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
+import type { ControlPlanEjecucion } from "@/lib/syncPlan";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import { obtenerListadoF29Anual } from "@/lib/f29Listing.server";
 import { HORAS_ESPERA_FALLO_DESCARGA_F29 } from "@/lib/syncEconomica";
@@ -419,6 +420,8 @@ export interface OpcionesExtraccionF29 {
    */
   registro?: RegistroConsumo;
   ahora?: Date;
+  /** Portero del plan aprobado: sin recurso planificado no se descarga nada. */
+  control?: ControlPlanEjecucion;
 }
 
 export async function extraerF29Compacto(
@@ -481,6 +484,7 @@ export async function extraerF29Compacto(
       config,
       cuerpo,
       registro,
+      control: opciones.control,
     });
     llamadas.push(
       listado.log
@@ -641,6 +645,7 @@ export async function extraerF29Compacto(
       if (await esperaPorFalloReciente(entrada.companyId, entrada.periodo, ahora))
         throw new ErrorF29("F29_PDF_DOWNLOAD_FAILED");
 
+      opciones.control?.autorizarDescargaF29(entrada.periodo, elegida.folio);
       const binario = await requestApiGatewayBinary({
         config,
         modulo: "f29_compact_pdf",

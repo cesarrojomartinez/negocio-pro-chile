@@ -28,6 +28,9 @@ const COSTO_LISTADO_F29 = 0.05;
 const COSTO_PDF_F29 = 0.05;
 
 export const CODIGO_GUARDA_CREDITOS = "INTERNAL_CREDIT_GUARD";
+/** Se intentó consultar un recurso que el plan aprobado no contempla. */
+export const CODIGO_LLAMADA_NO_PLANIFICADA = "UNPLANNED_PROVIDER_CALL";
+
 
 /* ------------------------------- Entradas ------------------------------- */
 
@@ -75,14 +78,38 @@ export interface SyncExecutionPlan {
   periodsRequiringRcv: string[];
   yearsRequiringF29List: string[];
   knownFolios: Record<string, string>;
+  /** Periodos cuyo Formulario 29 puede necesitar descarga de PDF. */
   possibleNewFolios: string[];
+  /** Mismo contenido que `possibleNewFolios`, con el nombre del contrato. */
+  foliosRequiringDownload: string[];
   expectedProviderCalls: number;
+  expectedRcvCalls: number;
+  expectedF29Calls: number;
+  expectedPdfDownloads: number;
   expectedCreditRange: { min: number; max: number };
+  /** Recursos aprobados, con su cupo máximo de llamadas. */
+  approvedResources: RecursoPlanificado[];
   skippedResources: RecursoOmitido[];
   skipReasons: string[];
   requiresCredentials: boolean;
+  /**
+   * Detalle documento por documento. Falso en la actualización normal: solo se
+   * habilita cuando el propio plan lo autoriza de forma explícita.
+   */
+  allowsDocumentDetail: boolean;
   executionMode: "manual_secure" | "automated_authorized";
 }
+
+/** Recurso aprobado por el plan. Nunca contiene datos de acceso. */
+export interface RecursoPlanificado {
+  /** Identificador estable: `rcv:2026-06`, `f29_listado:2026`, `f29_pdf:2026-06`. */
+  id: string;
+  recurso: "rcv" | "f29_listado" | "f29_pdf";
+  referencia: string;
+  /** Máximo de llamadas reales permitidas para este recurso. */
+  cupo: number;
+}
+
 
 export interface GuardaCreditos {
   ok: boolean;
@@ -142,13 +169,20 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
       skipReasons.add(decision.mensaje);
     }
 
-    if (decision.revisarListadoF29) anios.add(periodo.slice(0, 4));
+    // El listado anual solo se pide si aporta algo: si el periodo ya tiene su
+    // F29 leído y su RCV vigente, no hay nada nuevo que revisar.
+    const listadoUtil =
+      decision.revisarListadoF29 &&
+      !(estado.tieneF29Vigente && !decision.consultarRcv);
+    if (listadoUtil) anios.add(periodo.slice(0, 4));
     else
       skippedResources.push({
         periodo,
         recurso: "f29_listado",
-        motivo: decision.motivo,
-        mensaje: decision.mensaje,
+        motivo: decision.revisarListadoF29 ? "sin_folio_nuevo" : decision.motivo,
+        mensaje: decision.revisarListadoF29
+          ? "Este periodo ya tiene su Formulario 29 leído."
+          : decision.mensaje,
       });
 
     // PDF del F29: solo con folio nuevo posible, sin fallo reciente y sin
@@ -171,7 +205,7 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
         motivo: "espera_tras_fallo",
         mensaje: "La descarga anterior falló: se reintenta después de 24 horas.",
       });
-    } else if (decision.revisarListadoF29 && !estado.tieneF29Vigente) {
+    } else if (listadoUtil && !estado.tieneF29Vigente) {
       possibleNewFolios.push(periodo);
     } else {
       skippedResources.push({
@@ -209,6 +243,27 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
     ).toFixed(4),
   );
 
+  const approvedResources: RecursoPlanificado[] = [
+    ...periodsRequiringRcv.map((p) => ({
+      id: `rcv:${p}`,
+      recurso: "rcv" as const,
+      referencia: p,
+      cupo: MAX_RCV_POR_PERIODO,
+    })),
+    ...yearsRequiringF29List.map((a) => ({
+      id: `f29_listado:${a}`,
+      recurso: "f29_listado" as const,
+      referencia: a,
+      cupo: MAX_LISTADO_F29_POR_ANIO,
+    })),
+    ...possibleNewFolios.map((p) => ({
+      id: `f29_pdf:${p}`,
+      recurso: "f29_pdf" as const,
+      referencia: p,
+      cupo: MAX_PDF_POR_FOLIO,
+    })),
+  ];
+
   return {
     companyId: entrada.companyId,
     requestedPeriods: periodos,
@@ -217,14 +272,21 @@ export function construirPlanEjecucion(entrada: EntradaPlan): SyncExecutionPlan 
     yearsRequiringF29List,
     knownFolios,
     possibleNewFolios,
+    foliosRequiringDownload: possibleNewFolios.slice(),
     expectedProviderCalls,
+    expectedRcvCalls: llamadasRcv,
+    expectedF29Calls: llamadasListado,
+    expectedPdfDownloads: llamadasPdf,
     expectedCreditRange: { min, max },
+    approvedResources,
     skippedResources,
     skipReasons: Array.from(skipReasons),
     requiresCredentials: expectedProviderCalls > 0,
+    allowsDocumentDetail: entrada.permitirDetalleDocumental === true,
     executionMode: entrada.executionMode,
   };
 }
+
 
 /**
  * Guarda de consumo: si el plan pide más de lo permitido, se cancela ANTES de
@@ -253,6 +315,7 @@ export function verificarLimitesPlan(plan: SyncExecutionPlan): GuardaCreditos {
   if (foliosDuplicados) detalle.push("Hay más de una descarga para el mismo folio.");
 
   if (
+    plan.allowsDocumentDetail !== true &&
     plan.skippedResources.some((r) => r.recurso === "detalle_documental") === false &&
     plan.requestedPeriods.length > 0
   )
@@ -267,4 +330,170 @@ export function verificarLimitesPlan(plan: SyncExecutionPlan): GuardaCreditos {
       "Detuvimos la actualización por precaución antes de consultar al SII. No se consumieron créditos. Intenta nuevamente con menos periodos.",
     detalle,
   };
+}
+
+/* ---------------- Control del plan durante la ejecución ---------------- */
+
+/** Error de gobernanza del plan. Nunca contiene datos de acceso. */
+export class ErrorPlanEjecucion extends Error {
+  readonly codigo: string;
+  readonly recursoId: string;
+  constructor(codigo: string, recursoId: string, mensaje: string) {
+    super(mensaje);
+    this.name = "ErrorPlanEjecucion";
+    this.codigo = codigo;
+    this.recursoId = recursoId;
+  }
+}
+
+export interface LlamadaControlada {
+  planResourceId: string;
+  planned: boolean;
+  providerCalled: boolean;
+  result: "ejecutada" | "bloqueada";
+  skipReason: string | null;
+}
+
+/**
+ * Portero de la ejecución: cada llamada real al proveedor debe pedir permiso.
+ * Si el recurso no está en el plan aprobado, o ya agotó su cupo, la llamada se
+ * detiene ANTES de salir a la red y no se consumen créditos.
+ */
+export class ControlPlanEjecucion {
+  readonly plan: SyncExecutionPlan;
+  private readonly cupos = new Map<string, number>();
+  private readonly usos = new Map<string, number>();
+  readonly llamadas: LlamadaControlada[] = [];
+  bloqueadas = 0;
+
+  constructor(plan: SyncExecutionPlan) {
+    this.plan = plan;
+    for (const r of plan.approvedResources) this.cupos.set(r.id, r.cupo);
+  }
+
+  /** Llamadas reales autorizadas hasta el momento. */
+  get llamadasReales(): number {
+    return this.llamadas.filter((l) => l.providerCalled).length;
+  }
+
+  estaPlanificado(recursoId: string): boolean {
+    return this.cupos.has(recursoId);
+  }
+
+  /** Autoriza una llamada real. Lanza `ErrorPlanEjecucion` si no corresponde. */
+  autorizar(recursoId: string): void {
+    const cupo = this.cupos.get(recursoId);
+    const usadas = this.usos.get(recursoId) ?? 0;
+    if (cupo == null || usadas >= cupo) {
+      this.bloqueadas += 1;
+      this.llamadas.push({
+        planResourceId: recursoId,
+        planned: cupo != null,
+        providerCalled: false,
+        result: "bloqueada",
+        skipReason:
+          cupo == null ? "recurso_fuera_del_plan" : "cupo_del_plan_agotado",
+      });
+      throw new ErrorPlanEjecucion(
+        CODIGO_LLAMADA_NO_PLANIFICADA,
+        recursoId,
+        "Detuvimos una consulta que no estaba prevista en la actualización. Tus datos guardados no cambiaron.",
+      );
+    }
+    this.usos.set(recursoId, usadas + 1);
+    this.llamadas.push({
+      planResourceId: recursoId,
+      planned: true,
+      providerCalled: true,
+      result: "ejecutada",
+      skipReason: null,
+    });
+  }
+
+  /**
+   * Descarga del PDF del F29. Además del recurso planificado, admite el caso
+   * de la RECTIFICATORIA: el periodo ya tenía un folio leído y el listado
+   * oficial informa uno distinto. Solo entonces se amplía el plan, por un
+   * único folio nuevo y dejando constancia.
+   */
+  autorizarDescargaF29(periodo: string, folio: string): void {
+    const id = `f29_pdf:${periodo}`;
+    const conocido = this.plan.knownFolios[periodo] ?? null;
+    if (!this.estaPlanificado(id) && conocido && conocido !== folio) {
+      this.cupos.set(id, MAX_PDF_POR_FOLIO);
+      this.plan.approvedResources.push({
+        id,
+        recurso: "f29_pdf",
+        referencia: periodo,
+        cupo: MAX_PDF_POR_FOLIO,
+      });
+      this.plan.foliosRequiringDownload.push(periodo);
+      this.plan.expectedPdfDownloads += MAX_PDF_POR_FOLIO;
+      this.plan.expectedProviderCalls += MAX_PDF_POR_FOLIO;
+    }
+    this.autorizar(id);
+  }
+
+  /** Registra que un recurso planificado se resolvió con caché, sin costo. */
+  registrarCache(recursoId: string, motivo: string): void {
+    this.llamadas.push({
+      planResourceId: recursoId,
+      planned: this.estaPlanificado(recursoId),
+      providerCalled: false,
+      result: "ejecutada",
+      skipReason: motivo,
+    });
+  }
+}
+
+export type EstadoPlan =
+  | "planned"
+  | "approved"
+  | "cache_only"
+  | "completed_as_planned"
+  | "completed_below_plan"
+  | "stopped_by_guard"
+  | "diverged"
+  | "failed";
+
+export interface ResumenPlanVsReal {
+  plannedCalls: number;
+  actualCalls: number;
+  plannedCreditMin: number;
+  plannedCreditMax: number;
+  actualCredits: number;
+  callsAvoidedByCache: number;
+  unplannedCallsBlocked: number;
+  planStatus: EstadoPlan;
+}
+
+/** Compara lo planificado con lo realmente ejecutado. */
+export function resumenPlanVsReal(
+  control: ControlPlanEjecucion,
+  actualCredits: number,
+  fallo = false,
+): ResumenPlanVsReal {
+  const plan = control.plan;
+  const actualCalls = control.llamadasReales;
+  const base: Omit<ResumenPlanVsReal, "planStatus"> = {
+    plannedCalls: plan.expectedProviderCalls,
+    actualCalls,
+    plannedCreditMin: plan.expectedCreditRange.min,
+    plannedCreditMax: plan.expectedCreditRange.max,
+    actualCredits: Number(actualCredits.toFixed(4)),
+    callsAvoidedByCache: plan.periodsUsingCache.length,
+    unplannedCallsBlocked: control.bloqueadas,
+  };
+
+  let planStatus: EstadoPlan;
+  if (fallo) planStatus = "failed";
+  else if (control.bloqueadas > 0) planStatus = "stopped_by_guard";
+  else if (plan.expectedProviderCalls === 0 && actualCalls === 0)
+    planStatus = "cache_only";
+  else if (actualCalls > plan.expectedProviderCalls) planStatus = "diverged";
+  else if (actualCalls < plan.expectedProviderCalls)
+    planStatus = "completed_below_plan";
+  else planStatus = "completed_as_planned";
+
+  return { ...base, planStatus };
 }
