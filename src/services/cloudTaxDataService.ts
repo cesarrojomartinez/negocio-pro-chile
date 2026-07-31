@@ -507,22 +507,48 @@ export const cloudTaxDataService: TaxDataService & {
     if (errorEmpresa || !empresaRow)
       throw new ErrorDatosCloud("No pudimos cargar la información de tu empresa.");
 
-    const settings = await this.getSettings(companyId);
-    const metaGuardada = await this.getGoals(companyId, consulta.periodoId);
-    const docs = await documentosDe(companyId, consulta.periodoId);
-
     const anteriorId = periodoAnterior(consulta.periodoId);
-    const resumenAnteriorGuardado = await resumenGuardado(companyId, anteriorId);
-    const docsAnterior = await documentosDe(companyId, anteriorId);
-    const resumenActualGuardado = await resumenGuardado(companyId, consulta.periodoId);
-    const informacionReal = await hayInformacionRealDe(companyId, consulta.periodoId);
+    const esDemoEmpresa = !!empresaRow.is_demo;
 
-    const { data: periodRow } = await supabase
-      .from("tax_periods")
-      .select("confidence_level")
-      .eq("company_id", companyId)
-      .eq("period", consulta.periodoId)
-      .maybeSingle();
+    // Todas estas lecturas son independientes entre sí: se piden en paralelo
+    // para que el panel aparezca de una sola vez y no en cascada.
+    const [
+      settings,
+      metaGuardada,
+      docs,
+      resumenAnteriorGuardado,
+      docsAnterior,
+      resumenActualGuardado,
+      informacionReal,
+      periodRowResult,
+      antecedenteF29,
+      antecedenteAnterior,
+      tasaPrevia,
+      paramPpm,
+    ] = await Promise.all([
+      this.getSettings(companyId),
+      this.getGoals(companyId, consulta.periodoId),
+      documentosDe(companyId, consulta.periodoId),
+      resumenGuardado(companyId, anteriorId),
+      documentosDe(companyId, anteriorId),
+      resumenGuardado(companyId, consulta.periodoId),
+      hayInformacionRealDe(companyId, consulta.periodoId),
+      supabase
+        .from("tax_periods")
+        .select("confidence_level")
+        .eq("company_id", companyId)
+        .eq("period", consulta.periodoId)
+        .maybeSingle(),
+      antecedenteF29De(companyId, consulta.periodoId),
+      antecedenteF29De(companyId, anteriorId),
+      esDemoEmpresa
+        ? Promise.resolve(null)
+        : tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId),
+      esDemoEmpresa
+        ? Promise.resolve({ valor: null, hayHistorial: false })
+        : parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId),
+    ]);
+    const periodRow = periodRowResult.data;
 
     const dias = diasDePeriodo(consulta.periodoId);
     const metaMensual =
@@ -530,16 +556,8 @@ export const cloudTaxDataService: TaxDataService & {
     const dineroReservado = consulta.dineroReservado ?? settings?.dineroReservado ?? 0;
     const margenPorcentaje = consulta.margenPorcentaje;
 
-    const antecedenteF29 = await antecedenteF29De(companyId, consulta.periodoId);
-    const antecedenteAnterior = await antecedenteF29De(companyId, anteriorId);
-    const esDemoEmpresa = !!empresaRow.is_demo;
     const confirmado = !!antecedenteF29?.confirmado;
-    const tasaPrevia = esDemoEmpresa
-      ? null
-      : await tasaPpmConfirmadaPreviaDe(companyId, consulta.periodoId);
-    const paramPpm = esDemoEmpresa
-      ? { valor: null, hayHistorial: false }
-      : await parametroVigenteDe(companyId, "ppm_rate", consulta.periodoId);
+
     const { tasaPpm, fuentePpm } = resolverTasaPpm({
       esDemo: esDemoEmpresa,
       antecedentePeriodo: antecedenteF29,
