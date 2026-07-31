@@ -447,9 +447,19 @@ export async function recalculateTaxPeriod(
   });
 
   const r = dashboard.resumen;
+  const previo = dashboard.resumenPreF29;
   const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
   const nivel = nivelDesdeEspanol(dashboard.confiabilidad);
+
+  /**
+   * Precisión: se conserva la estimación previa a la conciliación para poder
+   * medir después cuánto se desvió del F29 real. Sin F29 no hay medición.
+   */
+  const hayOficial = dashboard.conciliacionF29.hayOficial;
+  const desviacion = hayOficial
+    ? calcularDesviacionF29(previo.totalTributarioEstimado, r.totalTributarioEstimado)
+    : null;
 
   const { error } = await supabaseAdmin.from("tax_monthly_summaries").upsert(
     {
