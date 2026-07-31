@@ -614,6 +614,8 @@ export async function extraerF29Compacto(
     // (aunque la validación anterior haya fallado), se vuelve a leer localmente
     // sin consultar al proveedor.
     let bytesPdf: Uint8Array | null = null;
+    let contentTypePdf: string | null = "application/pdf";
+
 
     if (existente?.pdf_storage_path) {
       const descarga = await supabaseAdmin.storage
