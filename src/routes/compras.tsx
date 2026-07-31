@@ -99,6 +99,63 @@ function Compras() {
                 descripcion="Crédito que reduce tu IVA estimado del mes."
               />
               <StatCard
+                titulo="IVA no recuperable"
+                monto={formatCLP(data.compras.ivaNoRecuperable)}
+                descripcion="IVA de compras que no reduce tu impuesto del mes."
+              />
+            </div>
+
+            <SectionCard
+              titulo="Nota sobre el IVA no recuperable"
+              descripcion="Estimación informativa. No reemplaza a tu contador."
+            >
+              <ul className="space-y-2">
+                {[
+                  {
+                    etiqueta: "Notas de crédito de proveedores",
+                    monto: data.compras.ivaNoRecuperableDetalle.notasCreditoProveedores,
+                    detalle: "Rebajan el crédito de IVA ya considerado.",
+                  },
+                  {
+                    etiqueta: "Compras reclamadas",
+                    monto: data.compras.ivaNoRecuperableDetalle.reclamadas,
+                    detalle: "Documentos rechazados ante el proveedor.",
+                  },
+                  {
+                    etiqueta: "Marcadas como no incluir",
+                    monto: data.compras.ivaNoRecuperableDetalle.noIncluidas,
+                    detalle: "Gastos sin derecho a crédito fiscal.",
+                  },
+                  {
+                    etiqueta: "Compras sin IVA (exentas o no afectas)",
+                    monto: data.compras.ivaNoRecuperableDetalle.comprasSinIva,
+                    detalle: "Monto exento; no genera crédito porque no tiene IVA.",
+                  },
+                ].map((fila) => (
+                  <li
+                    key={fila.etiqueta}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{fila.etiqueta}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fila.detalle}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {formatCLP(fila.monto)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Las compras exentas se muestran aparte porque no llevan IVA, por lo que
+                no forman parte del total de IVA no recuperable.
+              </p>
+            </SectionCard>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
                 titulo="Documentos registrados"
                 monto={formatNumero(data.compras.documentosRegistrados)}
                 descripcion="Compras incluidas en el cálculo."
