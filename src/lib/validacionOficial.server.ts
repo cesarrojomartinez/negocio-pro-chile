@@ -14,7 +14,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import {
-  empresaAutorizadaParaPruebaReal,
+  empresaHabilitadaParaPruebaReal,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { SiiProviderError } from "@/integrations/sii/contracts";
@@ -143,7 +143,7 @@ async function exigirDueñoAutorizado(userId: string, companyId: string) {
   await exigirRol(userId, companyId, ["owner"]);
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio("La consulta real con el proveedor no está habilitada.");
-  if (!empresaAutorizadaParaPruebaReal(companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(companyId)))
     throw new ErrorNegocio("Esta empresa no está autorizada para consultas reales.");
 }
 

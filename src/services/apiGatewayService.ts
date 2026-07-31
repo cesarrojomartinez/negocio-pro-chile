@@ -2,8 +2,10 @@ import {
   auditarF29RealFn,
   desconectarApiGatewayFn,
   diagnosticarApiGatewayFn,
+  habilitarPruebaRealFn,
   pruebaRealApiGatewayFn,
 } from "@/lib/apiGateway.functions";
+
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import type { ResultadoPruebaReal } from "@/lib/apiGatewayReal.server";
 import type { ResultadoAuditoriaF29 } from "@/lib/f29Audit.server";
@@ -29,6 +31,14 @@ export const apiGatewayService = {
     if (!r.ok) throw new ErrorApiGateway(r.error);
     return r.data;
   },
+
+  /** Habilita esta empresa para la prueba controlada (solo el dueño). */
+  async habilitarEmpresa(companyId: string, habilitar = true): Promise<void> {
+    const r = await habilitarPruebaRealFn({ data: { companyId, habilitar } });
+    if (!r.ok) throw new ErrorApiGateway(r.error);
+  },
+
+
 
 
   async ejecutarPrueba(entrada: {

@@ -22,7 +22,7 @@ import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
 
 import {
-  empresaAutorizadaParaPruebaReal,
+  empresaHabilitadaParaPruebaReal,
   leerConfiguracion,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
@@ -83,7 +83,7 @@ async function exigirPruebaRealPermitida(userId: string, companyId: string) {
     throw new ErrorNegocio(
       "La prueba con el proveedor real no está habilitada en este ambiente.",
     );
-  if (!empresaAutorizadaParaPruebaReal(companyId))
+  if (!(await empresaHabilitadaParaPruebaReal(companyId)))
     throw new ErrorNegocio(
       "Esta empresa no está autorizada para la prueba con el proveedor real.",
     );

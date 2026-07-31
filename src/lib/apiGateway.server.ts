@@ -135,7 +135,7 @@ export function modoPruebaRealHabilitado(): boolean {
   return /^(1|true|si|sí|on)$/i.test(process.env.REAL_GATEWAY_TEST_ENABLED ?? "");
 }
 
-/** Empresas autorizadas para la prueba real. */
+/** Empresas autorizadas por configuración del backend. */
 export function empresasAutorizadas(): string[] {
   return (process.env.REAL_GATEWAY_ALLOWED_COMPANY_IDS ?? "")
     .split(/[,\s]+/)
@@ -147,6 +147,47 @@ export function empresaAutorizadaParaPruebaReal(companyId: string): boolean {
   const lista = empresasAutorizadas();
   return lista.includes(companyId);
 }
+
+/** Versión del consentimiento con que el dueño habilita la prueba controlada. */
+export const VERSION_HABILITACION_PRUEBA_REAL = "v1-prueba-controlada";
+
+/**
+ * Autorización efectiva: la lista del backend o la habilitación guardada por
+ * el dueño de la empresa en la base de datos.
+ */
+export async function empresaHabilitadaParaPruebaReal(
+  companyId: string,
+): Promise<boolean> {
+  if (empresaAutorizadaParaPruebaReal(companyId)) return true;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("tax_real_gateway_allowlist")
+    .select("enabled")
+    .eq("company_id", companyId)
+    .maybeSingle();
+  return data?.enabled === true;
+}
+
+/** Habilita o deshabilita una empresa para la prueba controlada. */
+export async function definirHabilitacionPruebaReal(
+  companyId: string,
+  userId: string,
+  habilitar: boolean,
+): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin.from("tax_real_gateway_allowlist").upsert(
+    {
+      company_id: companyId,
+      enabled: habilitar,
+      authorized_by: userId,
+      consent_version: VERSION_HABILITACION_PRUEBA_REAL,
+    },
+    { onConflict: "company_id" },
+  );
+  if (error) throw new Error(error.message);
+  return habilitar;
+}
+
 
 /** Traduce el código interno de un sondeo a un estado de producto. */
 export function estadoProductoDesdeCodigo(codigo: string): EstadoProducto {

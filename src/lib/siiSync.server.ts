@@ -45,7 +45,7 @@ import { sanitizarProfundo } from "@/integrations/sii/sanitize";
 import { MODULOS_REALES_HABILITADOS } from "@/integrations/sii/apiGatewayResourceMap";
 import {
   diagnoseApiGatewayConfiguration,
-  empresaAutorizadaParaPruebaReal,
+  empresaHabilitadaParaPruebaReal,
   leerConfiguracion,
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";

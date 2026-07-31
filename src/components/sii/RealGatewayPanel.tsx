@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { KeyRound, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { KeyRound, Loader2, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { SectionCard } from "@/components/shared/SectionCard";
@@ -57,6 +57,26 @@ export function RealGatewayPanel() {
   const [desde, setDesde] = useState(periodoId);
   const [hasta, setHasta] = useState("");
   const [acepta, setAcepta] = useState(false);
+  const [habilitando, setHabilitando] = useState(false);
+
+  /** Registra la empresa activa en la lista de prueba controlada. */
+  const habilitarEmpresa = async () => {
+    if (!empresaActiva?.id) return;
+    setHabilitando(true);
+    try {
+      await apiGatewayService.habilitarEmpresa(empresaActiva.id, true);
+      const actualizado = await apiGatewayService.diagnosticar(empresaActiva.id);
+      setDiagnostico(actualizado);
+      toast.success("Empresa habilitada para la actualización real.");
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "No pudimos habilitar esta empresa.",
+      );
+    } finally {
+      setHabilitando(false);
+    }
+  };
+
 
   const esDueno = empresaActiva?.rol === "owner";
 
@@ -180,11 +200,32 @@ export function RealGatewayPanel() {
           }}
         >
           {!diagnostico.empresaAutorizada && (
-            <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
-              Esta empresa no está habilitada para la prueba controlada de actualización.
-              No se realizó ninguna consulta ni se consumieron créditos.
+            <div className="mb-4 space-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
+              <p>
+                Esta empresa aún no está habilitada para la prueba controlada de
+                actualización. No se ha realizado ninguna consulta ni se han
+                consumido créditos.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Al habilitarla, autorizas consultas reales al proveedor para esta
+                empresa. Puedes hacerlo solo si eres el dueño.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={habilitando}
+                onClick={habilitarEmpresa}
+              >
+                {habilitando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" aria-hidden />
+                )}
+                Habilitar esta empresa
+              </Button>
             </div>
           )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sii_username">RUT del usuario autorizado</Label>

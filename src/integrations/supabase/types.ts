@@ -1279,6 +1279,41 @@ export type Database = {
           },
         ]
       }
+      tax_real_gateway_allowlist: {
+        Row: {
+          authorized_by: string | null
+          company_id: string
+          consent_version: string | null
+          created_at: string
+          enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          authorized_by?: string | null
+          company_id: string
+          consent_version?: string | null
+          created_at?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          authorized_by?: string | null
+          company_id?: string
+          consent_version?: string | null
+          created_at?: string
+          enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_real_gateway_allowlist_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sales_goals: {
         Row: {
           company_id: string
