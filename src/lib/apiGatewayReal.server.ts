@@ -135,6 +135,17 @@ export async function ejecutarPruebaRealApiGateway(
     .maybeSingle();
   if (!empresa) throw new ErrorNegocio("No pudimos cargar la empresa.");
 
+  // Guarda de presupuesto: se evalúa ANTES de cualquier consulta al proveedor.
+  const preferencias = await obtenerPreferenciasSync(userId, entrada.companyId);
+  if (preferencias.syncMode !== "manual_secure")
+    throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
+  const presupuesto = evaluarPresupuesto(preferencias);
+  if (presupuesto.estado === "bloqueado")
+    throw new ErrorNegocio(
+      "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
+    );
+
+
   const registro = new RegistroConsumo(MAX_REAL_PROVIDER_REQUESTS_PER_SYNC);
   const credenciales: CredencialesTemporales = {
     rutEmpresa: normalizarRut(String(empresa.rut)),
