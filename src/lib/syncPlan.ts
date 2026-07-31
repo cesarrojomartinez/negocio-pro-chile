@@ -25,7 +25,7 @@ export const MAX_PDF_POR_FOLIO = 1;
 /** Costo estimado de referencia por tipo de recurso (solo para el rango). */
 const COSTO_RCV = 0.06;
 const COSTO_LISTADO_F29 = 0.05;
-const COSTO_PDF_F29 = 0.05;
+export const COSTO_PDF_F29 = 0.05;
 
 export const CODIGO_GUARDA_CREDITOS = "INTERNAL_CREDIT_GUARD";
 /** Se intentó consultar un recurso que el plan aprobado no contempla. */
