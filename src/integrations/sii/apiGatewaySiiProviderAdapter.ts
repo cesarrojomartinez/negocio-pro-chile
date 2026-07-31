@@ -450,6 +450,11 @@ export function crearAdaptadorApiGateway(
 
       for (const eq of equivalencias) {
         const estado = ESTADOS_RCV_COMPRAS[eq.modulo];
+        // Estados secundarios (PENDIENTE, RECLAMADO, NO_INCLUIR): no se
+        // consultan en el flujo normal. La pantalla no los usa y no entran en
+        // el IVA crédito. Su código se conserva para auditorías internas.
+        if (!estadosPermitidos.includes(estado)) continue;
+
         const resumen = await leerResumen(
           eq.modulo,
           RECURSO_RESUMEN_COMPRAS.path
@@ -459,6 +464,8 @@ export function crearAdaptadorApiGateway(
           diagnostics,
         );
         rcvSummaryByStatus[eq.clave] = resumen;
+
+        if (soloResumen) continue;
 
         const detalleRecurso = recursoDe(eq.modulo);
         // Sin documentos informados no se consulta el detalle: no se gastan
@@ -477,6 +484,7 @@ export function crearAdaptadorApiGateway(
           diagnostics,
         );
       }
+
 
       return {
         period: query.period,
