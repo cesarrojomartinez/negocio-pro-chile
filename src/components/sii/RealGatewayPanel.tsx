@@ -7,6 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 import { useCompany } from "@/hooks/useCompany";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 import { useActualizacionMasiva } from "@/hooks/useActualizacionMasiva";
@@ -36,17 +44,97 @@ function rangoPeriodos(desde: string, hasta: string): string[] {
   return lista;
 }
 
-/**
- * Meses de un año, sin pasarse del mes en curso. Sirve para los atajos
- * "Todo 2025" / "Todo 2026": un año completo cabe justo en un trabajo.
- */
-function mesesDelAnio(anio: number, mesEnCurso: string): string[] {
-  const meses = Array.from(
-    { length: 12 },
-    (_, i) => `${anio}-${String(i + 1).padStart(2, "0")}`,
-  );
-  return meses.filter((p) => p <= mesEnCurso);
+/** Nombres de meses para los selectores (índice 0 = enero). */
+const NOMBRES_MESES = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+/** Años que se pueden elegir: desde 2023 hasta el año en curso. */
+function aniosDisponibles(anioEnCurso: number): number[] {
+  const lista: number[] = [];
+  for (let a = anioEnCurso; a >= 2023; a--) lista.push(a);
+  return lista;
 }
+
+/**
+ * Selector de periodo con dos listas: mes y año. Reemplaza al calendario del
+ * navegador, que costaba usar para elegir meses de años anteriores.
+ */
+function SelectorPeriodo({
+  id,
+  valor,
+  anios,
+  onChange,
+  permiteVacio,
+}: {
+  id: string;
+  valor: string;
+  anios: number[];
+  onChange: (periodo: string) => void;
+  permiteVacio?: boolean;
+}) {
+  const mes = valor ? valor.slice(5, 7) : "";
+  const anio = valor ? valor.slice(0, 4) : "";
+  const anioPorDefecto = String(anios[0] ?? new Date().getFullYear());
+
+  return (
+    <div className="flex gap-2">
+      <Select
+        value={mes}
+        onValueChange={(m) => onChange(`${anio || anioPorDefecto}-${m}`)}
+      >
+        <SelectTrigger id={id} className="flex-1">
+          <SelectValue placeholder="Mes" />
+        </SelectTrigger>
+        <SelectContent>
+          {NOMBRES_MESES.map((nombre, i) => (
+            <SelectItem key={nombre} value={String(i + 1).padStart(2, "0")}>
+              {nombre}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={anio}
+        onValueChange={(a) => (mes ? onChange(`${a}-${mes}`) : undefined)}
+      >
+        <SelectTrigger className="w-[6.5rem]">
+          <SelectValue placeholder="Año" />
+        </SelectTrigger>
+        <SelectContent>
+          {anios.map((a) => (
+            <SelectItem key={a} value={String(a)}>
+              {a}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {permiteVacio && valor && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Quitar mes final"
+          onClick={() => onChange("")}
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 
 
 /**
@@ -141,9 +229,7 @@ export function RealGatewayPanel() {
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
   const mesEnCurso = periodoEnCurso(new Date());
-  const anioEnCurso = Number(mesEnCurso.slice(0, 4));
-  /** Años que se ofrecen como atajo: el actual y el anterior. */
-  const aniosAtajo = [anioEnCurso, anioEnCurso - 1];
+  const anios = aniosDisponibles(Number(mesEnCurso.slice(0, 4)));
 
   const sumar = (nuevos: string[]) => {
     const union = Array.from(new Set([...seleccionados, ...nuevos])).sort();
@@ -172,19 +258,7 @@ export function RealGatewayPanel() {
     if (sumar(nuevos)) setHasta("");
   };
 
-  /** Atajo: agrega todos los meses de un año (sin pasar del mes en curso). */
-  const agregarAnio = (anio: number) => {
-    const meses = mesesDelAnio(anio, mesEnCurso);
-    if (meses.length === 0) return;
-    // Un año completo ocupa el trabajo entero: se reemplaza lo elegido antes.
-    const union = Array.from(new Set([...seleccionados, ...meses])).sort();
-    if (union.length > MAX_PERIODOS) {
-      setSeleccionados(meses);
-      toast.info(`Dejamos los ${meses.length} meses de ${anio} en esta actualización.`);
-      return;
-    }
-    setSeleccionados(union);
-  };
+
 
   const quitar = (p: string) =>
     setSeleccionados((prev) => prev.filter((x) => x !== p));
@@ -300,24 +374,25 @@ export function RealGatewayPanel() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="periodo-real">Periodo (o inicio del rango)</Label>
-              <Input
+              <SelectorPeriodo
                 id="periodo-real"
-                name="sii_periodo"
-                type="month"
-                value={desde}
-                onChange={(e) => setDesde(e.target.value)}
+                valor={desde}
+                anios={anios}
+                onChange={setDesde}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="periodo-real-hasta">Hasta (opcional)</Label>
               <div className="flex gap-2">
-                <Input
-                  id="periodo-real-hasta"
-                  name="sii_periodo_hasta"
-                  type="month"
-                  value={hasta}
-                  onChange={(e) => setHasta(e.target.value)}
-                />
+                <div className="flex-1">
+                  <SelectorPeriodo
+                    id="periodo-real-hasta"
+                    valor={hasta}
+                    anios={anios}
+                    onChange={setHasta}
+                    permiteVacio
+                  />
+                </div>
                 <Button type="button" variant="secondary" onClick={agregar}>
                   <Plus className="h-4 w-4" aria-hidden />
                   Agregar
@@ -329,22 +404,8 @@ export function RealGatewayPanel() {
             </div>
           </div>
 
-          {/* Atajos por año: puedes revisar meses antiguos que aún no has visto. */}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Agregar un año completo:</span>
-            {aniosAtajo.map((anio) => (
-              <Button
-                key={anio}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => agregarAnio(anio)}
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden />
-                Todo {anio}
-              </Button>
-            ))}
-            {seleccionados.length > 0 && (
+          {seleccionados.length > 0 && (
+            <div className="mt-3">
               <Button
                 type="button"
                 variant="ghost"
@@ -353,8 +414,10 @@ export function RealGatewayPanel() {
               >
                 Limpiar
               </Button>
-            )}
-          </div>
+            </div>
+          )}
+
+
 
 
 
