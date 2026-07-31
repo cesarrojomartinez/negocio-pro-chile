@@ -147,7 +147,7 @@ export async function ejecutarPruebaRealApiGateway(
     registro,
     // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
     // detalle documento por documento ni estados secundarios de compras.
-    soloResumen: true,
+    soloResumen: entrada.incluirDetalle !== true,
     estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
     // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
     sesionNueva: entrada.sesionNueva === true,
