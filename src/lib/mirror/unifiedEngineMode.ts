@@ -94,13 +94,9 @@ export interface RegistroRollback {
 
 /** Procedimiento de rollback: volver a `shadow` sin tocar datos guardados. */
 export function rollbackAModoSombra(
-  companyId?: string | null,
-  reason?: string,
-  actor?: string | null,
-  ahora?: string,
-): UnifiedEngineMode & string;
-export function rollbackAModoSombra(): UnifiedEngineMode;
-export function rollbackAModoSombra(): UnifiedEngineMode {
+  _companyId?: string | null,
+  _reason?: string,
+): UnifiedEngineMode {
   return "shadow";
 }
 
