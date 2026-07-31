@@ -105,6 +105,7 @@ function Inicio() {
                 margenPorcentaje={margenPorcentaje}
                 onCambiarMargen={setMargenPorcentaje}
                 fuentePeriodo={data.fuentePeriodo}
+                conciliacion={data.conciliacionF29}
               />
               <div className="space-y-5">
                 <MetaCard meta={data.meta} onGuardarMeta={setMetaMensual} />
