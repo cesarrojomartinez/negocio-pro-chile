@@ -159,6 +159,7 @@ export function RealGatewayPanel() {
   const [desde, setDesde] = useState(periodoId);
   const [hasta, setHasta] = useState("");
   const [acepta, setAcepta] = useState(false);
+  const [incluirDetalle, setIncluirDetalle] = useState(true);
   const [habilitando, setHabilitando] = useState(false);
 
   /** Registra la empresa activa en la lista de prueba controlada. */
