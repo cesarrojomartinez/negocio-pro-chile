@@ -284,7 +284,10 @@ export async function ejecutarSombraPeriodo(
     officialTotal: official ? leerCodigo(official, CODIGO.totalAPagar) : null,
   });
 
-  if (!persistir) return { period, runId: null, resultado, comparacion };
+  const valores = [...valoresTributarios(resultado).values()];
+  const certeza = evaluarCertezaPeriodo(period, valores);
+
+  if (!persistir) return { period, runId: null, resultado, comparacion, certeza };
 
   await guardarHechos(companyId, periodoRow.id, hechos);
   const runId = await guardarCorrida(companyId, periodoRow.id, resultado);
@@ -308,7 +311,9 @@ export async function ejecutarSombraPeriodo(
     { onConflict: "company_id,period,run_id" },
   );
 
-  return { period, runId, resultado, comparacion };
+  await guardarCerteza(companyId, periodoRow.id, runId, resultado, certeza, valores);
+
+  return { period, runId, resultado, comparacion, certeza };
 }
 
 /** Ejecuta el modo sombra sobre varios periodos, en orden cronológico. */
