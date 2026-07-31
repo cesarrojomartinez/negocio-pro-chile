@@ -15,6 +15,7 @@ import {
   fuenteConceptoRemanente,
   fuenteConceptoRetenciones,
 } from "@/lib/taxContext";
+import { conciliarConF29Oficial } from "@/lib/f29Reconciliation";
 import type { ConceptSource } from "@/types/engine";
 import type { Empresa } from "@/types/company";
 import type {
@@ -192,6 +193,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     contexto,
     empresa: entrada.empresa,
     resumen,
+    conciliacionF29: conciliacion,
     meta,
     ventas,
     compras,
