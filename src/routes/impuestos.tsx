@@ -7,7 +7,7 @@ import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
 import { AuditoriaMontos } from "@/components/dashboard/AuditoriaMontos";
 import { EstadoCalculo } from "@/components/dashboard/EstadoCalculo";
 import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemanente";
-import { CierreMensual } from "@/components/tax/CierreMensual";
+
 import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
