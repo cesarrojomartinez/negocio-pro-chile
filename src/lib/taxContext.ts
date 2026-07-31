@@ -7,7 +7,9 @@
  * retenciones y los ajustes especiales provienen de otros antecedentes. Este
  * módulo es puro: no consulta la base de datos ni ningún proveedor externo.
  */
+import { aplicarAnticipoIva } from "./anticipoIva";
 import type {
+
   CalculationStatus,
   CarryforwardSource,
   ConceptSource,
