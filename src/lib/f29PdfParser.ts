@@ -397,12 +397,19 @@ export function validarF29(
     });
   }
 
-  // C. Total
+  // C. Total. El F29 puede contener retenciones, impuesto único, créditos,
+  // débitos especiales, postergaciones y otros componentes. Solo comprobamos
+  // IVA + PPM cuando no se leyó ningún componente adicional; de lo contrario
+  // el código 91 sigue siendo el total oficial y no se marca una falsa falla.
   const componentes = [campos.declared_vat_payable, campos.declared_ppm].filter(
     (v): v is number => v != null,
   );
   const referencia = campos.declared_total_payable ?? campos.declared_total_determined;
-  if (componentes.length && referencia != null) {
+  const codigosConOtrosComponentes = ["48", "151", "153", "50", "39", "593", "127", "30", "756", "92", "93", "64", "66"];
+  const hayOtrosComponentes = codigosConOtrosComponentes.some(
+    (codigo) => (valor(codigos, codigo) ?? 0) !== 0,
+  );
+  if (componentes.length && referencia != null && !hayOtrosComponentes) {
     const esperado = componentes.reduce((a, b) => a + b, 0);
     validaciones.push({
       id: "total",
@@ -418,7 +425,9 @@ export function validarF29(
       id: "total",
       titulo: "Total declarado",
       estado: "sin_datos",
-      detalle: "No hay componentes suficientes para verificar el total.",
+      detalle: hayOtrosComponentes
+        ? "El formulario incluye otros componentes tributarios; se conserva el total oficial del código 91."
+        : "No hay componentes suficientes para verificar el total.",
     });
   }
 
@@ -519,7 +528,7 @@ export function evaluarExtraccion(entrada: {
     .every((v) => v.estado === "ok");
   const cuadran = entrada.validaciones
     .filter((v) => v.id === "ppm" || v.id === "iva" || v.id === "total")
-    .every((v) => v.estado === "ok");
+    .every((v) => v.estado === "ok" || v.estado === "sin_datos");
 
   if (!totalPresente || faltantes.length)
     return {

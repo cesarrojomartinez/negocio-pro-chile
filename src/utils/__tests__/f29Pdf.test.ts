@@ -88,6 +88,48 @@ describe("lectura determinística del F29", () => {
     expect(evaluacion.confianza).toBe("high");
   });
 
+  it("no marca revisión falsa cuando el F29 incluye retenciones u otros códigos", () => {
+    const items = [
+      ...ITEMS_COHERENTES.filter((i) => i.y !== 600),
+      ...fila("151", "75.000", 610),
+      ...fila("91", "1.614.260", 600),
+    ];
+    const codigos = extraerCodigos({ items, texto: "" });
+    const campos = construirCamposNormalizados(codigos);
+    const validaciones = validarF29(campos, {
+      rutEmpresa: "77.976.228-9",
+      rutDocumento: "77.976.228-9",
+      periodoSolicitado: "2026-06",
+      periodoDocumento: "2026-06",
+      folioListado: "1234567890",
+      folioDocumento: "1234567890",
+    });
+    expect(validaciones.find((v) => v.id === "total")?.estado).toBe("sin_datos");
+    expect(evaluarExtraccion({ codigos, campos, validaciones }).estado).toBe("success");
+  });
+
+  it("acepta un F29 sin movimientos de IVA cuando informa el total oficial", () => {
+    const codigos = extraerCodigos({
+      items: [...fila("151", "80.000", 620), ...fila("91", "80.000", 600)],
+      texto: "",
+    });
+    const campos = construirCamposNormalizados(codigos);
+    const evaluacion = evaluarExtraccion({
+      codigos,
+      campos,
+      validaciones: validarF29(campos, {
+        rutEmpresa: "77.976.228-9",
+        rutDocumento: "77.976.228-9",
+        periodoSolicitado: "2026-06",
+        periodoDocumento: "2026-06",
+        folioListado: "1234567890",
+        folioDocumento: "1234567890",
+      }),
+    });
+    expect(evaluacion.estado).toBe("success");
+    expect(campos.declared_total_payable).toBe(80000);
+  });
+
   it("marca revisión cuando el total declarado no cuadra", () => {
     const items = [
       ...ITEMS_COHERENTES.filter((i) => i.y !== 600),

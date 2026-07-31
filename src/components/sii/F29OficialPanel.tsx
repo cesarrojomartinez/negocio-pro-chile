@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button";
 import { f29PdfService } from "@/services/f29PdfService";
 import { cloudTaxDataService } from "@/services/cloudTaxDataService";
 import type { AntecedenteF29 } from "@/lib/f29Antecedent";
+import { definicionDeCodigo } from "@/lib/f29Codes";
 
 import type { ExtraccionF29 } from "@/lib/f29PdfExtraction.server";
 import { formatCLP } from "@/utils/currency";
 
 const CAMPOS_VISIBLES: { clave: string; etiqueta: string; tipo: "money" | "rate" }[] = [
   { clave: "declared_vat_debit", etiqueta: "IVA débito", tipo: "money" },
-  { clave: "declared_vat_credit", etiqueta: "IVA crédito", tipo: "money" },
+  { clave: "declared_total_vat_credits", etiqueta: "Total créditos IVA", tipo: "money" },
   { clave: "declared_previous_carryforward", etiqueta: "Remanente anterior", tipo: "money" },
   { clave: "declared_vat_payable", etiqueta: "IVA determinado", tipo: "money" },
   { clave: "declared_new_carryforward", etiqueta: "Nuevo remanente", tipo: "money" },
@@ -21,7 +22,6 @@ const CAMPOS_VISIBLES: { clave: string; etiqueta: string; tipo: "money" | "rate"
   { clave: "declared_ppm_rate", etiqueta: "Tasa de PPM", tipo: "rate" },
   { clave: "declared_ppm", etiqueta: "PPM", tipo: "money" },
   { clave: "declared_withholdings", etiqueta: "Retenciones", tipo: "money" },
-  { clave: "declared_other_taxes", etiqueta: "Otros impuestos", tipo: "money" },
   { clave: "declared_total_payable", etiqueta: "Total declarado", tipo: "money" },
 ];
 
@@ -98,7 +98,7 @@ export function F29OficialPanel({
   const respaldo: Record<string, [number | null, "money" | "rate"]> = a
     ? {
         declared_vat_debit: [a.ivaDebitoDeclarado, "money"],
-        declared_vat_credit: [a.ivaCreditoDeclarado, "money"],
+        declared_total_vat_credits: [a.ivaCreditoDeclarado, "money"],
         declared_previous_carryforward: [a.remanenteAnterior, "money"],
         declared_vat_payable: [a.ivaDeclarado, "money"],
         declared_new_carryforward: [a.nuevoRemanenteDeclarado, "money"],
@@ -125,6 +125,11 @@ export function F29OficialPanel({
 
   const leido = campos.length > 0;
   const folio = extraccion?.folio ?? antecedente?.folio ?? null;
+  const codigosLeidos = extraccion
+    ? Object.entries(extraccion.codigos)
+        .filter(([, dato]) => dato.normalized_value != null)
+        .sort(([a], [b]) => Number(a) - Number(b))
+    : [];
 
   return (
     <SectionCard
@@ -157,6 +162,26 @@ export function F29OficialPanel({
               <DataRow key={campo.clave} label={campo.etiqueta} value={campo.texto} />
             ))}
           </div>
+          {codigosLeidos.length > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-semibold text-foreground">
+                Todos los códigos leídos ({codigosLeidos.length})
+              </p>
+              <div className="rounded-2xl bg-secondary/60 p-4">
+                {codigosLeidos.map(([codigo, dato]) => {
+                  const definicion = definicionDeCodigo(codigo);
+                  const tipo = dato.value_type === "rate" ? "rate" : "money";
+                  return (
+                    <DataRow
+                      key={codigo}
+                      label={`Código ${codigo}${definicion ? ` · ${definicion.label}` : ""}`}
+                      value={valorFormateado(dato.normalized_value, tipo) ?? "—"}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">

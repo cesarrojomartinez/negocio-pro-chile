@@ -8,7 +8,7 @@
  */
 
 /** Versión del lector. Cambiar SIEMPRE que cambie el comportamiento del parser. */
-export const F29_PARSER_VERSION = "f29-pdf-1.0.1";
+export const F29_PARSER_VERSION = "f29-pdf-1.1.0";
 
 export type F29ValueType = "money" | "rate" | "count";
 
@@ -100,7 +100,10 @@ export const F29_CODE_REGISTRY: Record<string, F29CodeDefinition> = Object.fromE
 );
 
 /** Códigos que el motor tributario necesita para tratar el periodo como declarado. */
-export const CODIGOS_CRITICOS = ["538", "537", "91"] as const;
+// El código 91 identifica el total final incluso en formularios que no usan IVA
+// (o donde 538/537 vienen vacíos). Exigir débitos y créditos hacía aparecer como
+// parciales F29 válidos de empresas con actividades tributarias distintas.
+export const CODIGOS_CRITICOS = ["91"] as const;
 
 /** Códigos prioritarios que se muestran en la interfaz. */
 export const CODIGOS_PRIORITARIOS = [

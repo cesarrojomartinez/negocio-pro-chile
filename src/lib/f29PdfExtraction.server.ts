@@ -515,7 +515,8 @@ export async function extraerF29Compacto(
     if (
       existente &&
       ["success", "needs_review", "partial"].includes(String(existente.extraction_status)) &&
-      existente.pdf_sha256
+      existente.pdf_sha256 &&
+      existente.parser_version === F29_PARSER_VERSION
     ) {
       llamadas.push({
         endpoint: rutaPdfRecurso,
@@ -563,7 +564,10 @@ export async function extraerF29Compacto(
     // ---------- 4. Lectura determinística ----------
     let lectura: Awaited<ReturnType<typeof leerPdf>>;
     try {
-      lectura = await leerPdf(decodificado.bytes);
+      // Algunos lectores PDF transfieren (y separan) el ArrayBuffer recibido.
+      // Se entrega una copia exclusiva al parser para conservar intactos los
+      // bytes que luego deben archivarse en almacenamiento privado.
+      lectura = await leerPdf(decodificado.bytes.slice());
     } catch {
       throw new ErrorF29("F29_TEXT_EXTRACTION_FAILED");
     }
@@ -702,7 +706,7 @@ export async function extraerF29Compacto(
           tax_period_id: periodId,
           declaration_status: "filed",
           folio: elegida.folio,
-          filed_at: elegida.fecha ? new Date(elegida.fecha).toISOString() : null,
+          filed_at: fechaIsoODescartar(elegida.fecha),
           declared_vat: campos.declared_vat_payable,
           declared_ppm: campos.declared_ppm,
           // `null` significa que el código no se pudo leer; solo un cero
