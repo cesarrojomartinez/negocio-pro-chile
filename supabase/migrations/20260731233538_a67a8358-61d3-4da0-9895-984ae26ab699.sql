@@ -1,0 +1,1 @@
+UPDATE public.tax_plans SET price_clp = 0 WHERE code = 'trial' AND price_clp IS NULL;
