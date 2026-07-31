@@ -194,14 +194,14 @@ async function asegurarPeriodo(companyId: string, periodo: string) {
   // El año y el mes salen del propio texto: nunca de una fecha ni de una zona.
   const year = Number(p.slice(0, 4));
   const month = Number(p.slice(5, 7));
-  const periodo_ = p;
   if (!year || !month) throw new ErrorNegocio("El periodo indicado no es válido.");
 
   const { data: creado, error } = await supabaseAdmin
     .from("tax_periods")
     .insert({
       company_id: companyId,
-      period: periodo,
+      period: p,
+
       year,
       month,
       status: "open",
