@@ -125,6 +125,7 @@ export function ReservaCard({
     );
   }
 
+  return (
     <section className={cn("card-surface border p-5 sm:p-6", ESTILOS[estado])}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
