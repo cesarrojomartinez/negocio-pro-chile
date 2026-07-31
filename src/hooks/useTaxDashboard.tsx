@@ -71,8 +71,14 @@ interface DashboardState {
 const TaxDashboardContext = createContext<DashboardState | null>(null);
 
 export function TaxDashboardProvider({ children }: { children: ReactNode }) {
-  const { modo, empresaActiva, periodos, cargandoEmpresas, refrescarEmpresas } =
-    useCompany();
+  const {
+    modo,
+    empresaActiva,
+    periodos,
+    cargandoEmpresas,
+    sesionPendiente,
+    refrescarEmpresas,
+  } = useCompany();
 
   const [periodoId, setPeriodoId] = useState(PERIODOS[0].id);
   const [escenario, setEscenarioState] = useState<EscenarioId>("equilibrado");
@@ -150,6 +156,12 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
   }, [esCloud, companyId]);
 
   const cargar = useCallback(async () => {
+    // Mientras la sesión no se resuelve no cargamos la demostración: así la
+    // persona autenticada no ve primero datos de ejemplo y luego los suyos.
+    if (sesionPendiente) {
+      setCargando(true);
+      return;
+    }
     if (esCloud && (!companyId || !ajustesCargados)) {
       setCargando(cargandoEmpresas || !!companyId);
       return;
@@ -177,6 +189,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
       setCargando(false);
     }
   }, [
+    sesionPendiente,
     esCloud,
     companyId,
     ajustesCargados,

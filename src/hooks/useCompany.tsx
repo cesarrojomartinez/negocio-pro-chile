@@ -29,6 +29,8 @@ interface CompanyState {
   empresaActiva: EmpresaCloud | null;
   periodos: PeriodoCloud[];
   cargandoEmpresas: boolean;
+  /** La sesión (o la primera carga de empresas) aún no se resuelve. */
+  sesionPendiente: boolean;
   errorEmpresas: string | null;
   necesitaOnboarding: boolean;
   seleccionarEmpresa: (id: string) => void;
@@ -146,6 +148,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       periodos,
       cargandoEmpresas,
       errorEmpresas,
+      sesionPendiente: cargandoSesion || (!!session && !inicializado),
       necesitaOnboarding:
         modo === "cloud" && inicializado && !cargandoEmpresas && empresas.length === 0,
       seleccionarEmpresa,
@@ -161,6 +164,8 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       cargandoEmpresas,
       errorEmpresas,
       inicializado,
+      cargandoSesion,
+      session,
       seleccionarEmpresa,
       cargarEmpresas,
       crearEmpresa,
