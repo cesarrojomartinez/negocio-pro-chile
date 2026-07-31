@@ -599,7 +599,7 @@ export async function extraerF29Compacto(
           tax_period_id: periodId,
           period: entrada.periodo,
           folio: elegida.folio,
-          declaration_date: elegida.fecha,
+          declaration_date: fechaIsoODescartar(elegida.fecha),
           declaration_status: elegida.estado,
           is_rectification: esRectificatoria,
           supersedes_folio: esRectificatoria ? (anteriores[0] ?? null) : null,
@@ -620,7 +620,11 @@ export async function extraerF29Compacto(
       )
       .select("*")
       .maybeSingle();
-    if (errorGuardado) throw new ErrorNegocio("No pudimos guardar la lectura del formulario.");
+    if (errorGuardado) {
+      throw new ErrorNegocio(
+        `No pudimos guardar la lectura del formulario. (${errorGuardado.code ?? "db"}: ${errorGuardado.message})`,
+      );
+    }
 
     // Los folios anteriores del mismo periodo quedan como historial.
     await supabaseAdmin
