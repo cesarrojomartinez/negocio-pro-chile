@@ -190,6 +190,10 @@ export async function ejecutarPruebaRealApiGateway(
       plan: preparacion.plan,
     };
 
+  // Puerta comercial: solo cuando la ejecución sí hará consultas reales.
+  // Las lecturas desde caché nunca se bloquean por plan o estado de cuenta.
+  await exigirActualizacionDisponible(entrada.companyId);
+
   const { plan, control, planId } = preparacion;
 
   const registro = new RegistroConsumo(MAX_REAL_PROVIDER_REQUESTS_PER_SYNC);
