@@ -53,7 +53,10 @@ function Compras() {
             <LoadingCards />
             <LoadingBlock alto="h-80" />
           </>
-        ) : data.documentosCompra.length === 0 ? (
+        ) : data.documentosCompra.length === 0 &&
+          data.compras.comprasTotales === 0 &&
+          data.compras.ivaCredito === 0 &&
+          data.compras.documentosRegistrados === 0 ? (
           <EmptyState
             titulo="Sin compras registradas"
             mensaje="Todavía no hay documentos de compra registrados en este periodo."
