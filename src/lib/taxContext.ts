@@ -1,11 +1,17 @@
 /**
- * Motor general del contexto tributario de un periodo.
+ * Contexto tributario del periodo — adaptador de compatibilidad (Etapa 6.8).
  *
- * Resuelve cada componente del Formulario 29 según su fuente real y no según
- * una fuente única del periodo. El Registro de Compras y Ventas entrega el
- * débito y el crédito del mes, pero el remanente anterior, la tasa de PPM, las
- * retenciones y los ajustes especiales provienen de otros antecedentes. Este
- * módulo es puro: no consulta la base de datos ni ningún proveedor externo.
+ * Su responsabilidad definitiva es reunir antecedentes: hechos normalizados,
+ * fuentes disponibles, configuraciones vigentes, F29 oficial y datos
+ * ausentes. El cálculo canónico de IVA, PPM, retenciones, remanentes y total
+ * pertenece al núcleo único `src/lib/mirror/unifiedTaxEngine.ts`.
+ *
+ * Mientras la interfaz siga sobre el contrato antiguo, este módulo conserva
+ * la proyección visible histórica y no recibe fórmulas nuevas.
+ *
+ * Módulo puro: no consulta la base de datos ni ningún proveedor externo.
+ *
+ * @deprecated Use UnifiedTaxEngine (src/lib/mirror/unifiedTaxEngine.ts).
  */
 import { aplicarAnticipoIva } from "./anticipoIva";
 import type {
