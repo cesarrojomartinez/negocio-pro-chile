@@ -5,7 +5,7 @@ import { AppShell } from "@/components/shared/AppShell";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatCard } from "@/components/shared/StatCard";
 import { DocumentList } from "@/components/shared/DocumentList";
-import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
+
 import { EmptyState, LoadingBlock, LoadingCards } from "@/components/shared/States";
 import { Button } from "@/components/ui/button";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
@@ -178,7 +178,7 @@ function Compras() {
             </SectionCard>
 
 
-            <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
+            
           </>
         )}
       </div>
