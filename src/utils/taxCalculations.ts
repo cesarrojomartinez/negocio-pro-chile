@@ -771,20 +771,38 @@ export function construirResumenVentas(
   const agregadoNeto = redondear(agregadas?.neto ?? 0);
   const agregadoExento = redondear(agregadas?.exento ?? 0);
   const agregadoCantidad = Math.max(0, Math.round(agregadas?.cantidadDocumentos ?? 0));
-  const ventasFacturas = suma(facturas);
+  /**
+   * Facturas y notas de crédito informadas solo por el resumen oficial. Solo
+   * llegan cuando el periodo no tiene detalle documento por documento: si hay
+   * documentos guardados, estos bloques vienen vacíos y nada cambia.
+   */
+  const aggFacturas = agregadas?.facturas;
+  const aggNotas = agregadas?.notasCredito;
+  const facturasAgregadasTotal = Math.max(0, redondear(aggFacturas?.total ?? 0));
+  const facturasAgregadasCantidad = Math.max(0, Math.round(aggFacturas?.cantidad ?? 0));
+  const notasAgregadasTotal = Math.max(0, redondear(aggNotas?.total ?? 0));
+  const notasAgregadasCantidad = Math.max(0, Math.round(aggNotas?.cantidad ?? 0));
+
+  const ventasFacturas = suma(facturas) + facturasAgregadasTotal;
   const ventasBoletas = suma(boletas) + agregadoTotal;
-  const notasCredito = suma(notas);
+  const notasCredito = suma(notas) + notasAgregadasTotal;
   const ventasExentas =
     vigentes.reduce(
       (a, d) => a + montoFirmado(d.exento, efectoTributario(d.tipoDocumento as string)),
       0,
-    ) + agregadoExento;
+    ) +
+    agregadoExento +
+    redondear(aggFacturas?.exento ?? 0) -
+    redondear(aggNotas?.exento ?? 0);
   const ventasTotales = ventasFacturas + ventasBoletas - notasCredito;
   const ventasNetas =
     vigentes.reduce(
       (a, d) => a + montoFirmado(d.neto, efectoTributario(d.tipoDocumento as string)),
       0,
-    ) + agregadoNeto;
+    ) +
+    agregadoNeto +
+    redondear(aggFacturas?.neto ?? 0) -
+    redondear(aggNotas?.neto ?? 0);
 
   const porDia = new Map<string, number>();
   for (const d of [...facturas, ...boletas]) {
@@ -794,7 +812,10 @@ export function construirResumenVentas(
     .map(([fecha, monto]) => ({ fecha, monto }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-  const cantidadDocumentos = facturas.length + boletas.length + agregadoCantidad;
+  const cantidadFacturas = facturas.length + facturasAgregadasCantidad;
+  const cantidadBoletas = boletas.length + agregadoCantidad;
+  const cantidadNotasCredito = notas.length + notasAgregadasCantidad;
+  const cantidadDocumentos = cantidadFacturas + cantidadBoletas;
 
   return {
     ventasTotales,
@@ -804,16 +825,17 @@ export function construirResumenVentas(
     ventasExentas: redondear(ventasExentas),
     notasCredito,
     cantidadDocumentos,
-    cantidadNotasCredito: notas.length,
-    cantidadDocumentosInformados: cantidadDocumentos + notas.length,
-    cantidadFacturas: facturas.length,
-    cantidadBoletas: boletas.length + agregadoCantidad,
+    cantidadNotasCredito,
+    cantidadDocumentosInformados: cantidadDocumentos + cantidadNotasCredito,
+    cantidadFacturas,
+    cantidadBoletas,
     ticketPromedio: cantidadDocumentos
       ? Math.round((ventasFacturas + ventasBoletas) / cantidadDocumentos)
       : 0,
     serieDiaria,
   };
 }
+
 
 export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCompras {
   const credito = calculateVatCredit(docs);
