@@ -38,6 +38,9 @@ interface DashboardState {
   periodosDisponibles: OpcionPeriodo[];
   escenario: EscenarioId;
   margenPorcentaje: number;
+  /** Tasa de PPM elegida manualmente (fracción). `null` = usar la estimada. */
+  tasaPpmPersonalizada: number | null;
+  setTasaPpmPersonalizada: (v: number | null) => void;
   dineroReservado: number;
   metaMensual: number;
   soloLectura: boolean;
