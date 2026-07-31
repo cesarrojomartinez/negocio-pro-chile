@@ -624,3 +624,39 @@ export async function recalculateTaxPeriod(
     calculadoEn,
   };
 }
+
+/**
+ * Recalcula en orden cronológico los últimos periodos de la empresa, para que
+ * el encadenamiento de remanentes y las mediciones de precisión se rehagan con
+ * la versión vigente del motor.
+ */
+export async function recalculateCompanyHistory(
+  userId: string,
+  entrada: { companyId: string; meses?: number },
+): Promise<{ recalculados: string[]; conError: string[] }> {
+  await exigirRol(userId, entrada.companyId, ["owner", "business_user", "accountant"]);
+  const limite = Math.min(36, Math.max(1, entrada.meses ?? 24));
+
+  const { data, error } = await supabaseAdmin
+    .from("tax_periods")
+    .select("period")
+    .eq("company_id", entrada.companyId)
+    .order("period", { ascending: false })
+    .limit(limite);
+  if (error) throw new ErrorNegocio("No pudimos listar los periodos de la empresa.");
+
+  const periodos = (data ?? []).map((p) => p.period as string).sort();
+  const recalculados: string[] = [];
+  const conError: string[] = [];
+
+  for (const periodo of periodos) {
+    try {
+      await recalculateTaxPeriod(userId, { companyId: entrada.companyId, periodo });
+      recalculados.push(periodo);
+    } catch {
+      conError.push(periodo);
+    }
+  }
+
+  return { recalculados, conError };
+}
