@@ -153,10 +153,25 @@ export interface ResumenVentas {
 }
 
 
+/**
+ * Totales que el SII entrega SOLO como agregado mensual (boletas electrónicas,
+ * boletas exentas y comprobantes de pago electrónico). Son cifras oficiales del
+ * resumen del RCV: se suman a las ventas del periodo sin inventar documentos.
+ */
+export interface VentasAgregadasResumen {
+  cantidadDocumentos: number;
+  neto: number;
+  iva: number;
+  exento: number;
+  total: number;
+}
+
 export interface PeriodoData {
   periodo: string;
   documentosVenta: DocumentoTributario[];
   documentosCompra: DocumentoTributario[];
+  /** Ventas informadas solo como total del mes en el resumen oficial. */
+  ventasAgregadasResumen?: VentasAgregadasResumen | null;
   remanenteAnterior: number;
   fuenteRemanente?: CarryforwardSource;
   /**
