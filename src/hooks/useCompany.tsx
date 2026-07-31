@@ -147,6 +147,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
       empresaActiva,
       periodos,
       cargandoEmpresas,
+      errorEmpresas,
       sesionPendiente: cargandoSesion || (!!session && !inicializado),
       necesitaOnboarding:
         modo === "cloud" && inicializado && !cargandoEmpresas && empresas.length === 0,
