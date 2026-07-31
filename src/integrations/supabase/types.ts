@@ -1448,6 +1448,107 @@ export type Database = {
           },
         ]
       }
+      tax_sync_preferences: {
+        Row: {
+          authorization_created_at: string | null
+          authorization_expires_at: string | null
+          authorization_method: string
+          authorization_reference: string | null
+          authorization_revoked_at: string | null
+          automation_error_code: string | null
+          automation_schedule: string | null
+          automation_status: string
+          blocking_threshold_percent: number
+          company_id: string
+          created_at: string
+          credits_month: string | null
+          credits_used_current_month: number
+          id: string
+          last_automated_attempt_at: string | null
+          last_automated_success_at: string | null
+          last_provider_balance: number | null
+          last_provider_balance_at: string | null
+          last_reminder_at: string | null
+          monthly_credit_budget: number | null
+          next_reminder_at: string | null
+          reminder_day_of_month: number
+          reminder_dismissed_at: string | null
+          reminder_enabled: boolean
+          reminder_status: string
+          sync_mode: string
+          updated_at: string
+          warning_threshold_percent: number
+        }
+        Insert: {
+          authorization_created_at?: string | null
+          authorization_expires_at?: string | null
+          authorization_method?: string
+          authorization_reference?: string | null
+          authorization_revoked_at?: string | null
+          automation_error_code?: string | null
+          automation_schedule?: string | null
+          automation_status?: string
+          blocking_threshold_percent?: number
+          company_id: string
+          created_at?: string
+          credits_month?: string | null
+          credits_used_current_month?: number
+          id?: string
+          last_automated_attempt_at?: string | null
+          last_automated_success_at?: string | null
+          last_provider_balance?: number | null
+          last_provider_balance_at?: string | null
+          last_reminder_at?: string | null
+          monthly_credit_budget?: number | null
+          next_reminder_at?: string | null
+          reminder_day_of_month?: number
+          reminder_dismissed_at?: string | null
+          reminder_enabled?: boolean
+          reminder_status?: string
+          sync_mode?: string
+          updated_at?: string
+          warning_threshold_percent?: number
+        }
+        Update: {
+          authorization_created_at?: string | null
+          authorization_expires_at?: string | null
+          authorization_method?: string
+          authorization_reference?: string | null
+          authorization_revoked_at?: string | null
+          automation_error_code?: string | null
+          automation_schedule?: string | null
+          automation_status?: string
+          blocking_threshold_percent?: number
+          company_id?: string
+          created_at?: string
+          credits_month?: string | null
+          credits_used_current_month?: number
+          id?: string
+          last_automated_attempt_at?: string | null
+          last_automated_success_at?: string | null
+          last_provider_balance?: number | null
+          last_provider_balance_at?: string | null
+          last_reminder_at?: string | null
+          monthly_credit_budget?: number | null
+          next_reminder_at?: string | null
+          reminder_day_of_month?: number
+          reminder_dismissed_at?: string | null
+          reminder_enabled?: boolean
+          reminder_status?: string
+          sync_mode?: string
+          updated_at?: string
+          warning_threshold_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_sync_preferences_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_sync_runs: {
         Row: {
           actual_credits: number | null
