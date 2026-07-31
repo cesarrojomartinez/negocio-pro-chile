@@ -758,6 +758,109 @@ export type Database = {
           },
         ]
       }
+      tax_engine_promotions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          blocking_reasons: Json
+          company_id: string
+          created_at: string
+          differences_found: number
+          from_mode: string
+          golden_cases_passed: number
+          golden_cases_total: number
+          id: string
+          periods_validated: number
+          promotion_status: string
+          to_mode: string
+          visual_snapshots_approved: boolean
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          blocking_reasons?: Json
+          company_id: string
+          created_at?: string
+          differences_found?: number
+          from_mode: string
+          golden_cases_passed?: number
+          golden_cases_total?: number
+          id?: string
+          periods_validated?: number
+          promotion_status: string
+          to_mode: string
+          visual_snapshots_approved?: boolean
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          blocking_reasons?: Json
+          company_id?: string
+          created_at?: string
+          differences_found?: number
+          from_mode?: string
+          golden_cases_passed?: number
+          golden_cases_total?: number
+          id?: string
+          periods_validated?: number
+          promotion_status?: string
+          to_mode?: string
+          visual_snapshots_approved?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_engine_promotions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_engine_settings: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          company_id: string
+          created_at: string
+          id: string
+          rollback_reason: string | null
+          rolled_back_at: string | null
+          unified_engine_mode: string
+          updated_at: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          unified_engine_mode?: string
+          updated_at?: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          rollback_reason?: string | null
+          rolled_back_at?: string | null
+          unified_engine_mode?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_engine_settings_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_f29_extractions: {
         Row: {
           code_values: Json
@@ -1016,10 +1119,15 @@ export type Database = {
       tax_monthly_summaries: {
         Row: {
           calculated_at: string
+          calculation_engine: string
+          calculation_input_hash: string | null
+          calculation_run_id: string | null
+          calculation_run_status: string
           calculation_status: string
           carryforward_known: boolean
           carryforward_source: string
           company_id: string
+          compatibility_projection_version: string | null
           confidence_level: string
           confidence_reasons: Json
           created_at: string
@@ -1041,6 +1149,8 @@ export type Database = {
           net_purchases: number
           other_vat_credits: number
           other_vat_debits: number
+          parity_differences_count: number
+          parity_exact: boolean | null
           ppm_base_source: string | null
           ppm_rate: number | null
           ppm_source: string
@@ -1070,6 +1180,8 @@ export type Database = {
           tax_period_id: string
           total_vat_credits: number
           totals_source: string
+          unified_engine_mode: string
+          unified_engine_version: string | null
           updated_at: string
           vat_credit: number
           vat_credit_potential: number
@@ -1080,10 +1192,15 @@ export type Database = {
         }
         Insert: {
           calculated_at?: string
+          calculation_engine?: string
+          calculation_input_hash?: string | null
+          calculation_run_id?: string | null
+          calculation_run_status?: string
           calculation_status?: string
           carryforward_known?: boolean
           carryforward_source?: string
           company_id: string
+          compatibility_projection_version?: string | null
           confidence_level?: string
           confidence_reasons?: Json
           created_at?: string
@@ -1105,6 +1222,8 @@ export type Database = {
           net_purchases?: number
           other_vat_credits?: number
           other_vat_debits?: number
+          parity_differences_count?: number
+          parity_exact?: boolean | null
           ppm_base_source?: string | null
           ppm_rate?: number | null
           ppm_source?: string
@@ -1134,6 +1253,8 @@ export type Database = {
           tax_period_id: string
           total_vat_credits?: number
           totals_source?: string
+          unified_engine_mode?: string
+          unified_engine_version?: string | null
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
@@ -1144,10 +1265,15 @@ export type Database = {
         }
         Update: {
           calculated_at?: string
+          calculation_engine?: string
+          calculation_input_hash?: string | null
+          calculation_run_id?: string | null
+          calculation_run_status?: string
           calculation_status?: string
           carryforward_known?: boolean
           carryforward_source?: string
           company_id?: string
+          compatibility_projection_version?: string | null
           confidence_level?: string
           confidence_reasons?: Json
           created_at?: string
@@ -1169,6 +1295,8 @@ export type Database = {
           net_purchases?: number
           other_vat_credits?: number
           other_vat_debits?: number
+          parity_differences_count?: number
+          parity_exact?: boolean | null
           ppm_base_source?: string | null
           ppm_rate?: number | null
           ppm_source?: string
@@ -1198,6 +1326,8 @@ export type Database = {
           tax_period_id?: string
           total_vat_credits?: number
           totals_source?: string
+          unified_engine_mode?: string
+          unified_engine_version?: string | null
           updated_at?: string
           vat_credit?: number
           vat_credit_potential?: number
