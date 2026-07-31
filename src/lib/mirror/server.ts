@@ -513,7 +513,7 @@ export function conceptosOficiales(official: HistoricalOfficialContext | null) {
       vat_determined: leerCodigo(official, CODIGO.ivaDeterminado),
       vat_advance_change_of_subject: leerCodigo(official, CODIGO.anticipoImputado),
       ppm_amount: leerCodigo(official, CODIGO.ppm),
-      withholdings: sumarRetencionesOficiales(official),
+      withholdings: sumarRetencionesOficiales(official).total,
       tax_total_before_surcharges: leerCodigo(official, CODIGO.subtotalDeterminado),
     },
     officialTotal: leerCodigo(official, CODIGO.totalAPagar),
