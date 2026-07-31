@@ -53,9 +53,12 @@ export interface EntradaPruebaReal {
 export interface ResultadoF29Automatico {
   estado: "leido" | "no_declarado" | "revisar" | "omitido";
   mensaje: string;
+  /** Código específico del F29 (F29_NOT_DECLARED, F29_PERIOD_MISMATCH, etc.). */
+  codigo: string | null;
   folio: string | null;
   recalculado: boolean;
 }
+
 
 export interface ResultadoPruebaReal {
   conexion: ConexionSii | null;
