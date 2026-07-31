@@ -58,6 +58,13 @@ function Autenticacion() {
       return;
     }
     toast.success("Sesión iniciada");
+    // El rol global se consulta en el servidor: nunca se confía en un valor
+    // guardado en el navegador para abrir el panel Master.
+    const rol = await esAdministradorFn();
+    if (rol.ok && rol.data) {
+      void navigate({ to: "/admin" });
+      return;
+    }
     void navigate({ to: "/" });
   }
 
