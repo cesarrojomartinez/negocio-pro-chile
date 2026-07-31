@@ -11,6 +11,9 @@ import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
 import { SiiConnectionPanel } from "@/components/sii/SiiConnectionPanel";
 import { RealGatewayPanel } from "@/components/sii/RealGatewayPanel";
 import { ModoActualizacionPanel } from "@/components/sii/ModoActualizacionPanel";
+import { RecordatorioActualizacion } from "@/components/sii/RecordatorioActualizacion";
+import { AutomatizacionAvanzadaPanel } from "@/components/sii/AutomatizacionAvanzadaPanel";
+
 
 
 import { MoneyDialog } from "@/components/shared/MoneyDialog";
@@ -181,9 +184,20 @@ function Configuracion() {
         {esCloud ? (
           <>
             <ModoActualizacionPanel companyId={empresaActiva?.id ?? null} />
+            <SectionCard
+              titulo="Recordatorio de actualización"
+              descripcion="Te avisamos cuando conviene traer tu información, sin consultar nada por tu cuenta."
+            >
+              <RecordatorioActualizacion
+                companyId={empresaActiva?.id ?? null}
+                ultimaSincronizacion={ultimaSincronizacion}
+              />
+            </SectionCard>
             <SiiConnectionPanel />
             <RealGatewayPanel />
+            <AutomatizacionAvanzadaPanel />
           </>
+
 
 
 
