@@ -36,6 +36,10 @@ import {
   marcarRecordatorioCompletado,
   registrarConsumoEnPresupuesto,
 } from "@/lib/syncPreferences.server";
+import {
+  exigirActualizacionDisponible,
+  registrarUsoComercial,
+} from "@/lib/cuenta.server";
 
 
 
