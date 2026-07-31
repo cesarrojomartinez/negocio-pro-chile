@@ -106,6 +106,54 @@ function Compras() {
             </div>
 
             <SectionCard
+              titulo="Cómo se calcula el IVA crédito considerado"
+              descripcion="Estimación informativa. No reemplaza a tu contador."
+            >
+              <ul className="space-y-2">
+                {[
+                  {
+                    etiqueta: "IVA de compras registradas y aceptadas",
+                    monto:
+                      data.compras.ivaCredito +
+                      data.compras.ivaNoRecuperableDetalle.notasCreditoProveedores,
+                    detalle: "Suma del IVA de los documentos que sí dan crédito.",
+                  },
+                  {
+                    etiqueta: "Menos IVA de notas de crédito de proveedores",
+                    monto: -data.compras.ivaNoRecuperableDetalle.notasCreditoProveedores,
+                    detalle: "Devoluciones y descuentos que rebajan el crédito.",
+                  },
+                  {
+                    etiqueta: "IVA crédito considerado",
+                    monto: data.compras.ivaCredito,
+                    detalle: "Resultado que se resta a tu IVA débito del mes.",
+                  },
+                ].map((fila) => (
+                  <li
+                    key={fila.etiqueta}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{fila.etiqueta}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fila.detalle}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {formatCLP(fila.monto)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Fórmula: IVA de compras registradas y aceptadas − IVA de notas de crédito
+                de proveedores. Quedan fuera las compras pendientes
+                ({formatCLP(data.compras.ivaCreditoPotencial)}), las reclamadas y las
+                marcadas como no incluir.
+              </p>
+            </SectionCard>
+
+            <SectionCard
               titulo="Nota sobre el IVA no recuperable"
               descripcion="Estimación informativa. No reemplaza a tu contador."
             >

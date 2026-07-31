@@ -87,11 +87,16 @@ function Ventas() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard
-                titulo="Ventas exentas"
+                titulo="IVA débito considerado"
+                monto={formatCLP(data.resumen.ivaDebito)}
+                descripcion="IVA de tus ventas afectas del mes."
+              />
+              <StatCard
+                titulo="Ventas exentas (sin IVA)"
                 monto={formatCLP(data.ventas.ventasExentas)}
-                descripcion="Montos sin IVA incluidos en tus documentos."
+                descripcion="Montos que no generan IVA débito."
               />
               <StatCard
                 titulo="Cantidad de documentos"
@@ -104,6 +109,52 @@ function Ventas() {
                 descripcion="Promedio por documento emitido."
               />
             </div>
+
+            <SectionCard
+              titulo="Cómo se calcula el IVA débito considerado"
+              descripcion="Estimación informativa. No reemplaza a tu contador."
+            >
+              <ul className="space-y-2">
+                {[
+                  {
+                    etiqueta: "Ventas netas afectas",
+                    monto: data.ventas.ventasNetas,
+                    detalle:
+                      "Facturas y boletas sin IVA, ya descontadas las notas de crédito.",
+                  },
+                  {
+                    etiqueta: "Ventas exentas (no generan IVA)",
+                    monto: data.ventas.ventasExentas,
+                    detalle: "Quedan fuera del cálculo porque no llevan IVA.",
+                  },
+                  {
+                    etiqueta: "IVA débito considerado (19%)",
+                    monto: data.resumen.ivaDebito,
+                    detalle: "IVA que debes enterar por tus ventas del mes.",
+                  },
+                ].map((fila) => (
+                  <li
+                    key={fila.etiqueta}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{fila.etiqueta}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {fila.detalle}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums">
+                      {formatCLP(fila.monto)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Fórmula: IVA de facturas y boletas afectas + notas de débito − IVA de
+                notas de crédito emitidas. Las ventas exentas no suman IVA. Al IVA débito
+                se le resta el IVA crédito de compras para estimar tu IVA del mes.
+              </p>
+            </SectionCard>
 
             <SectionCard
               titulo="Ventas por día"
