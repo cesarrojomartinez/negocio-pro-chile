@@ -70,14 +70,23 @@ export function interpretarAntecedenteF29(
 ): AntecedenteF29 | null {
   if (!fila) return null;
   const bruto = (fila.raw_data ?? {}) as Record<string, unknown>;
+  const codigos = codigosDe(bruto);
+  const tieneCifrasLegibles = [
+    fila.declared_vat,
+    fila.declared_ppm,
+    fila.declared_withholdings,
+    fila.declared_total,
+    fila.vat_carryforward,
+    fila.previous_vat_carryforward,
+    fila.new_vat_carryforward,
+  ].some((valor) => numero(valor) != null) || Object.keys(codigos).length > 0;
   const confirmado =
     fila.declaration_status === "filed" &&
+    tieneCifrasLegibles &&
     (fila.source === "accountant" ||
       fila.source === "f29_pdf_extracted" ||
       bruto.origin === ORIGEN_F29_CONTADOR ||
       bruto.origin === ORIGEN_F29_PDF);
-
-  const codigos = codigosDe(bruto);
 
   return {
     confirmado,

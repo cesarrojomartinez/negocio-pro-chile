@@ -690,7 +690,9 @@ export async function extraerF29Compacto(
           filed_at: elegida.fecha ? new Date(elegida.fecha).toISOString() : null,
           declared_vat: campos.declared_vat_payable,
           declared_ppm: campos.declared_ppm,
-          declared_withholdings: campos.declared_withholdings ?? 0,
+          // `null` significa que el código no se pudo leer; solo un cero
+          // explícito del formulario puede confirmar ausencia de retenciones.
+          declared_withholdings: campos.declared_withholdings,
           // El total a pagar dentro del plazo (91) manda; si no se leyó, se usa
           // el total determinado (547) antes que dejar el periodo sin total.
           declared_total:
