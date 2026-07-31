@@ -837,13 +837,27 @@ export function construirResumenVentas(
 }
 
 
-export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCompras {
+export function construirResumenCompras(
+  docs: DocumentoTributario[],
+  /**
+   * Compras informadas solo por el resumen oficial del RCV (estado REGISTRO),
+   * cuando el periodo no tiene detalle documento por documento.
+   */
+  agregadas?: ComprasAgregadasResumen | null,
+): ResumenCompras {
   const credito = calculateVatCredit(docs);
   const consideradas = docs.filter((d) => CREDITO_UTILIZABLE.has(d.estado as string));
   const firmado = (d: DocumentoTributario, campo: "total" | "neto" | "exento") =>
     montoFirmado(d[campo], efectoTributario(d.tipoDocumento as string));
-  const comprasTotales = consideradas.reduce((a, d) => a + firmado(d, "total"), 0);
-  const comprasNetas = consideradas.reduce((a, d) => a + firmado(d, "neto"), 0);
+  const aggFacturas = agregadas?.facturas;
+  const aggNotas = agregadas?.notasCredito;
+  const agregado = (campo: "neto" | "iva" | "total") =>
+    redondear((aggFacturas?.[campo] ?? 0) - (aggNotas?.[campo] ?? 0));
+
+  const comprasTotales =
+    consideradas.reduce((a, d) => a + firmado(d, "total"), 0) + agregado("total");
+  const comprasNetas =
+    consideradas.reduce((a, d) => a + firmado(d, "neto"), 0) + agregado("neto");
 
 
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
@@ -858,9 +872,12 @@ export function construirResumenCompras(docs: DocumentoTributario[]): ResumenCom
   return {
     comprasTotales,
     comprasNetas,
-    ivaCredito: credito.vatCreditUsable,
+    ivaCredito: redondear(credito.vatCreditUsable + agregado("iva")),
     ivaCreditoPotencial: credito.vatCreditPotential,
-    documentosRegistrados: credito.usableDocuments,
+    documentosRegistrados:
+      credito.usableDocuments +
+      Math.max(0, Math.round(aggFacturas?.cantidad ?? 0)) +
+      Math.max(0, Math.round(aggNotas?.cantidad ?? 0)),
     documentosPendientes: credito.pendingDocuments,
     documentosReclamados: credito.claimedDocuments,
     documentosNoIncluir: docs.filter((d) => (d.estado as string) === "noIncluir").length,
@@ -880,18 +897,26 @@ export function construirResumenMensual(
   opciones: { margenPorcentaje: number; dineroReservado: number },
 ): ResumenMensual {
   const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
-  const compras = construirResumenCompras(data.documentosCompra);
+  const compras = construirResumenCompras(
+    data.documentosCompra,
+    data.comprasAgregadasResumen,
+  );
 
   const debitoDocumentos = calculateVatDebit(data.documentosVenta);
   /**
-   * IVA de las boletas y comprobantes informados solo como total del mes:
-   * cifra oficial del resumen del RCV, sin detalle documento por documento.
+   * IVA de las ventas informadas solo por el resumen oficial: boletas y
+   * comprobantes siempre, y además facturas y notas de crédito cuando el
+   * periodo no tiene detalle documento por documento.
    */
-  const ivaAgregado = Math.max(0, redondear(data.ventasAgregadasResumen?.iva ?? 0));
+  const ivaAgregado =
+    Math.max(0, redondear(data.ventasAgregadasResumen?.iva ?? 0)) +
+    redondear(data.ventasAgregadasResumen?.facturas?.iva ?? 0) -
+    redondear(data.ventasAgregadasResumen?.notasCredito?.iva ?? 0);
   const debito = {
     ...debitoDocumentos,
     vatDebit: debitoDocumentos.vatDebit + ivaAgregado,
   };
+
   const otrosDebitos = Math.max(
     0,
     redondear((data.otrosDebitosIva ?? 0) + (data.debitosEspeciales ?? 0)),
