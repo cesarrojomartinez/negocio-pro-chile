@@ -180,11 +180,32 @@ export function RealGatewayPanel() {
           }}
         >
           {!diagnostico.empresaAutorizada && (
-            <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
-              Esta empresa no está habilitada para la prueba controlada de actualización.
-              No se realizó ninguna consulta ni se consumieron créditos.
+            <div className="mb-4 space-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-3 text-sm text-foreground">
+              <p>
+                Esta empresa aún no está habilitada para la prueba controlada de
+                actualización. No se ha realizado ninguna consulta ni se han
+                consumido créditos.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Al habilitarla, autorizas consultas reales al proveedor para esta
+                empresa. Puedes hacerlo solo si eres el dueño.
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={habilitando}
+                onClick={habilitarEmpresa}
+              >
+                {habilitando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <ShieldCheck className="h-4 w-4" aria-hidden />
+                )}
+                Habilitar esta empresa
+              </Button>
             </div>
           )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="sii_username">RUT del usuario autorizado</Label>
