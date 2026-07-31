@@ -64,7 +64,9 @@ export type CodigoErrorF29 =
   | "F29_TEXT_EXTRACTION_FAILED"
   | "F29_PARTIAL_EXTRACTION"
   | "F29_VALIDATION_FAILED"
-  | "F29_STORAGE_FAILED";
+  | "F29_STORAGE_FAILED"
+  | "F29_UNKNOWN_ERROR";
+
 
 export const MENSAJE_ERROR_F29: Record<CodigoErrorF29, string> = {
   F29_NOT_DECLARED: "Este periodo todavía no tiene un Formulario 29 declarado en el SII.",
