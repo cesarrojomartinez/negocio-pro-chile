@@ -29,11 +29,13 @@ export const HORAS_ESPERA_FALLO_DESCARGA_F29 = 24;
 
 export type MotivoActualizacion =
   | "sin_datos_previos"
+  | "sin_documentos_rcv"
   | "mes_en_curso_vencido"
   | "mes_sin_f29_vencido"
   | "rcv_vigente"
   | "periodo_con_f29_vigente"
   | "periodo_cerrado";
+
 
 export const MENSAJE_MOTIVO_ECONOMICO: Record<MotivoActualizacion, string> = {
   sin_datos_previos: "Es la primera vez que consultamos este periodo.",
