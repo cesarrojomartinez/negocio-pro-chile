@@ -11,7 +11,7 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
