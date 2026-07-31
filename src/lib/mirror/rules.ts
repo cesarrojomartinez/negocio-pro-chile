@@ -1005,7 +1005,16 @@ const TAX_TOTAL_BEFORE_SURCHARGES: VersionedTaxRule = {
     const faltantes: string[] = [];
     if (iva == null) faltantes.push("vat_determined");
     if (ppm == null) faltantes.push("ppm_amount");
-    if (ctx.official == null && anticipo == null) faltantes.push("vat_advance_change_of_subject");
+    // El anticipo por cambio de sujeto solo bloquea cuando hay evidencia de
+    // que la empresa está afecta a ese régimen. Sin F29, sin historial y sin
+    // declaración de la empresa no hay anticipo que imputar.
+    const afectaAnticipo =
+      ctx.optionalConfig?.vatAdvanceRegime === true ||
+      (ctx.vatAdvanceHistory?.length ?? 0) > 0;
+    if (ctx.official == null && anticipo == null && afectaAnticipo) {
+      faltantes.push("vat_advance_change_of_subject");
+    }
+
     if (faltantes.length > 0) {
       return {
         amount: null,
