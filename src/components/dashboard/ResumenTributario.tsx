@@ -10,12 +10,15 @@ import { descripcionOrigenEstimacion, textoRemanente } from "@/lib/f29Antecedent
 import type { ConciliacionF29 } from "@/lib/f29Reconciliation";
 import type { FuentePeriodo, ResumenMensual } from "@/types/tax";
 import { MargenSelector } from "./MargenSelector";
+import { PpmSelector } from "./PpmSelector";
 
 export function ResumenTributario({
   resumen,
   margenPorcentaje,
   onCambiarMargen,
   mostrarSelectorMargen = true,
+  tasaPpmPersonalizada = null,
+  onCambiarTasaPpm,
   fuentePeriodo,
   conciliacion,
 }: {
@@ -23,6 +26,10 @@ export function ResumenTributario({
   margenPorcentaje: number;
   onCambiarMargen: (v: number) => void;
   mostrarSelectorMargen?: boolean;
+  /** Tasa de PPM elegida manualmente (fracción) o `null` para usar la estimada. */
+  tasaPpmPersonalizada?: number | null;
+  /** Si se entrega, se muestra el ajuste manual de la tasa de PPM. */
+  onCambiarTasaPpm?: (v: number | null) => void;
   /** Origen real de la información del periodo seleccionado. */
   fuentePeriodo: FuentePeriodo;
   /** Comparación interna con el Formulario 29 oficial del periodo. */
@@ -80,6 +87,15 @@ export function ResumenTributario({
               : "Sin remanente estimado para el próximo periodo."
           }
         />
+        {onCambiarTasaPpm && (
+          <div className="my-3">
+            <PpmSelector
+              tasaEstimada={resumen.tasaPpm}
+              tasaPersonalizada={tasaPpmPersonalizada}
+              onCambiar={onCambiarTasaPpm}
+            />
+          </div>
+        )}
         <DataRow
           label="PPM estimado"
           value={resumen.ppmPendiente ? "Por confirmar" : formatCLP(resumen.ppmEstimado)}
@@ -87,7 +103,9 @@ export function ResumenTributario({
           hint={
             resumen.ppmPendiente
               ? "Aún no conocemos tu tasa de PPM para este mes, así que no lo sumamos al total. Actualiza el periodo o confírmala con tu contador."
-              : undefined
+              : tasaPpmPersonalizada != null
+                ? "Calculado con la tasa de PPM que ingresaste."
+                : undefined
           }
         />
         <DataRow

@@ -107,6 +107,8 @@ function Inicio() {
                 resumen={data.resumen}
                 margenPorcentaje={margenPorcentaje}
                 onCambiarMargen={setMargenPorcentaje}
+                tasaPpmPersonalizada={tasaPpmPersonalizada}
+                onCambiarTasaPpm={setTasaPpmPersonalizada}
                 fuentePeriodo={data.fuentePeriodo}
                 conciliacion={data.conciliacionF29}
               />
