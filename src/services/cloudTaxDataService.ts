@@ -100,14 +100,31 @@ function mapDocumento(fila: {
   };
 }
 
-async function documentosDe(companyId: string, periodo: string) {
-  const { data: periodRow } = await supabase
+/**
+ * Identificador del periodo. Los IDs no cambian, así que se memorizan para no
+ * repetir la misma consulta en cada bloque del panel.
+ */
+const cachePeriodos = new Map<string, string>();
+
+async function periodoIdDe(companyId: string, periodo: string) {
+  const clave = `${companyId}|${periodo}`;
+  const memo = cachePeriodos.get(clave);
+  if (memo) return memo;
+  const { data } = await supabase
     .from("tax_periods")
     .select("id")
     .eq("company_id", companyId)
     .eq("period", periodo)
     .maybeSingle();
-  if (!periodRow) return { venta: [], compra: [] };
+  if (!data?.id) return null;
+  cachePeriodos.set(clave, data.id);
+  return data.id;
+}
+
+async function documentosDe(companyId: string, periodo: string) {
+  const periodId = await periodoIdDe(companyId, periodo);
+  if (!periodId) return { venta: [], compra: [] };
+
 
   const { data, error } = await supabase
     .from("tax_documents")
