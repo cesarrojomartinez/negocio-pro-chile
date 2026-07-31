@@ -380,7 +380,8 @@ export function validarF29(
   if (campos.declared_ppm_base != null && campos.declared_ppm_rate != null) {
     const esperado = Math.round(campos.declared_ppm_base * campos.declared_ppm_rate);
     const obtenido = campos.declared_ppm;
-    const toleranciaPpm = Math.max(TOLERANCIA, 2);
+    // El SII redondea el PPM; se admite una holgura mínima proporcional.
+    const toleranciaPpm = Math.max(TOLERANCIA, 2, Math.round((obtenido ?? 0) * 0.01));
     validaciones.push({
       id: "ppm",
       titulo: "PPM declarado",
@@ -482,9 +483,13 @@ export function validarF29(
     });
   }
 
-  // D. Exclusión lógica
-  const ivaPositivo = (campos.declared_vat_payable ?? 0) > 0;
-  const remanentePositivo = (campos.declared_new_carryforward ?? 0) > 0;
+  // D. Exclusión lógica. Un remanente residual junto al IVA por pagar es
+  // habitual (arrastres menores); solo se avisa cuando ambos son relevantes.
+  const ivaDeterminado = campos.declared_vat_payable ?? 0;
+  const remanenteSiguiente = campos.declared_new_carryforward ?? 0;
+  const ivaPositivo = ivaDeterminado > 0;
+  const remanentePositivo =
+    remanenteSiguiente > 1000 && remanenteSiguiente > ivaDeterminado * 0.01;
   validaciones.push({
     id: "exclusion",
     titulo: "IVA determinado y remanente siguiente",
