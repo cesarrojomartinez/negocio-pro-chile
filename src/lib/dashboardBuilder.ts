@@ -67,6 +67,11 @@ export interface EntradaDashboard {
   sincronizacionReal?: boolean;
   /** Marca de tiempo del cálculo, si el llamador la controla. */
   calculadoEn?: string | null;
+  /**
+   * Tasa de PPM elegida por la persona (fracción, por ejemplo 0.008 para 0,8%).
+   * Reemplaza a la tasa estimada solo para el cálculo mostrado en pantalla.
+   */
+  tasaPpmPersonalizada?: number | null;
 }
 
 /**
