@@ -35,29 +35,6 @@ export const Route = createFileRoute("/impuestos")({
   component: Impuestos,
 });
 
-const CONFIABILIDAD = {
-  alta: {
-    titulo: "Confiabilidad alta",
-    texto: "Los antecedentes del periodo se encuentran actualizados.",
-    clase: "border-success/30 bg-success-soft text-success",
-  },
-  media: {
-    titulo: "Confiabilidad media",
-    texto: "Existen compras pendientes o información parcialmente actualizada.",
-    clase: "border-warning/40 bg-warning-soft text-warning-foreground",
-  },
-  baja: {
-    titulo: "Confiabilidad baja",
-    texto: "Faltan antecedentes importantes para realizar una estimación confiable.",
-    clase: "border-destructive/30 bg-danger-soft text-destructive",
-  },
-  desconocida: {
-    titulo: "Sin información suficiente",
-    texto: "Todavía no hay datos suficientes en este periodo para estimar.",
-    clase: "border-border bg-secondary/60 text-muted-foreground",
-  },
-} as const;
-
 const FACTORES = [
   "Compras pendientes.",
   "Notas de crédito.",
