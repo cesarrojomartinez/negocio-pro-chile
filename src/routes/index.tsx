@@ -7,7 +7,7 @@ import { ErrorState, LoadingBlock, LoadingCards } from "@/components/shared/Stat
 import { ReservaCard } from "@/components/dashboard/ReservaCard";
 import { IndicadoresGrid } from "@/components/dashboard/IndicadoresGrid";
 import { ResumenTributario } from "@/components/dashboard/ResumenTributario";
-import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
+
 import { MetaCard } from "@/components/goals/MetaCard";
 import { ProyeccionCard } from "@/components/projections/ProyeccionCard";
 import { SimuladorVentas } from "@/components/projections/SimuladorVentas";
@@ -125,7 +125,7 @@ function Inicio() {
               margenPorcentaje={margenPorcentaje}
             />
 
-            <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
+            
 
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>

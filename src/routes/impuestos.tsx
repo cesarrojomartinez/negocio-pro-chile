@@ -10,7 +10,7 @@ import { ConciliacionRemanente } from "@/components/dashboard/ConciliacionRemane
 
 import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 
-import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
+
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
 
@@ -124,7 +124,7 @@ function Impuestos() {
               </ul>
             </SectionCard>
 
-            <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
+            
 
             <p className="text-xs text-muted-foreground">
               Estimación informativa. El resultado definitivo debe ser confirmado
