@@ -749,7 +749,15 @@ export function estadoDelPeriodo(periodo: string, hoy = new Date()): PeriodState
 /* Resúmenes de ventas y compras                                       */
 /* ------------------------------------------------------------------ */
 
-export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVentas {
+export function construirResumenVentas(
+  docs: DocumentoTributario[],
+  /**
+   * Boletas y comprobantes de pago electrónico que el SII informa solo como
+   * total del mes. Se suman a las ventas del periodo porque son cifras
+   * oficiales del resumen del RCV, sin crear documentos individuales.
+   */
+  agregadas?: VentasAgregadasResumen | null,
+): ResumenVentas {
   const vigentes = docs.filter(ventaVigente);
   const facturas = vigentes.filter((d) => d.tipoDocumento === "factura");
   const boletas = vigentes.filter((d) => d.tipoDocumento === "boleta");
@@ -759,18 +767,24 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
   // tributario del tipo de documento, no el dato almacenado.
   const suma = (arr: DocumentoTributario[]) =>
     arr.reduce((a, d) => a + Math.abs(seguro(d.total)), 0);
+  const agregadoTotal = Math.max(0, redondear(agregadas?.total ?? 0));
+  const agregadoNeto = redondear(agregadas?.neto ?? 0);
+  const agregadoExento = redondear(agregadas?.exento ?? 0);
+  const agregadoCantidad = Math.max(0, Math.round(agregadas?.cantidadDocumentos ?? 0));
   const ventasFacturas = suma(facturas);
-  const ventasBoletas = suma(boletas);
+  const ventasBoletas = suma(boletas) + agregadoTotal;
   const notasCredito = suma(notas);
-  const ventasExentas = vigentes.reduce(
-    (a, d) => a + montoFirmado(d.exento, efectoTributario(d.tipoDocumento as string)),
-    0,
-  );
+  const ventasExentas =
+    vigentes.reduce(
+      (a, d) => a + montoFirmado(d.exento, efectoTributario(d.tipoDocumento as string)),
+      0,
+    ) + agregadoExento;
   const ventasTotales = ventasFacturas + ventasBoletas - notasCredito;
-  const ventasNetas = vigentes.reduce(
-    (a, d) => a + montoFirmado(d.neto, efectoTributario(d.tipoDocumento as string)),
-    0,
-  );
+  const ventasNetas =
+    vigentes.reduce(
+      (a, d) => a + montoFirmado(d.neto, efectoTributario(d.tipoDocumento as string)),
+      0,
+    ) + agregadoNeto;
 
   const porDia = new Map<string, number>();
   for (const d of [...facturas, ...boletas]) {
@@ -780,7 +794,7 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
     .map(([fecha, monto]) => ({ fecha, monto }))
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 
-  const cantidadDocumentos = facturas.length + boletas.length;
+  const cantidadDocumentos = facturas.length + boletas.length + agregadoCantidad;
 
   return {
     ventasTotales,
@@ -793,7 +807,7 @@ export function construirResumenVentas(docs: DocumentoTributario[]): ResumenVent
     cantidadNotasCredito: notas.length,
     cantidadDocumentosInformados: cantidadDocumentos + notas.length,
     cantidadFacturas: facturas.length,
-    cantidadBoletas: boletas.length,
+    cantidadBoletas: boletas.length + agregadoCantidad,
     ticketPromedio: cantidadDocumentos
       ? Math.round((ventasFacturas + ventasBoletas) / cantidadDocumentos)
       : 0,
