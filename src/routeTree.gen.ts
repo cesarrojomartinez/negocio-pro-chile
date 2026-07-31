@@ -22,6 +22,7 @@ import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PlanesRouteImport } from './routes/planes'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as SoporteRouteImport } from './routes/soporte'
@@ -92,6 +93,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlanesRoute = PlanesRouteImport.update({
+  id: '/planes',
+  path: '/planes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
   id: '/recuperar-clave',
   path: '/recuperar-clave',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
     | '/registro'
     | '/soporte'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
     | '/registro'
     | '/soporte'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/invitacion'
     | '/metas'
     | '/onboarding'
+    | '/planes'
     | '/recuperar-clave'
     | '/registro'
     | '/soporte'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   InvitacionRoute: typeof InvitacionRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
+  PlanesRoute: typeof PlanesRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
   RegistroRoute: typeof RegistroRoute
   SoporteRoute: typeof SoporteRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/planes': {
+      id: '/planes'
+      path: '/planes'
+      fullPath: '/planes'
+      preLoaderRoute: typeof PlanesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recuperar-clave': {
       id: '/recuperar-clave'
       path: '/recuperar-clave'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   InvitacionRoute: InvitacionRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
+  PlanesRoute: PlanesRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
   RegistroRoute: RegistroRoute,
   SoporteRoute: SoporteRoute,
