@@ -130,63 +130,6 @@ function Compras() {
               />
             </div>
 
-            <SectionCard
-              titulo="Cómo se componen las compras totales"
-              descripcion="Estimación informativa. No reemplaza a tu contador."
-            >
-              <ul className="space-y-2">
-                {[
-                  {
-                    etiqueta: "Compras netas (base afecta)",
-                    monto: data.compras.comprasNetas,
-                    detalle: "Monto sin IVA de los documentos considerados.",
-                  },
-                  {
-                    etiqueta: "Más IVA crédito considerado",
-                    monto: data.compras.ivaCredito,
-                    detalle: "IVA de esas mismas compras, ya descontadas las notas de crédito.",
-                  },
-                  {
-                    etiqueta: "Más compras exentas / sin IVA",
-                    monto: data.compras.ivaNoRecuperableDetalle.comprasSinIva,
-                    detalle: "Montos exentos o no afectos que igual son compra del mes.",
-                  },
-                  {
-                    etiqueta: "Más otros montos del documento",
-                    monto: otrosMontosCompras,
-                    detalle:
-                      "Impuestos específicos, adicionales o partidas informadas en el total del documento que no son neto, IVA ni exento.",
-                  },
-                  {
-                    etiqueta: "Compras totales",
-                    monto: data.compras.comprasTotales,
-                    detalle: "Valor bruto de las compras consideradas en el periodo.",
-                  },
-                ].map((fila) => (
-                  <li
-                    key={fila.etiqueta}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{fila.etiqueta}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {fila.detalle}
-                      </span>
-                    </span>
-                    <span className="text-sm font-semibold tabular-nums">
-                      {formatCLP(fila.monto)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-3 text-xs text-muted-foreground">
-                Si las compras exentas aparecen en $0 es porque tus documentos del mes no
-                informan montos exentos. Las{" "}
-                {formatNumero(data.compras.documentosPendientes)} compras pendientes tampoco
-                están incluidas: solo se suman cuando cambian de estado a registrada o
-                aceptada.
-              </p>
-            </SectionCard>
 
 
 
