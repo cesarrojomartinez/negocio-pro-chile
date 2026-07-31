@@ -16,7 +16,15 @@ import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
   agregadosComprasDeResumen,
   agregadosVentasDeResumen,
+  ivaRetenidoPorCompradorEnVentas,
 } from "@/integrations/sii/rcvSummary";
+import {
+  ANTICIPO_SIN_DATOS,
+  estimarAnticipoIva,
+  leerAnticipoF29,
+} from "@/lib/anticipoIva";
+import type { MuestraAnticipo } from "@/lib/anticipoIva";
+
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
