@@ -18,6 +18,8 @@ import {
   resolverRemanenteAnterior,
   resolverTasaPpm,
 } from "@/lib/f29Antecedent";
+import type { AntecedenteF29 } from "@/lib/f29Antecedent";
+
 import {
   hayHistorialDeVigencias,
   seleccionarParametroVigente,
