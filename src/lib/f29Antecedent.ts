@@ -194,8 +194,15 @@ export function interpretarAntecedenteF29(
     ivaCreditoDeclarado: numero(bruto.vat_credit) ?? codigos["537"] ?? null,
     nuevoRemanenteDeclarado: numero(bruto.new_carryforward) ?? codigos["77"] ?? null,
     codigos,
-    incoherencias: coherencia.motivo ? [coherencia.motivo] : [],
+    incoherencias: coherencia.motivo
+      ? [
+          efectiva.derivada
+            ? `${coherencia.motivo} Se usó la tasa deducida del propio formulario (PPM ÷ base).`
+            : coherencia.motivo,
+        ]
+      : [],
     ppmCoherente: coherencia.ppmCoherente,
+    tasaPpmDerivada: efectiva.derivada,
   };
 }
 
