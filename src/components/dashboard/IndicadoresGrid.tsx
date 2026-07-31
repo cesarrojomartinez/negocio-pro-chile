@@ -23,13 +23,19 @@ export function IndicadoresGrid({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <StatCard
-        titulo="Ventas totales"
-        monto={formatCLP(resumen.ventasTotales)}
-        descripcion="Total registrado durante el mes."
+      <FlipStatCard
+        tituloFrente="Ventas totales"
+        montoFrente={formatCLP(resumen.ventasTotales)}
+        descripcionFrente="Total registrado durante el mes."
+        tituloReverso="Ventas netas"
+        montoReverso={formatCLP(ventas.ventasNetas)}
+        descripcionReverso="Monto base afecto que sirve para calcular el IVA débito."
+        notaReverso="El IVA débito se calcula sobre las ventas netas afectas, restando las notas de crédito y excluyendo las ventas exentas."
         variacion={comparacion.variacionVentas}
         icono={<Store className="h-4.5 w-4.5" aria-hidden />}
         destacado
+        ariaLabelFrente="Ver ventas netas"
+        ariaLabelReverso="Volver a ventas totales"
       />
       <StatCard
         titulo="Facturado"
