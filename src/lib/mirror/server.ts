@@ -157,11 +157,46 @@ async function guardarCorrida(
   return runId;
 }
 
+/** Guarda la certeza del periodo. Tabla espejo: no la lee ninguna pantalla. */
+async function guardarCerteza(
+  companyId: string,
+  taxPeriodId: string,
+  runId: string | null,
+  resultado: MirrorEngineResult,
+  certeza: PeriodCalculationCertainty,
+  valores: TaxComponentValue[],
+): Promise<void> {
+  await supabaseAdmin.from("tax_period_calculation_certainty").upsert(
+    {
+      company_id: companyId,
+      tax_period_id: taxPeriodId,
+      period: resultado.period,
+      run_id: runId,
+      engine_version: resultado.engineVersion,
+      completeness: certeza.completeness,
+      confidence: certeza.confidence,
+      can_present_total: certeza.canPresentTotal,
+      reason: certeza.reason,
+      blocking_concepts: certeza.blockingConcepts,
+      estimated_concepts: certeza.estimatedConcepts,
+      conflicting_concepts: certeza.conflictingConcepts,
+      unsupported_concepts: certeza.unsupportedConcepts,
+      not_applicable_concepts: certeza.notApplicableConcepts,
+      missing_inputs: certeza.missingInputs,
+      zero_audit: JSON.parse(JSON.stringify(auditarCeros(valores))),
+      component_values: JSON.parse(JSON.stringify(valores)),
+      calculated_at: new Date().toISOString(),
+    },
+    { onConflict: "company_id,period,engine_version" },
+  );
+}
+
 export interface ResultadoSombraPeriodo {
   period: string;
   runId: string | null;
   resultado: MirrorEngineResult;
   comparacion: ComparacionMotores;
+  certeza: PeriodCalculationCertainty;
 }
 
 /**
