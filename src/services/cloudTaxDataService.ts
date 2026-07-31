@@ -535,10 +535,9 @@ export const cloudTaxDataService: TaxDataService & {
       hayInformacionRealDe(companyId, consulta.periodoId),
       supabase
         .from("tax_periods")
-        .select("confidence_level")
+        .select("period, confidence_level, rcv_summary")
         .eq("company_id", companyId)
-        .eq("period", consulta.periodoId)
-        .maybeSingle(),
+        .in("period", [consulta.periodoId, anteriorId]),
       antecedenteF29De(companyId, consulta.periodoId),
       antecedenteF29De(companyId, anteriorId),
       esDemoEmpresa
