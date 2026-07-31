@@ -598,8 +598,20 @@ export const cloudTaxDataService: TaxDataService & {
       periodo: consulta.periodoId,
       documentosVenta: docs.venta,
       documentosCompra: docs.compra,
-      // Boletas y comprobantes que el SII solo informa como total del mes.
-      ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodRow?.rcv_summary),
+      /**
+       * Con detalle guardado, el resumen oficial solo aporta boletas. En
+       * actualización económica (sin detalle) aporta además facturas, notas de
+       * crédito y compras, para que los totales sean idénticos.
+       */
+      ventasAgregadasResumen: agregadosVentasDeResumen(
+        periodRow?.rcv_summary,
+        docs.venta.length > 0,
+      ),
+      comprasAgregadasResumen: agregadosComprasDeResumen(
+        periodRow?.rcv_summary,
+        docs.compra.length > 0,
+      ),
+
       remanenteAnterior: parametros.remanenteAnterior,
       fuenteRemanente: parametros.fuenteRemanente,
       remanenteConocido: remanente.conocido || confirmado,
