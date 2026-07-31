@@ -729,11 +729,15 @@ const PPM_RATE: VersionedTaxRule = {
     }
     const baseAnterior = leerCodigo(ctx.previousOfficial, CODIGO.basePpm);
     const ppmAnterior = leerCodigo(ctx.previousOfficial, CODIGO.ppm);
-    const anterior = normalizarTasaPpm(
-      leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm),
-      { base: baseAnterior, amount: ppmAnterior },
-    );
+    const tasaAnterior = leerCodigo(ctx.previousOfficial, CODIGO.tasaPpm);
+    const anterior = {
+      rate: tasaAnterior,
+      unit: "fraction" as const,
+      ambiguous: false,
+      impliedRate: null,
+    };
     if (anterior.rate != null) {
+
       // Una tasa incoherente en el F29 anterior no se propaga al periodo
       // siguiente: se marca como antecedente contradictorio y queda sin monto.
       if (tasaPpmIncoherente(anterior, { base: baseAnterior, amount: ppmAnterior })) {
