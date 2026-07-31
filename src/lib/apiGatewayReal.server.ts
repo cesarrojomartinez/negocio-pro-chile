@@ -315,10 +315,13 @@ export async function ejecutarPruebaRealApiGateway(
     "tax_sii_connections",
     {
       proveedor: "api_gateway",
+      periodo: entrada.periodo,
       estado: sincronizacion.estado,
       f29: f29.estado,
+      f29_codigo: f29.codigo,
       ...consumo(),
     },
+
   );
 
 
