@@ -180,6 +180,11 @@ export interface PeriodoData {
   ppmDeclarado?: number | null;
   retencionesDeclaradas?: number | null;
   totalDeclarado?: number | null;
+  /** Débito, crédito y remanente siguiente declarados en el F29 oficial. */
+  ivaDebitoDeclarado?: number | null;
+  ivaCreditoDeclarado?: number | null;
+  nuevoRemanenteDeclarado?: number | null;
+
   metaMensual: number;
   dineroReservado: number;
   diasTranscurridos: number;
