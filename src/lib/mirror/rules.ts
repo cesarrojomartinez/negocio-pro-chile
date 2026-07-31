@@ -322,6 +322,28 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
   supportsEstimation: true,
   testCaseReferences: ["golden:*", "mirror:credito"],
   calculate: (ctx) => {
+    // El código 537 es el crédito total del periodo: crédito de documentos
+    // del mes más el remanente anterior. Es el que el F29 usa para determinar
+    // el IVA, así que manda cuando existe. Queda marcado para que la posición
+    // de IVA no vuelva a restar el remanente.
+    const totalConRemanente = leerCodigo(ctx.official, CODIGO.creditoTotalConRemanente);
+    if (totalConRemanente != null) {
+      return {
+        amount: peso(totalConRemanente),
+        status: "official",
+        sources: [`f29:${CODIGO.creditoTotalConRemanente}`],
+        calculationDescription:
+          "Crédito fiscal total declarado en el F29 (código 537): crédito de documentos del mes más el remanente anterior.",
+        inputValues: {
+          codigo_537: totalConRemanente,
+          codigo_511: leerCodigo(ctx.official, CODIGO.creditoDocumentos),
+          codigo_504: leerCodigo(ctx.official, CODIGO.remanenteAnterior),
+        },
+        warnings: ["credito_incluye_remanente_anterior"],
+        confidence: "high",
+      };
+    }
+
     const oficialF29 = oficial(
       ctx,
       CODIGO.creditoDocumentos,
@@ -329,25 +351,7 @@ const VAT_CREDIT_RECOVERABLE: VersionedTaxRule = {
     );
     if (oficialF29) return oficialF29;
 
-    // Formularios que solo informan el 537 (crédito del mes más remanente):
-    // el remanente anterior se descuenta para no contarlo dos veces al
-    // determinar el IVA del periodo.
-    const totalConRemanente = leerCodigo(ctx.official, CODIGO.creditoTotalConRemanente);
-    if (totalConRemanente != null) {
-      const remanenteDeclarado = leerCodigo(ctx.official, CODIGO.remanenteAnterior) ?? 0;
-      return {
-        amount: peso(totalConRemanente - remanenteDeclarado),
-        status: "official",
-        sources: [`f29:${CODIGO.creditoTotalConRemanente}`],
-        calculationDescription:
-          "Crédito fiscal del mes obtenido del código 537 menos el remanente anterior (código 504), para no contar el remanente dos veces.",
-        inputValues: {
-          codigo_537: totalConRemanente,
-          codigo_504: remanenteDeclarado,
-        },
-        confidence: "high",
-      };
-    }
+
 
 
 
