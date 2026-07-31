@@ -823,9 +823,15 @@ const WITHHOLDINGS: VersionedTaxRule = {
   supportsEstimation: false,
   testCaseReferences: ["golden:*"],
   calculate: (ctx) => {
-    // El F29 reparte las retenciones en varios códigos: honorarios,
-    // trabajadores independientes, construcción y otras. Tomar solo el 151
-    // subdeclaraba el total.
+    // El código 151 es el total de retenciones del formulario. Los demás
+    // códigos son su desglose, así que solo se suman cuando el 151 no viene.
+    const oficialF29 = oficial(
+      ctx,
+      CODIGO.retenciones,
+      "Retenciones declaradas en el F29 (código 151).",
+    );
+    if (oficialF29) return oficialF29;
+
     const { total, detalle } = sumarRetencionesOficiales(ctx.official);
     if (total != null) {
       return {
@@ -833,13 +839,14 @@ const WITHHOLDINGS: VersionedTaxRule = {
         status: "official",
         sources: Object.keys(detalle).map((c) => `f29:${c}`),
         calculationDescription:
-          "Suma de las retenciones declaradas en el F29 (códigos 151, 153, 48, 39 y 50).",
+          "Suma de las retenciones declaradas en el F29 (códigos 153, 48, 39 y 50) ante la ausencia del código 151.",
         inputValues: Object.fromEntries(
           Object.entries(detalle).map(([c, v]) => [`codigo_${c}`, v]),
         ),
         confidence: "high",
       };
     }
+
 
     const declaradas = ctx.optionalConfig?.withholdingsEstimate ?? null;
     if (declaradas != null) {
