@@ -1,3 +1,13 @@
+/**
+ * Adaptador de compatibilidad del motor tributario anterior (Etapa 6.8).
+ *
+ * El cálculo tributario canónico vive en `src/lib/mirror/unifiedTaxEngine.ts`.
+ * Este módulo se conserva solo para sostener el contrato productivo visible
+ * mientras se completa la migración: no debe recibir fórmulas nuevas ni
+ * conceptos nuevos, y toda corrección tributaria se hace en el núcleo.
+ *
+ * @deprecated Use UnifiedTaxEngine (src/lib/mirror/unifiedTaxEngine.ts).
+ */
 import { aplicarAnticipoIva } from "@/lib/anticipoIva";
 import type {
 
