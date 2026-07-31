@@ -329,6 +329,35 @@ export function RealGatewayPanel() {
             </div>
           </div>
 
+          {/* Atajos por año: puedes revisar meses antiguos que aún no has visto. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Agregar un año completo:</span>
+            {aniosAtajo.map((anio) => (
+              <Button
+                key={anio}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => agregarAnio(anio)}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Todo {anio}
+              </Button>
+            ))}
+            {seleccionados.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSeleccionados([])}
+              >
+                Limpiar
+              </Button>
+            )}
+          </div>
+
+
+
           <div className="mt-3">
             <p className="text-xs font-medium text-foreground">
               Periodos por actualizar ({listaFinal.length})
