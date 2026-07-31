@@ -211,8 +211,14 @@ export function RealGatewayPanel() {
                 name="sii_periodo"
                 type="month"
                 value={periodo}
-                onChange={(e) => setPeriodo(e.target.value)}
+                onChange={(e) => {
+                  setPeriodoManual(true);
+                  setPeriodo(e.target.value);
+                }}
               />
+              <p className="text-xs text-muted-foreground">
+                Se actualizará {etiquetaPeriodo(periodo)} ({periodo}).
+              </p>
             </div>
           </div>
 
@@ -231,9 +237,11 @@ export function RealGatewayPanel() {
               onCheckedChange={(v) => setAcepta(v === true)}
             />
             <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
-              Autorizo actualizar mi información del SII para el periodo {periodo}.
+              Autorizo actualizar mi información del SII para {etiquetaPeriodo(periodo)}{" "}
+              ({periodo}).
             </Label>
           </div>
+
 
           {sesionNueva && (
             <p className="mt-3 rounded-xl bg-warning-soft px-3 py-2 text-xs">
