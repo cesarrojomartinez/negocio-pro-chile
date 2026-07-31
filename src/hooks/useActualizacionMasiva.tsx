@@ -112,6 +112,7 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
               rutUsuario: solicitud.rutUsuario,
               claveTributaria: claveRef.current ?? "",
               sesionNueva,
+              incluirDetalle: solicitud.incluirDetalle === true,
             });
             sesionNueva = CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? "");
             const m = mensajeProveedor({
