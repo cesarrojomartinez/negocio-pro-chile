@@ -184,6 +184,9 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     otherVatCredits: data.otrosCreditosIva ?? 0,
     specialDebits: data.debitosEspeciales ?? 0,
     specialCredits: data.creditosEspeciales ?? 0,
+    vatAdvanceAvailable: data.anticipoIvaDisponible ?? 0,
+    vatAdvanceSource: entrada.esDemo ? "mock" : "accountant_confirmed",
+
     ppmTaxBase: resumen.basePpm,
     ppmBaseSource:
       data.basePpmConfirmada != null && data.basePpmConfirmada > 0
