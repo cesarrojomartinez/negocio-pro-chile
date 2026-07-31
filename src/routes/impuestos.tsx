@@ -13,7 +13,7 @@ import { F29OficialPanel } from "@/components/sii/F29OficialPanel";
 import { ComparacionCard } from "@/components/dashboard/ComparacionCard";
 import { LoadingBlock } from "@/components/shared/States";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
-import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/impuestos")({
   head: () => ({
