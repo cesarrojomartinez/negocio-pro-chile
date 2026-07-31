@@ -55,6 +55,12 @@ import {
   modoPruebaRealHabilitado,
 } from "@/lib/apiGateway.server";
 import { diaCivil } from "@/lib/syncPolicy";
+import {
+  decidirActualizacionPeriodo,
+  periodoEnCurso,
+  type DecisionPeriodo,
+} from "@/lib/syncEconomica";
+
 import { registrarEstadoPeriodo } from "@/lib/periodSyncState.server";
 import { normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
