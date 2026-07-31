@@ -914,9 +914,21 @@ export function construirResumenMensual(
     Math.max(0, redondear(data.ventasAgregadasResumen?.iva ?? 0)) +
     redondear(data.ventasAgregadasResumen?.facturas?.iva ?? 0) -
     redondear(data.ventasAgregadasResumen?.notasCredito?.iva ?? 0);
+  /**
+   * En la factura de compra electrónica (DTE 46) el IVA lo retiene y entera el
+   * comprador, así que no es débito fiscal del vendedor aunque el neto sí sea
+   * venta suya. Sumarlo inflaba la estimación mes a mes.
+   */
+  const ivaRetenidoPorComprador = Math.max(
+    0,
+    redondear(data.ivaRetenidoPorComprador ?? 0),
+  );
   const debito = {
     ...debitoDocumentos,
-    vatDebit: debitoDocumentos.vatDebit + ivaAgregado,
+    vatDebit: Math.max(
+      0,
+      debitoDocumentos.vatDebit + ivaAgregado - ivaRetenidoPorComprador,
+    ),
   };
 
   const otrosDebitos = Math.max(
@@ -932,6 +944,13 @@ export function construirResumenMensual(
     vatCreditUsable: compras.ivaCredito + otrosCreditos,
     previousCarryforward: data.remanenteAnterior,
   });
+
+  // Anticipo de IVA por cambio de sujeto: se imputa al IVA ya determinado.
+  const anticipo = aplicarAnticipoIva(
+    posicion.estimatedVatPayable,
+    data.anticipoIvaDisponible ?? 0,
+  );
+
 
   const fuenteRemanente: CarryforwardSource = data.fuenteRemanente ?? "unknown";
   const fuentePpm: PpmSource = data.fuentePpm ?? (data.tasaPpm ? "configured" : "unknown");
