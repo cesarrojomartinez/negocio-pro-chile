@@ -640,15 +640,24 @@ export const cloudTaxDataService: TaxDataService & {
 
     const diasAnt = diasDePeriodo(anteriorId);
     const periodoDataAnterior: PeriodoData | null =
-      docsAnterior.venta.length || docsAnterior.compra.length
+      docsAnterior.venta.length ||
+      docsAnterior.compra.length ||
+      agregadosVentasDeResumen(periodRowAnterior?.rcv_summary, false) ||
+      agregadosComprasDeResumen(periodRowAnterior?.rcv_summary, false)
         ? {
             ...periodoData,
             periodo: anteriorId,
             documentosVenta: docsAnterior.venta,
             documentosCompra: docsAnterior.compra,
-            ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(
+            ventasAgregadasResumen: agregadosVentasDeResumen(
               periodRowAnterior?.rcv_summary,
+              docsAnterior.venta.length > 0,
             ),
+            comprasAgregadasResumen: agregadosComprasDeResumen(
+              periodRowAnterior?.rcv_summary,
+              docsAnterior.compra.length > 0,
+            ),
+
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
             retencionesEstimadas: Number(
