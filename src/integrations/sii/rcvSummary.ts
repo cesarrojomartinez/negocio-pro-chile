@@ -204,3 +204,20 @@ export function totalesSoloResumenMensual(
       vacio,
     );
 }
+
+/**
+ * Lee el resumen guardado del periodo (`tax_periods.rcv_summary`) y devuelve
+ * las ventas informadas solo como total del mes. Devuelve `null` cuando no hay
+ * agregados, para no alterar los totales de periodos con detalle completo.
+ */
+export function ventasAgregadasDeResumenGuardado(
+  rcvSummary: unknown,
+): TotalesAgregadosMensuales | null {
+  const ventas =
+    rcvSummary && typeof rcvSummary === "object"
+      ? (rcvSummary as { ventas?: unknown }).ventas
+      : null;
+  if (!ventas || typeof ventas !== "object") return null;
+  const t = totalesSoloResumenMensual(ventas as ProviderRcvSummary);
+  return t.total === 0 && t.iva === 0 && t.cantidadDocumentos === 0 ? null : t;
+}
