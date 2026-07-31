@@ -20,6 +20,7 @@ import {
   normalizarPeriodo,
   periodoSiguiente,
 } from "@/lib/periodo";
+import { periodoEnCurso } from "@/lib/syncEconomica";
 
 /** Máximo de periodos por trabajo, para no saturar al proveedor. */
 const MAX_PERIODOS = 12;
@@ -34,6 +35,19 @@ function rangoPeriodos(desde: string, hasta: string): string[] {
   }
   return lista;
 }
+
+/**
+ * Meses de un año, sin pasarse del mes en curso. Sirve para los atajos
+ * "Todo 2025" / "Todo 2026": un año completo cabe justo en un trabajo.
+ */
+function mesesDelAnio(anio: number, mesEnCurso: string): string[] {
+  const meses = Array.from(
+    { length: 12 },
+    (_, i) => `${anio}-${String(i + 1).padStart(2, "0")}`,
+  );
+  return meses.filter((p) => p <= mesEnCurso);
+}
+
 
 /**
  * Actualización con la información real del SII.
@@ -126,6 +140,23 @@ export function RealGatewayPanel() {
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
+  const mesEnCurso = periodoEnCurso(new Date());
+  const anioEnCurso = Number(mesEnCurso.slice(0, 4));
+  /** Años que se ofrecen como atajo: el actual y el anterior. */
+  const aniosAtajo = [anioEnCurso, anioEnCurso - 1];
+
+  const sumar = (nuevos: string[]) => {
+    const union = Array.from(new Set([...seleccionados, ...nuevos])).sort();
+    if (union.length > MAX_PERIODOS) {
+      toast.warning(
+        `Puedes actualizar hasta ${MAX_PERIODOS} periodos por vez. Quita algunos meses y vuelve a intentar.`,
+      );
+      return false;
+    }
+    setSeleccionados(union);
+    return true;
+  };
+
   const agregar = () => {
     const inicio = normalizarPeriodo(desde);
     if (!inicio) {
@@ -138,17 +169,26 @@ export function RealGatewayPanel() {
       return;
     }
     const nuevos = fin ? rangoPeriodos(inicio, fin) : [inicio];
-    const union = Array.from(new Set([...seleccionados, ...nuevos])).sort();
+    if (sumar(nuevos)) setHasta("");
+  };
+
+  /** Atajo: agrega todos los meses de un año (sin pasar del mes en curso). */
+  const agregarAnio = (anio: number) => {
+    const meses = mesesDelAnio(anio, mesEnCurso);
+    if (meses.length === 0) return;
+    // Un año completo ocupa el trabajo entero: se reemplaza lo elegido antes.
+    const union = Array.from(new Set([...seleccionados, ...meses])).sort();
     if (union.length > MAX_PERIODOS) {
-      toast.warning(`Puedes actualizar hasta ${MAX_PERIODOS} periodos por vez.`);
+      setSeleccionados(meses);
+      toast.info(`Dejamos los ${meses.length} meses de ${anio} en esta actualización.`);
       return;
     }
     setSeleccionados(union);
-    setHasta("");
   };
 
   const quitar = (p: string) =>
     setSeleccionados((prev) => prev.filter((x) => x !== p));
+
 
   const listaFinal =
     seleccionados.length > 0
@@ -288,6 +328,35 @@ export function RealGatewayPanel() {
               </p>
             </div>
           </div>
+
+          {/* Atajos por año: puedes revisar meses antiguos que aún no has visto. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Agregar un año completo:</span>
+            {aniosAtajo.map((anio) => (
+              <Button
+                key={anio}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => agregarAnio(anio)}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden />
+                Todo {anio}
+              </Button>
+            ))}
+            {seleccionados.length > 0 && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setSeleccionados([])}
+              >
+                Limpiar
+              </Button>
+            )}
+          </div>
+
+
 
           <div className="mt-3">
             <p className="text-xs font-medium text-foreground">
