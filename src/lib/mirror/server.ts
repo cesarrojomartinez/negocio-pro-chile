@@ -14,7 +14,13 @@ import { resolverModoMotorEspejo } from "./flags";
 import { deduplicarHechos, hashOrigen, normalizarResumenRcv } from "./normalize";
 import { configuracionAporta, type ConfiguracionTributariaOpcional } from "./optionalConfig";
 import { configuracionOpcionalDePeriodo } from "./optionalConfig.server";
-import { construirContextoOficial, leerCodigo, CODIGO } from "./officialContext";
+import {
+  construirContextoOficial,
+  leerCodigo,
+  sumarRetencionesOficiales,
+  CODIGO,
+} from "./officialContext";
+import { normalizarTasaPpm } from "./ppmRate";
 import { auditarCeros } from "./zeroPolicy";
 import type { MirrorEngineResult, NormalizedTaxFact } from "./types";
 import type { HistoricalOfficialContext } from "./types";
