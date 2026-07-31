@@ -53,7 +53,10 @@ function Compras() {
             <LoadingCards />
             <LoadingBlock alto="h-80" />
           </>
-        ) : data.documentosCompra.length === 0 ? (
+        ) : data.documentosCompra.length === 0 &&
+          data.compras.comprasTotales === 0 &&
+          data.compras.ivaCredito === 0 &&
+          data.compras.documentosRegistrados === 0 ? (
           <EmptyState
             titulo="Sin compras registradas"
             mensaje="Todavía no hay documentos de compra registrados en este periodo."
@@ -155,17 +158,25 @@ function Compras() {
               titulo="Documentos de compra"
               descripcion="En esta etapa no es posible cambiar el estado de las compras."
             >
-              <DocumentList
-                documentos={data.documentosCompra}
-                tipos={["factura", "notaCredito"]}
-                estados={["registrada", "pendiente", "reclamada", "noIncluir"]}
-                etiquetaContraparte="Proveedor"
-                vacio={{
-                  titulo: "Sin documentos con estos filtros",
-                  mensaje: "Ajusta los filtros para ver otras compras del periodo.",
-                }}
-              />
+              {data.documentosCompra.length === 0 ? (
+                <EmptyState
+                  titulo="Sin detalle documento por documento"
+                  mensaje="Los totales de compras provienen del resumen oficial del RCV del periodo."
+                />
+              ) : (
+                <DocumentList
+                  documentos={data.documentosCompra}
+                  tipos={["factura", "notaCredito"]}
+                  estados={["registrada", "pendiente", "reclamada", "noIncluir"]}
+                  etiquetaContraparte="Proveedor"
+                  vacio={{
+                    titulo: "Sin documentos con estos filtros",
+                    mensaje: "Ajusta los filtros para ver otras compras del periodo.",
+                  }}
+                />
+              )}
             </SectionCard>
+
 
             <ComparacionCard comparacion={data.comparacion} resumen={data.resumen} />
           </>
