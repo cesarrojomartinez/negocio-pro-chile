@@ -130,6 +130,18 @@ function sinTildes(t: string): string {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
+/**
+ * El PDF compacto imprime algunos códigos con tres dígitos (077, 089),
+ * mientras el registro tributario y el motor los conocen como 77 y 89.
+ * Solo se elimina el cero inicial cuando la forma canónica está registrada;
+ * así no se alteran códigos desconocidos que deban conservarse literalmente.
+ */
+function codigoCanonico(codigo: string): string {
+  if (!codigo.startsWith("0")) return codigo;
+  const sinCero = codigo.replace(/^0+/, "");
+  return F29_CODE_REGISTRY[sinCero] ? sinCero : codigo;
+}
+
 // ----------------------------------------------------------------- posición
 
 /** Agrupa los elementos en filas visuales usando tolerancia de coordenada Y. */
@@ -186,7 +198,8 @@ export function extraerCodigosDesdeItems(items: ItemTextoPdf[]): MapaCodigos {
     const textoFila = sinTildes(tokens.map((t) => t.texto).join(" "));
 
     indicesCodigo.forEach((indice, orden) => {
-      const codigo = tokens[indice].texto;
+      const codigoImpreso = tokens[indice].texto;
+      const codigo = codigoCanonico(codigoImpreso);
       const fin = indicesCodigo[orden + 1] ?? tokens.length;
       const candidatos = tokens.slice(indice + 1, fin).filter((t) => esValorNumerico(t.texto));
       const elegido = candidatos.length ? candidatos[candidatos.length - 1] : null;

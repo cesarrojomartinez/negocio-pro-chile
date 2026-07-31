@@ -681,7 +681,7 @@ export async function extraerF29Compacto(
       periodId
     ) {
 
-      await supabaseAdmin.from("tax_f29_history").upsert(
+      const { error: errorAntecedente } = await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,
           tax_period_id: periodId,
@@ -725,6 +725,11 @@ export async function extraerF29Compacto(
         },
         { onConflict: "company_id,tax_period_id" },
       );
+      if (errorAntecedente) {
+        throw new ErrorNegocio(
+          `No pudimos guardar el antecedente tributario del formulario. (${errorAntecedente.code ?? "db"}: ${errorAntecedente.message})`,
+        );
+      }
 
       try {
         await recalculateTaxPeriod(userId, {

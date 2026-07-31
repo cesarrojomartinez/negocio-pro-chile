@@ -46,6 +46,21 @@ describe("lectura determinística del F29", () => {
     expect(codigos["538"].extraction_method).toBe("positional");
   });
 
+  it("normaliza códigos impresos con cero inicial sin confundirlos con el RUT", () => {
+    const codigos = extraerCodigos({
+      items: [
+        ...fila("077", "209.180", 700),
+        ...fila("089", "0", 690),
+      ],
+      texto: "RUT 77.976.228-9",
+    });
+
+    expect(codigos["77"].normalized_value).toBe(209180);
+    expect(codigos["89"].normalized_value).toBe(0);
+    expect(codigos["077"]).toBeUndefined();
+    expect(codigos["089"]).toBeUndefined();
+  });
+
   it("normaliza los campos tributarios a partir de los códigos", () => {
     const campos = construirCamposNormalizados(extraerCodigosDesdeItems(ITEMS_COHERENTES));
     expect(campos.declared_vat_debit).toBe(2489260);
