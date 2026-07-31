@@ -398,33 +398,124 @@ async function liberarBloqueo(
     .eq("id", planId);
 }
 
-/** Guarda el plan. Solo cifras y recursos: nunca datos de acceso. */
-async function registrarPlan(
-  entrada: EntradaPreparacion,
-  plan: SyncExecutionPlan,
-  extra: { planStatus: string; errorCodigo: string | null; enCurso: boolean },
-): Promise<string | null> {
-  const { data } = await supabaseAdmin
+/* --------------------- Ampliación controlada del plan --------------------- */
+
+export interface EntradaAmpliacion {
+  userId: string;
+  companyId: string;
+  planId: string;
+  control: ControlPlanEjecucion;
+  periodo: string;
+  folioNuevo: string;
+  folioAnterior: string | null;
+  /** El folio ya está descargado y leído: no corresponde pagar de nuevo. */
+  folioYaDescargado: boolean;
+}
+
+export type ResultadoAmpliacionServidor =
+  | { autorizada: true }
+  | { autorizada: false; codigo: string; motivo: string; mensajeUsuario: string };
+
+/**
+ * Única vía para que un folio nuevo o rectificatorio entre al plan. Revalida
+ * permisos, bloqueo, idempotencia, límites y presupuesto; si algo falla, la
+ * ampliación queda registrada como rechazada y NO se llama al proveedor.
+ */
+export async function solicitarAmpliacionF29(
+  entrada: EntradaAmpliacion,
+): Promise<ResultadoAmpliacionServidor> {
+  const propuesta = construirPropuestaAmpliacionF29({
+    planId: entrada.planId,
+    companyId: entrada.companyId,
+    periodo: entrada.periodo,
+    folioNuevo: entrada.folioNuevo,
+    folioAnterior: entrada.folioAnterior,
+  });
+
+  // Permisos y bloqueo se revalidan aquí, no se dan por heredados.
+  let permisosOk = true;
+  try {
+    await exigirRol(entrada.userId, entrada.companyId, ["owner"]);
+  } catch {
+    permisosOk = false;
+  }
+
+  const { data: fila } = await supabaseAdmin
     .from("tax_sync_plans")
-    .insert({
-      company_id: entrada.companyId,
-      created_by: entrada.userId,
-      requested_periods: plan.requestedPeriods,
-      execution_mode: plan.executionMode,
-      requires_credentials: plan.requiresCredentials,
-      plan: plan as never,
-      plan_status: extra.planStatus,
-      in_progress: extra.enCurso,
-      planned_calls: plan.expectedProviderCalls,
-      planned_credit_min: plan.expectedCreditRange.min,
-      planned_credit_max: plan.expectedCreditRange.max,
-      calls_avoided_by_cache: plan.periodsUsingCache.length,
-      error_code: extra.errorCodigo,
-      completed_at: extra.enCurso ? null : new Date().toISOString(),
-    })
-    .select("id")
+    .select("id, in_progress, company_id")
+    .eq("id", entrada.planId)
     .maybeSingle();
-  return data ? String(data.id) : null;
+  const bloqueoVigente =
+    !!fila && fila.in_progress === true && fila.company_id === entrada.companyId;
+
+  const { data: previa } = await supabaseAdmin
+    .from("tax_sync_plan_amendments")
+    .select("id, status")
+    .eq("plan_id", entrada.planId)
+    .eq("period", entrada.periodo)
+    .eq("new_folio", entrada.folioNuevo)
+    .maybeSingle();
+
+  const preferencias = await obtenerPreferenciasSync(entrada.userId, entrada.companyId);
+  const presupuesto = evaluarPresupuesto(preferencias);
+
+  const evaluacion = evaluarAmpliacion(entrada.control.plan, propuesta, {
+    permisosOk,
+    bloqueoVigente,
+    folioYaDescargado: entrada.folioYaDescargado,
+    ampliacionPrevia: !!previa,
+    descargasDelFolio: entrada.control.consumoDeRecurso(propuesta.recursoId),
+    llamadasRealizadas: entrada.control.llamadasRealizadas(),
+    maximoLlamadasPorEjecucion: MAX_REAL_PROVIDER_REQUESTS_PER_SYNC,
+    presupuestoBloqueado: presupuesto.estado === "bloqueado",
+    creditoDisponible: presupuesto.creditosRestantes ?? null,
+  });
+
+  const aprobada = evaluacion.aprobada;
+  await supabaseAdmin.from("tax_sync_plan_amendments").insert({
+    plan_id: entrada.planId,
+    company_id: entrada.companyId,
+    requested_by: entrada.userId,
+    period: propuesta.periodo,
+    new_folio: propuesta.folioNuevo,
+    previous_folio: propuesta.folioAnterior,
+    reason: propuesta.motivo,
+    resource_id: propuesta.recursoId,
+    additional_calls: propuesta.llamadasAdicionales,
+    additional_credit_min: propuesta.creditoAdicionalMin,
+    additional_credit_max: propuesta.creditoAdicionalMax,
+    status: aprobada ? "approved" : "rejected",
+    rejection_code: aprobada ? null : evaluacion.codigo,
+    rejection_detail: aprobada ? null : evaluacion.motivo,
+  });
+
+  if (!aprobada)
+    return {
+      autorizada: false,
+      codigo: evaluacion.codigo,
+      motivo: evaluacion.motivo,
+      mensajeUsuario: evaluacion.mensajeUsuario,
+    };
+
+  // Recién aquí el recurso existe para el portero.
+  entrada.control.aplicarAmpliacion(propuesta);
+
+  await supabaseAdmin
+    .from("tax_sync_plans")
+    .update({
+      plan: entrada.control.plan as never,
+      plan_amended: true,
+      amendment_reason: propuesta.motivo,
+      approved_additional_calls: propuesta.llamadasAdicionales,
+      approved_additional_credit_min: propuesta.creditoAdicionalMin,
+      approved_additional_credit_max: propuesta.creditoAdicionalMax,
+      amendment_created_at: new Date().toISOString(),
+      planned_calls: entrada.control.plan.expectedProviderCalls,
+      planned_credit_max: entrada.control.plan.expectedCreditRange.max,
+    })
+    .eq("id", entrada.planId);
+
+  return { autorizada: true };
 }
 
 /**
