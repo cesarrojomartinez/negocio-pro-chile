@@ -1,0 +1,199 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`paridad de cifras visibles > equilibrado · 2026-05 1`] = `
+{
+  "comprasTotales": 2928000,
+  "confiabilidad": "baja",
+  "dineroReservado": 600000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 463804,
+  "ivaDebito": 1045984,
+  "ivaEstimado": 522180,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 33504,
+  "remanenteAnterior": 60000,
+  "reservaRecomendada": 688252,
+  "retencionesEstimadas": 70000,
+  "tasaPpm": 0.006,
+  "totalContexto": 625684,
+  "totalTributarioEstimado": 625684,
+  "ventasTotales": 6630000,
+}
+`;
+
+exports[`paridad de cifras visibles > equilibrado · 2026-06 1`] = `
+{
+  "comprasTotales": 3089000,
+  "confiabilidad": "media",
+  "dineroReservado": 640000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 489677,
+  "ivaDebito": 1153520,
+  "ivaEstimado": 573843,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 36969,
+  "remanenteAnterior": 90000,
+  "reservaRecomendada": 754393,
+  "retencionesEstimadas": 75000,
+  "tasaPpm": 0.006,
+  "totalContexto": 685812,
+  "totalTributarioEstimado": 685812,
+  "ventasTotales": 7315000,
+}
+`;
+
+exports[`paridad de cifras visibles > equilibrado · 2026-07 1`] = `
+{
+  "comprasTotales": 2623000,
+  "confiabilidad": "media",
+  "dineroReservado": 700000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 415925,
+  "ivaDebito": 1259588,
+  "ivaEstimado": 723663,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 40328,
+  "remanenteAnterior": 120000,
+  "reservaRecomendada": 928390,
+  "retencionesEstimadas": 80000,
+  "tasaPpm": 0.006,
+  "totalContexto": 843991,
+  "totalTributarioEstimado": 843991,
+  "ventasTotales": 7981000,
+}
+`;
+
+exports[`paridad de cifras visibles > remanente · 2026-05 1`] = `
+{
+  "comprasTotales": 3347000,
+  "confiabilidad": "baja",
+  "dineroReservado": 220000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 529348,
+  "ivaDebito": 883086,
+  "ivaEstimado": 353738,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 23590,
+  "remanenteAnterior": 0,
+  "reservaRecomendada": 508561,
+  "retencionesEstimadas": 85000,
+  "tasaPpm": 0.005,
+  "totalContexto": 462328,
+  "totalTributarioEstimado": 462328,
+  "ventasTotales": 5601000,
+}
+`;
+
+exports[`paridad de cifras visibles > remanente · 2026-06 1`] = `
+{
+  "comprasTotales": 3364000,
+  "confiabilidad": "media",
+  "dineroReservado": 250000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 532688,
+  "ivaDebito": 904863,
+  "ivaEstimado": 332175,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 24211,
+  "remanenteAnterior": 40000,
+  "reservaRecomendada": 491025,
+  "retencionesEstimadas": 90000,
+  "tasaPpm": 0.005,
+  "totalContexto": 446386,
+  "totalTributarioEstimado": 446386,
+  "ventasTotales": 5747000,
+}
+`;
+
+exports[`paridad de cifras visibles > remanente · 2026-07 1`] = `
+{
+  "comprasTotales": 4067000,
+  "confiabilidad": "media",
+  "dineroReservado": 300000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 641752,
+  "ivaDebito": 788150,
+  "ivaEstimado": 0,
+  "nuevoRemanente": 33602,
+  "ppmEstimado": 21064,
+  "remanenteAnterior": 180000,
+  "reservaRecomendada": 127670,
+  "retencionesEstimadas": 95000,
+  "tasaPpm": 0.005,
+  "totalContexto": 116064,
+  "totalTributarioEstimado": 116064,
+  "ventasTotales": 5001000,
+}
+`;
+
+exports[`paridad de cifras visibles > ventasAltas · 2026-05 1`] = `
+{
+  "comprasTotales": 3306000,
+  "confiabilidad": "baja",
+  "dineroReservado": 380000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 523684,
+  "ivaDebito": 1409018,
+  "ivaEstimado": 885334,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 60176,
+  "remanenteAnterior": 0,
+  "reservaRecomendada": 1161061,
+  "retencionesEstimadas": 110000,
+  "tasaPpm": 0.008,
+  "totalContexto": 1055510,
+  "totalTributarioEstimado": 1055510,
+  "ventasTotales": 8931000,
+}
+`;
+
+exports[`paridad de cifras visibles > ventasAltas · 2026-06 1`] = `
+{
+  "comprasTotales": 3256000,
+  "confiabilidad": "baja",
+  "dineroReservado": 400000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 516595,
+  "ivaDebito": 1586561,
+  "ivaEstimado": 1069966,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 67820,
+  "remanenteAnterior": 0,
+  "reservaRecomendada": 1383565,
+  "retencionesEstimadas": 120000,
+  "tasaPpm": 0.008,
+  "totalContexto": 1257786,
+  "totalTributarioEstimado": 1257786,
+  "ventasTotales": 10064000,
+}
+`;
+
+exports[`paridad de cifras visibles > ventasAltas · 2026-07 1`] = `
+{
+  "comprasTotales": 3335000,
+  "confiabilidad": "baja",
+  "dineroReservado": 350000,
+  "estadoCalculo": "estimated_complete",
+  "fuentePeriodo": "mock",
+  "ivaCredito": 528991,
+  "ivaDebito": 1974561,
+  "ivaEstimado": 1445570,
+  "nuevoRemanente": 0,
+  "ppmEstimado": 84220,
+  "remanenteAnterior": 0,
+  "reservaRecomendada": 1836769,
+  "retencionesEstimadas": 140000,
+  "tasaPpm": 0.008,
+  "totalContexto": 1669790,
+  "totalTributarioEstimado": 1669790,
+  "ventasTotales": 12502000,
+}
+`;

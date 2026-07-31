@@ -97,6 +97,9 @@ export type MirrorConcept =
   | "vat_total_purchases"
   | "vat_common_use"
   | "vat_non_recoverable"
+  | "common_use_recovery_ratio"
+  | "other_vat_debits"
+  | "other_vat_credits"
   | "recoverable_vat_credit"
   | "previous_nominal_carryforward"
   | "adjustment_factor"
@@ -110,6 +113,8 @@ export type MirrorConcept =
   | "vat_advance_change_of_subject"
   | "surcharges"
   | "tax_total_before_surcharges"
+  | "estimated_tax_total_complete"
+  | "estimated_tax_total_partial"
   | "official_declared_total"
   | "confirmed_paid_total";
 
