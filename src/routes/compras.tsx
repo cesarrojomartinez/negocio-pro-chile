@@ -4,6 +4,7 @@ import { TriangleAlert } from "lucide-react";
 import { AppShell } from "@/components/shared/AppShell";
 import { SectionCard } from "@/components/shared/SectionCard";
 import { StatCard } from "@/components/shared/StatCard";
+import { FlipStatCard } from "@/components/shared/FlipStatCard";
 import { DocumentList } from "@/components/shared/DocumentList";
 
 import { EmptyState, LoadingBlock, LoadingCards } from "@/components/shared/States";
