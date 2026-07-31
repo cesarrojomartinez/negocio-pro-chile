@@ -416,6 +416,9 @@ export async function recalculateTaxPeriod(
             periodo: previoNombre,
             documentosVenta: docsPrevios.venta,
             documentosCompra: docsPrevios.compra,
+            ventasAgregadasResumen: previoRow
+              ? ventasAgregadasDelResumen(previoRow.rcv_summary)
+              : null,
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
             diasTranscurridos: diasPrev.diasTranscurridos,
