@@ -52,7 +52,7 @@ export function HeroPreview() {
         </div>
         <div className="flex h-14 items-end gap-1.5" aria-hidden>
           {barras.map((b, i) => (
-            <span key={i} className="flex items-end gap-0.5">
+            <span key={i} className="flex h-full items-end gap-0.5">
               <span
                 className="w-2.5 rounded-t bg-primary"
                 style={{ height: `${b.ventas}%` }}
