@@ -77,13 +77,22 @@ export function RealGatewayPanel() {
     };
   }, []);
 
-  // Cuando el usuario pide "Actualizar", traemos el formulario a la vista para
-  // que ingrese su clave (nunca se guarda).
+  // Cuando el usuario pide "Actualizar", traemos el formulario a la vista y
+  // dejamos el cursor en el primer dato que falta (la clave nunca se guarda).
   useEffect(() => {
-    if (solicitudActualizacionReal > 0) {
-      contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    if (solicitudActualizacionReal === 0) return;
+    contenedorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const id = window.setTimeout(() => {
+      const objetivo = document.getElementById(
+        rutUsuario ? "sii_password" : "sii_username",
+      ) as HTMLInputElement | null;
+      objetivo?.focus();
+    }, 350);
+    return () => window.clearTimeout(id);
+    // Solo reacciona a la solicitud, no a lo que se va escribiendo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solicitudActualizacionReal]);
+
 
   // El formulario SIEMPRE sigue al periodo elegido en la pantalla, salvo que la
   // persona haya elegido otro mes aquí mismo. Antes el valor quedaba congelado
@@ -160,7 +169,7 @@ export function RealGatewayPanel() {
           : "border-success/40 bg-success-soft";
 
   return (
-    <div ref={contenedorRef}>
+    <div ref={contenedorRef} id="actualizar-sii" data-panel="sii-real">
       <SectionCard
         titulo="Actualizar con la información del SII"
         descripcion="Elige el periodo, ingresa tu clave y la aplicación actualiza tus ventas, tus compras y tu Formulario 29 cuando ya está presentado."
