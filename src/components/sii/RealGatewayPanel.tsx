@@ -14,6 +14,8 @@ import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import { formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 import { esRutValido, formatearRut } from "@/lib/rut";
+import { esPeriodoValido, etiquetaPeriodo, normalizarPeriodo } from "@/lib/periodo";
+
 
 /** Códigos que indican sesión vencida del proveedor (no clave incorrecta). */
 const CODIGOS_SESION_VENCIDA = ["SESSION_INVALID", "SESSION_EXPIRED", "AUTH_EXPIRED"];
