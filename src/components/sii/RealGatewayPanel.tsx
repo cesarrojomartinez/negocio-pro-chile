@@ -40,6 +40,9 @@ export function RealGatewayPanel() {
   const [sesionNueva, setSesionNueva] = useState(false);
   const [clave, setClave] = useState("");
   const [periodo, setPeriodo] = useState(periodoId);
+  /** Última vez que el usuario tocó el selector de este formulario. */
+  const [periodoManual, setPeriodoManual] = useState(false);
+
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   /** Resumen simple de la última actualización, sin lenguaje técnico. */
