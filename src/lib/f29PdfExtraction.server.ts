@@ -681,7 +681,7 @@ export async function extraerF29Compacto(
       periodId
     ) {
 
-      await supabaseAdmin.from("tax_f29_history").upsert(
+      const { error: errorAntecedente } = await supabaseAdmin.from("tax_f29_history").upsert(
         {
           company_id: entrada.companyId,
           tax_period_id: periodId,
@@ -690,7 +690,9 @@ export async function extraerF29Compacto(
           filed_at: elegida.fecha ? new Date(elegida.fecha).toISOString() : null,
           declared_vat: campos.declared_vat_payable,
           declared_ppm: campos.declared_ppm,
-          declared_withholdings: campos.declared_withholdings ?? 0,
+          // `null` significa que el código no se pudo leer; solo un cero
+          // explícito del formulario puede confirmar ausencia de retenciones.
+          declared_withholdings: campos.declared_withholdings,
           // El total a pagar dentro del plazo (91) manda; si no se leyó, se usa
           // el total determinado (547) antes que dejar el periodo sin total.
           declared_total:
@@ -725,6 +727,11 @@ export async function extraerF29Compacto(
         },
         { onConflict: "company_id,tax_period_id" },
       );
+      if (errorAntecedente) {
+        throw new ErrorNegocio(
+          `No pudimos guardar el antecedente tributario del formulario. (${errorAntecedente.code ?? "db"}: ${errorAntecedente.message})`,
+        );
+      }
 
       try {
         await recalculateTaxPeriod(userId, {
