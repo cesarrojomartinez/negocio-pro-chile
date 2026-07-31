@@ -447,7 +447,7 @@ export async function recalculateTaxPeriod(
   });
 
   const r = dashboard.resumen;
-  const previo = dashboard.resumenPreF29;
+  const estimacionPrevia = dashboard.resumenPreF29;
   const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
   const nivel = nivelDesdeEspanol(dashboard.confiabilidad);
@@ -458,7 +458,10 @@ export async function recalculateTaxPeriod(
    */
   const hayOficial = dashboard.conciliacionF29.hayOficial;
   const desviacion = hayOficial
-    ? calcularDesviacionF29(previo.totalTributarioEstimado, r.totalTributarioEstimado)
+    ? calcularDesviacionF29(
+        estimacionPrevia.totalTributarioEstimado,
+        r.totalTributarioEstimado,
+      )
     : null;
 
   const { error } = await supabaseAdmin.from("tax_monthly_summaries").upsert(
