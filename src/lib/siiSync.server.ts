@@ -112,7 +112,8 @@ async function decisionPorPeriodo(
   periodo: string,
   ahora: Date,
 ): Promise<DecisionPeriodo> {
-  const [{ data: ultima }, { data: f29 }] = await Promise.all([
+  const [{ data: ultima }, { data: f29 }, { count: documentos }, { count: snapshotsRcv }] =
+    await Promise.all([
     supabaseAdmin
       .from("tax_sync_runs")
       .select("completed_at")
@@ -133,6 +134,21 @@ async function decisionPorPeriodo(
       .in("extraction_status", ["success", "needs_review", "partial"])
       .limit(1)
       .maybeSingle(),
+
+    // Un periodo sin datos reales del RCV nunca puede quedarse en caché:
+    // documentos guardados o, en modo económico, el snapshot del resumen.
+    supabaseAdmin
+      .from("tax_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodId),
+
+    supabaseAdmin
+      .from("tax_provider_snapshots")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("tax_period_id", periodId)
+      .in("module", ["rcv_sales_documents", "rcv_purchases_registered"]),
   ]);
   return decidirActualizacionPeriodo({
     periodo,
@@ -141,8 +157,11 @@ async function decisionPorPeriodo(
     ultimaSincronizacionRcv: (ultima?.completed_at as string | null) ?? null,
     tieneF29Vigente: !!f29,
     periodoCerrado: periodoYaCerrado(periodo, ahora),
+    tieneDatosRcv: (documentos ?? 0) > 0 || (snapshotsRcv ?? 0) > 0,
   });
 }
+
+
 
 
 /** Selecciona el proveedor activo. */

@@ -29,14 +29,19 @@ export const HORAS_ESPERA_FALLO_DESCARGA_F29 = 24;
 
 export type MotivoActualizacion =
   | "sin_datos_previos"
+  | "sin_documentos_rcv"
   | "mes_en_curso_vencido"
   | "mes_sin_f29_vencido"
   | "rcv_vigente"
   | "periodo_con_f29_vigente"
   | "periodo_cerrado";
 
+
 export const MENSAJE_MOTIVO_ECONOMICO: Record<MotivoActualizacion, string> = {
   sin_datos_previos: "Es la primera vez que consultamos este periodo.",
+  sin_documentos_rcv:
+    "Este periodo no tiene documentos del registro de compras y ventas: se descargan siempre.",
+
   mes_en_curso_vencido: "El mes en curso se actualiza una vez al día.",
   mes_sin_f29_vencido: "Este mes todavía no tiene Formulario 29 y se revisa cada tres días.",
   rcv_vigente: "Ya tienes información reciente de este periodo.",
@@ -57,6 +62,12 @@ export interface EntradaDecisionPeriodo {
   tieneF29Vigente: boolean;
   /** El periodo fue confirmado o cerrado por el usuario. */
   periodoCerrado: boolean;
+  /**
+   * El periodo ya tiene documentos reales del RCV guardados. Si es false, la
+   * caché nunca puede saltarse la descarga: un periodo vacío siempre se baja.
+   */
+  tieneDatosRcv: boolean;
+
 }
 
 export interface DecisionPeriodo {
@@ -91,8 +102,13 @@ export function decidirActualizacionPeriodo(
     mensaje: MENSAJE_MOTIVO_ECONOMICO[motivo],
   });
 
+  // Regla de oro: un periodo sin documentos reales del RCV SIEMPRE se descarga.
+  // Ninguna caché, F29 ni cierre puede dejar el panel en cero.
+  if (!entrada.tieneDatosRcv) return armar(true, true, "sin_documentos_rcv");
+
   // Periodo cerrado por el usuario: no se consulta nada más.
   if (entrada.periodoCerrado) return armar(false, false, "periodo_cerrado");
+
 
   // Periodo con F29 leído y vigente: sus cifras son definitivas. Solo se revisa
   // el listado anual (que ya viene agrupado y con caché) por si hay una
