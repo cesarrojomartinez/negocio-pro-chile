@@ -32,6 +32,8 @@ export function FlipStatCard({
   interpretarComoPositivo = true,
   icono,
   destacado,
+  ariaLabelFrente = "Ver detalle",
+  ariaLabelReverso = "Volver",
 }: FlipStatCardProps) {
   const [volteada, setVolteada] = useState(false);
 
@@ -75,7 +77,7 @@ export function FlipStatCard({
             </div>
             <span
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Ver compras netas"
+              aria-label={ariaLabelFrente}
               onClick={(e) => {
                 e.stopPropagation();
                 setVolteada(true);
@@ -112,7 +114,7 @@ export function FlipStatCard({
             </div>
             <span
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Volver"
+              aria-label={ariaLabelReverso}
               onClick={(e) => {
                 e.stopPropagation();
                 setVolteada(false);
