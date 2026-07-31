@@ -439,6 +439,16 @@ export async function ejecutarPruebaRealApiGateway(
     Number(registro.creditosUsados.toFixed(4)),
     registro.creditosDisponibles ?? null,
   );
+  // Registro comercial paralelo: solo cifras de uso, para el panel de costos.
+  await registrarUsoComercial({
+    companyId: entrada.companyId,
+    categoria: "rcv",
+    periodo: entrada.periodo,
+    consultas: registro.consultas,
+    errores: exito ? 0 : 1,
+    unidades: Number(registro.creditosUsados.toFixed(4)),
+    descuentaActualizacion: registro.consultas > 0,
+  });
   if (exito) await marcarRecordatorioCompletado(entrada.companyId);
 
 
