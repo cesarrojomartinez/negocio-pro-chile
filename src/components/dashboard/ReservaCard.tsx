@@ -41,6 +41,11 @@ export function ReservaCard({
     resumen.reservaRecomendada,
     resumen.dineroReservado,
   );
+  // Cuando no hay impuestos que reservar pero sí quedó IVA a favor, la tarjeta
+  // debe explicarlo en vez de mostrar solamente $0.
+  const remanente = resumen.nuevoRemanente ?? 0;
+  const aFavor =
+    !incompleto && resumen.reservaRecomendada <= 0 && remanente > 0;
 
   return (
     <section className={cn("card-surface border p-5 sm:p-6", ESTILOS[estado])}>
