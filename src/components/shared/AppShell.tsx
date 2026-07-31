@@ -85,6 +85,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const esCloud = modo === "cloud";
+
+  // Agrupa los periodos por año para poder ubicar rápido 2025, 2024, etc.
+  const periodosPorAnio = useMemo(() => {
+    const grupos = new Map<string, typeof periodosDisponibles>();
+    for (const p of periodosDisponibles) {
+      const anio = p.id.slice(0, 4);
+      const lista = grupos.get(anio) ?? [];
+      lista.push(p);
+      grupos.set(anio, lista);
+    }
+    return [...grupos.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+  }, [periodosDisponibles]);
+
   // El encabezado describe el periodo seleccionado, no la conexión de la empresa.
   // Mientras no haya datos cargados no se afirma nada sobre el origen.
   const fuentePeriodo: FuentePeriodo | null =
