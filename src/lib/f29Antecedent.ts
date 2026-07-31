@@ -53,6 +53,44 @@ export interface AntecedenteF29 {
   incoherencias: string[];
   /** El bloque de PPM del formulario es aritméticamente consistente. */
   ppmCoherente: boolean;
+}
+
+/**
+ * Verifica que el bloque de PPM del formulario cuadre: el PPM declarado
+ * (código 62) debe ser, con tolerancia, la base (563) por la tasa (115).
+ * Un PDF mal leído produce combinaciones imposibles —por ejemplo tasa 10 %
+ * con un PPM de cinco dígitos sobre una base de quince millones— y esa tasa
+ * jamás debe alimentar la estimación de los meses siguientes.
+ */
+export function evaluarCoherenciaPpmF29(codigos: Record<string, number>): {
+  ppmCoherente: boolean;
+  motivo: string | null;
+} {
+  const base = codigos["563"];
+  const tasa = codigos["115"];
+  const ppm = codigos["62"];
+  if (base == null || tasa == null || ppm == null || base <= 0 || tasa <= 0)
+    return { ppmCoherente: true, motivo: null };
+
+  if (tasa > 0.5)
+    return {
+      ppmCoherente: false,
+      motivo: "La tasa de PPM leída del formulario no es un valor posible.",
+    };
+
+  const esperado = base * tasa;
+  const tolerancia = Math.max(1000, esperado * 0.05);
+  if (Math.abs(esperado - ppm) > tolerancia)
+    return {
+      ppmCoherente: false,
+      motivo:
+        "El PPM declarado no coincide con la base y la tasa del mismo formulario.",
+    };
+
+  return { ppmCoherente: true, motivo: null };
+}
+
+
 
 
 function numero(valor: unknown): number | null {
