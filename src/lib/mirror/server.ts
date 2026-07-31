@@ -332,3 +332,78 @@ export async function ejecutarSombraHistorial(
 
 /** Hash de entrada reutilizable para auditar reproducibilidad. */
 export const hashEntradaSombra = hashOrigen;
+
+/* ───────────────── Entrada del núcleo unificado (Etapa 6.8.1) ───────────── */
+
+export interface EntradaUnificadaPeriodo {
+  taxPeriodId: string;
+  unifiedInput: {
+    period: string;
+    facts: NormalizedTaxFact[];
+    official: HistoricalOfficialContext | null;
+    previousOfficial: HistoricalOfficialContext | null;
+  };
+  official: HistoricalOfficialContext | null;
+}
+
+/**
+ * Reúne los antecedentes normalizados de un periodo para el orquestador
+ * único. Solo lee: no calcula ni escribe.
+ */
+export async function entradaUnificadaPeriodo(
+  companyId: string,
+  period: string,
+): Promise<EntradaUnificadaPeriodo | null> {
+  const { data: periodoRow } = await supabaseAdmin
+    .from("tax_periods")
+    .select("id, period, rcv_summary")
+    .eq("company_id", companyId)
+    .eq("period", period)
+    .maybeSingle<FilaPeriodo>();
+  if (!periodoRow) return null;
+
+  const { data: f29Row } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select("declaration_status, source, raw_data")
+    .eq("company_id", companyId)
+    .eq("tax_period_id", periodoRow.id)
+    .maybeSingle<FilaF29>();
+
+  const { data: previoRow } = await supabaseAdmin
+    .from("tax_f29_history")
+    .select("declaration_status, source, raw_data, tax_periods!inner(period)")
+    .eq("company_id", companyId)
+    .lt("tax_periods.period", period)
+    .order("tax_periods(period)", { ascending: false })
+    .limit(1)
+    .maybeSingle<FilaF29 & { tax_periods: { period: string } }>();
+
+  const official = contextoOficialDe(period, f29Row);
+  return {
+    taxPeriodId: periodoRow.id,
+    official,
+    unifiedInput: {
+      period,
+      facts: hechosDelPeriodo(period, periodoRow),
+      official,
+      previousOfficial: previoRow
+        ? contextoOficialDe(previoRow.tax_periods.period, previoRow)
+        : null,
+    },
+  };
+}
+
+/** Códigos oficiales relevantes para la comparación triple. */
+export function conceptosOficiales(official: HistoricalOfficialContext | null) {
+  if (!official) return { official: {}, officialTotal: null as number | null };
+  return {
+    official: {
+      vat_determined: leerCodigo(official, CODIGO.ivaDeterminado),
+      vat_advance_change_of_subject: leerCodigo(official, CODIGO.anticipoImputado),
+      ppm_amount: leerCodigo(official, CODIGO.ppm),
+      withholdings: leerCodigo(official, CODIGO.retenciones),
+      tax_total_before_surcharges: leerCodigo(official, CODIGO.subtotalDeterminado),
+    },
+    officialTotal: leerCodigo(official, CODIGO.totalAPagar),
+  };
+}

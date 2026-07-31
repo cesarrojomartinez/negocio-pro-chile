@@ -16,6 +16,8 @@ import {
   fuenteConceptoRetenciones,
 } from "@/lib/taxContext";
 import { conciliarConF29Oficial } from "@/lib/f29Reconciliation";
+import { aplicarResumenProductivo } from "@/lib/productiveOverlay";
+import type { ProductiveTaxSummary } from "@/lib/mirror/productiveSummary";
 import type { ConceptSource } from "@/types/engine";
 import type { Empresa } from "@/types/company";
 import type {
@@ -72,6 +74,12 @@ export interface EntradaDashboard {
    * Reemplaza a la tasa estimada solo para el cálculo mostrado en pantalla.
    */
   tasaPpmPersonalizada?: number | null;
+  /**
+   * Contrato productivo ya calculado por el orquestador único
+   * (`calculateTaxPeriod`) en modo `compatibility`. Cuando viene presente,
+   * dashboardBuilder no usa cifras tributarias del motor antiguo.
+   */
+  resumenProductivo?: ProductiveTaxSummary | null;
 }
 
 /**
@@ -102,7 +110,7 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
    * Comparación interna con el Formulario 29 oficial: si el periodo ya fue
    * declarado, la pantalla debe mostrar exactamente sus cifras.
    */
-  const { resumen, conciliacion } = conciliarConF29Oficial(
+  const { resumen: resumenConciliado, conciliacion } = conciliarConF29Oficial(
     resumenEstimado,
     {
       ivaDebito: data.ivaDebitoDeclarado ?? null,
@@ -116,6 +124,13 @@ export function construirDashboard(entrada: EntradaDashboard): DashboardData {
     },
     { margenPorcentaje: entrada.margenPorcentaje },
   );
+  /**
+   * Modo `compatibility`: las cifras tributarias ya vienen calculadas por el
+   * núcleo unificado. Aquí solo se copian; no se recalcula nada.
+   */
+  const resumen = entrada.resumenProductivo
+    ? aplicarResumenProductivo(resumenConciliado, entrada.resumenProductivo)
+    : resumenConciliado;
   const ventas = construirResumenVentas(data.documentosVenta, data.ventasAgregadasResumen);
   const compras = construirResumenCompras(
     data.documentosCompra,

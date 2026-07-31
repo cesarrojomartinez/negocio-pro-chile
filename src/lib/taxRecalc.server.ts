@@ -2,6 +2,12 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ErrorNegocio, exigirRol, registrarActividad } from "@/lib/companies.server";
 import { construirDashboard } from "@/lib/dashboardBuilder";
 import {
+  calcularPeriodoProductivo,
+  metadatosCalculo,
+} from "@/lib/mirror/engineConfig.server";
+import { resumenLegadoAProductivo } from "@/lib/mirror/productiveSummary";
+import { aplicarResumenProductivo } from "@/lib/productiveOverlay";
+import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
   resolverRemanenteAnterior,
@@ -475,7 +481,49 @@ export async function recalculateTaxPeriod(
     f29Confirmado: !!antecedente?.confirmado,
   });
 
-  const r = dashboard.resumen;
+  /**
+   * Orquestador único (Etapa 6.8.1). En `shadow` y `dual_validation` la cifra
+   * mostrada sigue siendo la del motor antiguo; en `compatibility` proviene
+   * del núcleo unificado a través de la proyección de compatibilidad.
+   */
+  const legacyProductive = resumenLegadoAProductivo(dashboard.resumen, {
+    declaredTaxTotal: dashboard.contexto.declared_tax_total ?? null,
+    periodState: estadoDelPeriodo(entrada.periodo),
+  });
+  const calculo = await calcularPeriodoProductivo({
+    companyId: entrada.companyId,
+    period: entrada.periodo,
+    productiveContext: {
+      salesTotal: dashboard.resumen.ventasTotales,
+      exemptSales: dashboard.resumen.ventasExentas,
+      purchasesTotal: dashboard.resumen.comprasTotales,
+      preventiveMarginPercent: dashboard.resumen.margenPorcentaje,
+      reservedAmount: dashboard.resumen.dineroReservado,
+      carryforwardSource: dashboard.resumen.fuenteRemanente,
+      ppmSource: dashboard.resumen.fuentePpm,
+      withholdingsSource: dashboard.resumen.fuenteRetenciones,
+      periodState: estadoDelPeriodo(entrada.periodo),
+    },
+    legacyProductive,
+    previousProductive: legacyProductive,
+  });
+
+  const r =
+    calculo && calculo.mode === "compatibility" && calculo.runStatus === "completed"
+      ? aplicarResumenProductivo(dashboard.resumen, calculo.productive)
+      : dashboard.resumen;
+  const metadatos = calculo
+    ? metadatosCalculo(calculo)
+    : {
+        calculation_engine: "legacy" as const,
+        unified_engine_mode: "shadow" as const,
+        unified_engine_version: null,
+        compatibility_projection_version: null,
+        calculation_input_hash: null,
+        calculation_run_status: "completed" as const,
+        parity_exact: null,
+        parity_differences_count: 0,
+      };
   const estimacionPrevia = dashboard.resumenPreF29;
   const ctx = dashboard.contexto;
   const calculadoEn = new Date().toISOString();
@@ -553,6 +601,7 @@ export async function recalculateTaxPeriod(
       confidence_reasons: dashboard.razonesConfiabilidad,
       calculated_at: calculadoEn,
       source: esDemo ? ("mock" as const) : ("manual" as const),
+      ...metadatos,
     },
     { onConflict: "company_id,tax_period_id" },
   );
