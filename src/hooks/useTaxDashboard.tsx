@@ -369,7 +369,7 @@ export function TaxDashboardProvider({ children }: { children: ReactNode }) {
     } finally {
       setActualizando(false);
     }
-  }, [conexionReal, refrescarDatos, actualizarMock]);
+  }, [conexionReal, companyId, periodoId, refrescarDatos, actualizarMock]);
 
   const conectarDemo = useCallback(async () => {
     if (esCloud && companyId) {
