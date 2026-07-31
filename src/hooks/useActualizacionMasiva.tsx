@@ -28,6 +28,8 @@ export interface ItemActualizacion {
   estado: EstadoPeriodoActualizacion;
   mensaje?: string;
   f29?: string;
+  /** Créditos consumidos por este periodo ante el proveedor. */
+  creditos?: number;
 }
 
 interface SolicitudActualizacion {
@@ -46,6 +48,9 @@ interface ActualizacionMasivaState {
   visible: boolean;
   periodoActual: string | null;
   totales: { listos: number; avisos: number; errores: number; total: number };
+  /** Créditos consumidos en este trabajo y saldo informado por el proveedor. */
+  creditosUsados: number;
+  creditosDisponibles: number | null;
   iniciar: (solicitud: SolicitudActualizacion) => void;
   cerrar: () => void;
   /** Se incrementa al terminar cada periodo, para refrescar el panel. */
@@ -61,6 +66,7 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
   const [visible, setVisible] = useState(false);
   const [periodoActual, setPeriodoActual] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  const [creditosDisponibles, setCreditosDisponibles] = useState<number | null>(null);
   /** La clave vive solo en memoria mientras dura el trabajo. */
   const claveRef = useRef<string | null>(null);
   const trabajando = useRef(false);
@@ -90,6 +96,7 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
       setTerminado(false);
       setVisible(true);
       setPeriodoActual(null);
+      setCreditosDisponibles(null);
 
       void (async () => {
         let sesionNueva = false;
@@ -120,7 +127,10 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
                     : "listo",
               mensaje: m.texto,
               f29: r.f29.mensaje,
+              creditos: r.creditosConsumidos,
             });
+            if (r.creditosDisponibles != null)
+              setCreditosDisponibles(r.creditosDisponibles);
           } catch (error) {
             marcar(periodo, {
               estado: "error",
@@ -168,9 +178,16 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
     [items],
   );
 
+  const creditosUsados = useMemo(
+    () => items.reduce((s, i) => s + (i.creditos ?? 0), 0),
+    [items],
+  );
+
   const value = useMemo<ActualizacionMasivaState>(
     () => ({
       items,
+      creditosUsados,
+      creditosDisponibles,
       enCurso,
       terminado,
       visible,
@@ -180,7 +197,19 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
       cerrar,
       version,
     }),
-    [items, enCurso, terminado, visible, periodoActual, totales, iniciar, cerrar, version],
+    [
+      items,
+      enCurso,
+      terminado,
+      visible,
+      periodoActual,
+      totales,
+      iniciar,
+      cerrar,
+      version,
+      creditosUsados,
+      creditosDisponibles,
+    ],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
