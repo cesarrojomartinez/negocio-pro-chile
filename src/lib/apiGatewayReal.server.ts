@@ -22,6 +22,13 @@ import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
 import { normalizarPeriodo } from "@/lib/periodo";
 import { NORMAL_SYNC_PURCHASE_STATES } from "@/lib/syncEconomica";
+import { evaluarPresupuesto } from "@/lib/syncPreferences";
+import {
+  marcarRecordatorioCompletado,
+  obtenerPreferenciasSync,
+  registrarConsumoEnPresupuesto,
+} from "@/lib/syncPreferences.server";
+
 
 
 import {
@@ -134,6 +141,17 @@ export async function ejecutarPruebaRealApiGateway(
     .eq("id", entrada.companyId)
     .maybeSingle();
   if (!empresa) throw new ErrorNegocio("No pudimos cargar la empresa.");
+
+  // Guarda de presupuesto: se evalúa ANTES de cualquier consulta al proveedor.
+  const preferencias = await obtenerPreferenciasSync(userId, entrada.companyId);
+  if (preferencias.syncMode !== "manual_secure")
+    throw new ErrorNegocio("La automatización avanzada todavía no está disponible.");
+  const presupuesto = evaluarPresupuesto(preferencias);
+  if (presupuesto.estado === "bloqueado")
+    throw new ErrorNegocio(
+      "Alcanzaste el presupuesto mensual de actualizaciones que definiste. No se consumieron créditos y tus datos guardados siguen disponibles.",
+    );
+
 
   const registro = new RegistroConsumo(MAX_REAL_PROVIDER_REQUESTS_PER_SYNC);
   const credenciales: CredencialesTemporales = {
@@ -336,6 +354,15 @@ export async function ejecutarPruebaRealApiGateway(
       };
     }
   }
+
+  // Presupuesto interno: se registra el consumo real de esta ejecución y, si
+  // hubo éxito, el recordatorio del mes queda cumplido. Nunca datos de acceso.
+  await registrarConsumoEnPresupuesto(
+    entrada.companyId,
+    Number(registro.creditosUsados.toFixed(4)),
+    registro.creditosDisponibles ?? null,
+  );
+  if (exito) await marcarRecordatorioCompletado(entrada.companyId);
 
 
   await registrarActividad(

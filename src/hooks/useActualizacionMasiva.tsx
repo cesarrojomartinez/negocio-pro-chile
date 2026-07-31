@@ -101,56 +101,61 @@ export function ActualizacionMasivaProvider({ children }: { children: ReactNode 
       setCreditosDisponibles(null);
 
       void (async () => {
-        let sesionNueva = false;
-        for (const periodo of periodos) {
-          setPeriodoActual(periodo);
-          marcar(periodo, { estado: "en_curso" });
-          try {
-            const r = await apiGatewayService.ejecutarPrueba({
-              companyId: solicitud.companyId,
-              periodo,
-              rutUsuario: solicitud.rutUsuario,
-              claveTributaria: claveRef.current ?? "",
-              sesionNueva,
-              incluirDetalle: solicitud.incluirDetalle === true,
-            });
-            sesionNueva = CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? "");
-            const m = mensajeProveedor({
-              proveedor: "api_gateway",
-              codigo: r.errorCodigo,
-              mensaje: r.mensaje,
-              productosVerificados: true,
-            });
-            marcar(periodo, {
-              estado:
-                m.tono === "error"
-                  ? "error"
-                  : m.tono === "warning" || r.f29.estado === "revisar"
-                    ? "aviso"
-                    : "listo",
-              mensaje: m.texto,
-              f29: r.f29.mensaje,
-              creditos: r.creditosConsumidos,
-            });
-            if (r.creditosDisponibles != null)
-              setCreditosDisponibles(r.creditosDisponibles);
-          } catch (error) {
-            marcar(periodo, {
-              estado: "error",
-              mensaje:
-                error instanceof Error
-                  ? error.message
-                  : "No pudimos completar la actualización.",
-            });
+        try {
+          let sesionNueva = false;
+          for (const periodo of periodos) {
+            setPeriodoActual(periodo);
+            marcar(periodo, { estado: "en_curso" });
+            try {
+              const r = await apiGatewayService.ejecutarPrueba({
+                companyId: solicitud.companyId,
+                periodo,
+                rutUsuario: solicitud.rutUsuario,
+                claveTributaria: claveRef.current ?? "",
+                sesionNueva,
+                incluirDetalle: solicitud.incluirDetalle === true,
+              });
+              sesionNueva = CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? "");
+              const m = mensajeProveedor({
+                proveedor: "api_gateway",
+                codigo: r.errorCodigo,
+                mensaje: r.mensaje,
+                productosVerificados: true,
+              });
+              marcar(periodo, {
+                estado:
+                  m.tono === "error"
+                    ? "error"
+                    : m.tono === "warning" || r.f29.estado === "revisar"
+                      ? "aviso"
+                      : "listo",
+                mensaje: m.texto,
+                f29: r.f29.mensaje,
+                creditos: r.creditosConsumidos,
+              });
+              if (r.creditosDisponibles != null)
+                setCreditosDisponibles(r.creditosDisponibles);
+            } catch (error) {
+              marcar(periodo, {
+                estado: "error",
+                mensaje:
+                  error instanceof Error
+                    ? error.message
+                    : "No pudimos completar la actualización.",
+              });
+            }
+            setVersion((n) => n + 1);
           }
-          setVersion((n) => n + 1);
+        } finally {
+          // La clave se descarta siempre, incluso ante un fallo inesperado.
+          claveRef.current = null;
+          setPeriodoActual(null);
+          setEnCurso(false);
+          setTerminado(true);
+          trabajando.current = false;
         }
-        claveRef.current = null;
-        setPeriodoActual(null);
-        setEnCurso(false);
-        setTerminado(true);
-        trabajando.current = false;
       })();
+
     },
     [marcar],
   );
