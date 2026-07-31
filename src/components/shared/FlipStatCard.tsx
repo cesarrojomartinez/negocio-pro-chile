@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ interface FlipStatCardProps {
   notaReverso?: string;
   variacion?: number | null;
   interpretarComoPositivo?: boolean;
+  icono?: ReactNode;
   destacado?: boolean;
 }
 
@@ -26,6 +28,7 @@ export function FlipStatCard({
   notaReverso,
   variacion,
   interpretarComoPositivo = true,
+  icono,
   destacado,
 }: FlipStatCardProps) {
   const [volteada, setVolteada] = useState(false);
@@ -62,9 +65,12 @@ export function FlipStatCard({
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {tituloFrente}
-            </h3>
+            <div className="flex items-center gap-2">
+              {icono && <span className="text-primary">{icono}</span>}
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {tituloFrente}
+              </h3>
+            </div>
             <span
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Ver compras netas"
@@ -96,9 +102,12 @@ export function FlipStatCard({
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              {tituloReverso}
-            </h3>
+            <div className="flex items-center gap-2">
+              {icono && <span className="text-primary">{icono}</span>}
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {tituloReverso}
+              </h3>
+            </div>
             <span
               className="rounded-full p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Volver"

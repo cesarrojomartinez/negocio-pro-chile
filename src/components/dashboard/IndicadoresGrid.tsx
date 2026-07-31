@@ -1,5 +1,6 @@
 import { Receipt, ShoppingCart, Store, Wallet } from "lucide-react";
 import { StatCard } from "@/components/shared/StatCard";
+import { FlipStatCard } from "@/components/shared/FlipStatCard";
 import { formatCLP } from "@/utils/currency";
 import type { ComparacionMensual, ResumenMensual, ResumenVentas } from "@/types/tax";
 
@@ -44,14 +45,18 @@ export function IndicadoresGrid({
         icono={<Wallet className="h-4.5 w-4.5" aria-hidden />}
         contexto={`${ventas.cantidadBoletas} resúmenes diarios registrados.`}
       />
-      <StatCard
-        titulo="Compras"
-        monto={formatCLP(resumen.comprasTotales)}
-        descripcion="Compras consideradas durante el periodo."
+      <FlipStatCard
+        tituloFrente="Compras"
+        montoFrente={formatCLP(resumen.comprasTotales)}
+        descripcionFrente="Compras consideradas durante el periodo."
+        tituloReverso="Compras netas"
+        montoReverso={formatCLP(resumen.comprasNetas)}
+        descripcionReverso="Monto sin IVA que sirve de base para el crédito."
+        notaReverso="El IVA crédito se calcula sobre el neto afecto, no sobre el total. Las compras exentas no generan crédito."
         variacion={comparacion.variacionCompras}
         interpretarComoPositivo={false}
         icono={<ShoppingCart className="h-4.5 w-4.5" aria-hidden />}
-        contexto="Más compras pueden significar más crédito de IVA, pero también más gasto. Revisa el contexto."
+        destacado
       />
     </div>
   );
