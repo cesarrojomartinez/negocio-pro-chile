@@ -61,6 +61,7 @@ export function evaluarPromocionCompatibility(
   if (differencesFound > 0) {
     blockingReasons.push(`diferencias_productivas:${differencesFound}`);
   }
+  // TAX_ZERO_JUSTIFIED: conteo de errores sin clasificar, no es un monto.
   if ((entrada.unclassifiedErrors ?? 0) > 0) {
     blockingReasons.push(`errores_sin_clasificar:${entrada.unclassifiedErrors}`);
   }

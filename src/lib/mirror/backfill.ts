@@ -103,6 +103,7 @@ export async function backfillUnifiedCompatibility(
       break;
     }
 
+    // TAX_ZERO_JUSTIFIED: conteo de diferencias, no es un monto tributario.
     const diferencias = resultado.parity?.blockingDifferences.length ?? 0;
     differencesFound += diferencias;
 

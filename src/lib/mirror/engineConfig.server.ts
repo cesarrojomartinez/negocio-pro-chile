@@ -106,6 +106,7 @@ export async function registrarPromocionMotor(
     to_mode: "compatibility",
     periods_validated: evaluacion.periodsValidated,
     differences_found: evaluacion.differencesFound,
+    // TAX_ZERO_JUSTIFIED: metadatos de auditoría, no montos tributarios.
     golden_cases_passed: extras.goldenCasesPassed ?? 0,
     golden_cases_total: extras.goldenCasesTotal ?? 0,
     visual_snapshots_approved: extras.visualSnapshotsApproved ?? false,
@@ -165,6 +166,7 @@ export function metadatosCalculo(resultado: ResultadoCalculoPeriodo) {
     calculation_input_hash: resultado.calculationInputHash,
     calculation_run_status: resultado.runStatus,
     parity_exact: resultado.parity ? resultado.parity.exactParity : null,
+    // TAX_ZERO_JUSTIFIED: conteo de diferencias, no es un monto tributario.
     parity_differences_count: resultado.parity?.differences.length ?? 0,
   };
 }

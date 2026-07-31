@@ -167,6 +167,7 @@ export function resumenLegadoAProductivo(
     ppmRate: resumen.tasaPpm,
     estimatedPpm: resumen.ppmEstimado,
     estimatedWithholdings: resumen.retencionesEstimadas,
+    // TAX_ZERO_JUSTIFIED: el contrato antiguo no distinguía anticipo ausente de cero.
     vatAdvanceApplied: resumen.anticipoIvaAplicado ?? 0,
     estimatedTaxTotal: resumen.totalTributarioEstimado,
     preventiveMarginPercent: resumen.margenPorcentaje,
