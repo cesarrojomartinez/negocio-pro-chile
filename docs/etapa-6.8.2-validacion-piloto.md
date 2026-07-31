@@ -111,3 +111,55 @@ Resultado de la validación honesta (sin llamadas al proveedor, 0 créditos):
 Ninguna empresa cumple los criterios de promoción. Ambas quedaron en modo
 `shadow` y sus cifras visibles fueron restauradas con el motor antiguo
 (enero 2026 de la maderera: IVA 574.605 y total 617.475, coincidente con el F29).
+
+## Cierre definitivo Fase 6 — resultado honesto (sin promoción)
+
+Verificación ejecutada solo sobre datos ya guardados: **0 consultas al SII o a
+API Gateway, 0 créditos**.
+
+Estado real encontrado antes de tocar nada: ninguna empresa estaba en
+`compatibility` (ambas quedaron en `shadow` en la reversión anterior) y **ningún**
+resumen mensual tenía `calculation_engine = "unified"`.
+
+### A. Causa de `calculation_engine = "legacy"` en la panadería
+No es un problema de metadatos: la empresa nunca llegó a `compatibility`, no
+existe ningún `tax_mirror_calculation_runs` para ella y la persistencia sigue
+recorriendo legítimamente la ruta legada. Etiquetarla como `unified` habría sido
+falsificar metadatos, por lo que no se modificó ninguna fila.
+
+### B. Diferencias bloqueantes (legacy vs compatibility_projection)
+
+Panadería (14 periodos, 2 exactos): `vatCredit` con brechas de $15.046 a
+$687.109, `estimatedWithholdings` de $4 a $9.857, `ppmRate` 0,02 vs 0,10 en
+2026-06 y, en 2026-07, PPM $190.444 vs $0 con `ppmRate` nulo en el núcleo.
+
+Madera (13 periodos): 2025-12 IVA a pagar $2.191.842 vs $0; 2026-01 `ppmRate`
+0,01 vs 1; 2026-03 remanente previo $208.968 vs $209.180; 2026-04 total
+$863.997 vs $0; 2026-05 total $2.013.931 vs $0; 2026-06 total $1.125.729 vs $0;
+2026-07 total $2.837.005 vs $0. El patrón dominante es que el núcleo unificado
+no dispone de la tasa de PPM vigente ni del IVA determinado en esos periodos y
+devuelve `null`/0 en vez de la cifra antigua.
+
+Conclusión: **no se promueve ninguna empresa**. Ambas permanecen en `shadow` con
+sus cifras visibles intactas (motor antiguo).
+
+### C. Configuración tributaria opcional
+`entradaUnificadaPeriodo` (`src/lib/mirror/server.ts`) resuelve la configuración
+vigente con `configuracionOpcionalDePeriodo` y la entrega dentro de
+`unifiedInput.optionalConfig`, además de participar del `calculation_input_hash`
+vía `configFingerprint`. No es solo visual.
+
+### D. Motor legado
+`registrarInvocacionLegada` sigue siendo la única puerta y solo se dispara fuera
+de `compatibility`. Como no hay empresas en `compatibility`, el conteo de
+invocaciones legadas productivas en ese modo es 0. Los adaptadores antiguos se
+conservan para `shadow` y rollback.
+
+### E. Rollback
+Probado sobre la panadería (`scripts/_fase6_rollback.ts`): `compatibility` →
+`shadow`, cifras idénticas, corridas y comparaciones conservadas, 0 consultas
+externas.
+
+### F. Pruebas
+`bunx vitest run`: 42 archivos, 689 pruebas, 689 aprobadas, 0 omitidas, 0
+fallidas. `tsgo --noEmit`: limpio.
