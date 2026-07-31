@@ -29,6 +29,8 @@ import {
   type AnalisisPayload,
 } from "@/integrations/sii/f29RawAnalysis";
 import { esRutValido, normalizarRut } from "@/lib/rut";
+import { aPeriodoCompacto } from "@/lib/periodo";
+
 import {
   empresaAutorizadaParaPruebaReal,
   leerConfiguracion,
@@ -181,15 +183,21 @@ function desdeLog(log: ApiGatewayCallLog | null) {
   };
 }
 
-/** Extrae el folio del listado sin exponerlo. */
+/**
+ * Extrae el folio del listado sin exponerlo.
+ * Solo acepta declaraciones del MISMO periodo solicitado: nunca cae en la
+ * primera fila disponible, porque eso podía tomar el folio de otro mes.
+ */
 function extraerFolio(items: unknown[], periodo: string): string | null {
-  const compacto = periodo.replace("-", "");
+  const compacto = aPeriodoCompacto(periodo);
   const candidatos = items.filter((i) => i && typeof i === "object") as Record<string, unknown>[];
-  const delPeriodo =
-    candidatos.find((i) => String(i.periodo ?? "").replace("-", "") === compacto) ?? candidatos[0];
+  const delPeriodo = candidatos.find(
+    (i) => String(i.periodo ?? "").replace("-", "") === compacto,
+  );
   const folio = delPeriodo?.folio;
   return folio == null || folio === "" ? null : String(folio);
 }
+
 
 function clasificar(
   terminos: string[],

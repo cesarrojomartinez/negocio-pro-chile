@@ -19,6 +19,8 @@ import {
 } from "@/integrations/sii/apiGatewayClient";
 import { SiiProviderError } from "@/integrations/sii/contracts";
 import { esRutValido, normalizarRut } from "@/lib/rut";
+import { normalizarPeriodo } from "@/lib/periodo";
+
 import {
   empresaAutorizadaParaPruebaReal,
   leerConfiguracion,
@@ -53,9 +55,12 @@ export interface EntradaPruebaReal {
 export interface ResultadoF29Automatico {
   estado: "leido" | "no_declarado" | "revisar" | "omitido";
   mensaje: string;
+  /** Código específico del F29 (F29_NOT_DECLARED, F29_PERIOD_MISMATCH, etc.). */
+  codigo: string | null;
   folio: string | null;
   recalculado: boolean;
 }
+
 
 export interface ResultadoPruebaReal {
   conexion: ConexionSii | null;
@@ -103,11 +108,17 @@ export async function ejecutarPruebaRealApiGateway(
   if (!entrada.consentimiento)
     throw new ErrorNegocio("Necesitamos tu autorización expresa para continuar.");
 
+  // El periodo es texto AAAA-MM de principio a fin: nunca se convierte a fecha.
+  const periodo = normalizarPeriodo(entrada.periodo);
+  if (!periodo) throw new ErrorNegocio("El periodo debe tener el formato AAAA-MM.");
+  entrada = { ...entrada, periodo };
+
   const rutUsuario = normalizarRut(entrada.rutUsuario ?? "");
   if (!esRutValido(rutUsuario))
     throw new ErrorNegocio("El RUT del usuario autorizado no es válido.");
   if (!entrada.claveTributaria || entrada.claveTributaria.length < 4)
     throw new ErrorNegocio("La clave indicada no es válida.");
+
 
   const { data: empresa } = await supabaseAdmin
     .from("tax_companies")
@@ -232,6 +243,7 @@ export async function ejecutarPruebaRealApiGateway(
       f29: {
         estado: "omitido",
         mensaje: "No se revisó el Formulario 29 en esta actualización.",
+        codigo: null,
         folio: null,
         recalculado: false,
       },
@@ -251,10 +263,12 @@ export async function ejecutarPruebaRealApiGateway(
 
   // 4. Formulario 29 oficial del mismo periodo: ocurre solo, sin pasos extra
   //    para la persona. Si el periodo aún no tiene declaración, simplemente se
-  //    mantiene la estimación del RCV. Nunca interrumpe la actualización.
+  //    mantiene la estimación del RCV. Nunca interrumpe la actualización ni
+  //    borra las ventas y compras ya guardadas.
   let f29: ResultadoF29Automatico = {
     estado: "omitido",
     mensaje: "No se revisó el Formulario 29 en esta actualización.",
+    codigo: null,
     folio: null,
     recalculado: false,
   };
@@ -275,21 +289,32 @@ export async function ejecutarPruebaRealApiGateway(
             ? "revisar"
             : "leido",
         mensaje: r.errorCodigo
-          ? r.mensaje
+          ? `${r.mensaje} Tus ventas y compras sí quedaron actualizadas.`
           : "Leímos el Formulario 29 oficial de este periodo.",
+        codigo: r.errorCodigo ?? null,
         folio: r.extraccion?.folio ?? null,
         recalculado: r.recalculado,
       };
-    } catch {
+    } catch (error) {
+      const codigoF29 =
+        error && typeof error === "object" && "codigo" in error
+          ? String((error as { codigo: unknown }).codigo)
+          : error instanceof SiiProviderError
+            ? error.code
+            : "F29_UNKNOWN_ERROR";
       f29 = {
-        estado: "revisar",
+        estado: codigoF29 === "F29_NOT_DECLARED" ? "no_declarado" : "revisar",
         mensaje:
-          "Actualizamos tus ventas y compras, pero no pudimos leer el Formulario 29 de este periodo.",
+          error instanceof Error && error.name === "ErrorF29"
+            ? `${error.message} Tus ventas y compras sí quedaron actualizadas.`
+            : "Las ventas y compras fueron actualizadas, pero no pudimos leer el Formulario 29.",
+        codigo: codigoF29,
         folio: null,
         recalculado: false,
       };
     }
   }
+
 
   await registrarActividad(
     entrada.companyId,
@@ -298,10 +323,13 @@ export async function ejecutarPruebaRealApiGateway(
     "tax_sii_connections",
     {
       proveedor: "api_gateway",
+      periodo: entrada.periodo,
       estado: sincronizacion.estado,
       f29: f29.estado,
+      f29_codigo: f29.codigo,
       ...consumo(),
     },
+
   );
 
 

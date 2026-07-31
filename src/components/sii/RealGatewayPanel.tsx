@@ -14,6 +14,8 @@ import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import { formatFechaHora } from "@/utils/currency";
 import { mensajeProveedor } from "@/utils/mensajesProveedor";
 import { esRutValido, formatearRut } from "@/lib/rut";
+import { esPeriodoValido, etiquetaPeriodo, normalizarPeriodo } from "@/lib/periodo";
+
 
 /** Códigos que indican sesión vencida del proveedor (no clave incorrecta). */
 const CODIGOS_SESION_VENCIDA = ["SESSION_INVALID", "SESSION_EXPIRED", "AUTH_EXPIRED"];
@@ -38,6 +40,9 @@ export function RealGatewayPanel() {
   const [sesionNueva, setSesionNueva] = useState(false);
   const [clave, setClave] = useState("");
   const [periodo, setPeriodo] = useState(periodoId);
+  /** Última vez que el usuario tocó el selector de este formulario. */
+  const [periodoManual, setPeriodoManual] = useState(false);
+
   const [acepta, setAcepta] = useState(false);
   const [ejecutando, setEjecutando] = useState(false);
   /** Resumen simple de la última actualización, sin lenguaje técnico. */
@@ -47,6 +52,9 @@ export function RealGatewayPanel() {
     texto: string;
     tono: "success" | "warning" | "error" | "info";
     f29: string;
+    /** Verdadero cuando el RCV quedó al día pero el F29 no se pudo leer. */
+    f29Pendiente: boolean;
+
   } | null>(null);
 
   const esDueno = empresaActiva?.rol === "owner";
@@ -77,15 +85,29 @@ export function RealGatewayPanel() {
     }
   }, [solicitudActualizacionReal]);
 
+  // El formulario SIEMPRE sigue al periodo elegido en la pantalla, salvo que la
+  // persona haya elegido otro mes aquí mismo. Antes el valor quedaba congelado
+  // en el periodo que estaba activo al montar el panel y se actualizaba un mes
+  // distinto al seleccionado.
+  useEffect(() => {
+    if (!periodoManual && periodoId && periodoId !== periodo) setPeriodo(periodoId);
+  }, [periodoId, periodoManual, periodo]);
+
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
   const actualizar = async () => {
     if (!empresaActiva) return;
+    // El periodo viaja como texto AAAA-MM: nunca se convierte a fecha.
+    const periodoSolicitado = normalizarPeriodo(periodo);
+    if (!periodoSolicitado) {
+      toast.error("Elige un periodo válido (mes y año).");
+      return;
+    }
     setEjecutando(true);
     try {
       const r = await apiGatewayService.ejecutarPrueba({
         companyId: empresaActiva.id,
-        periodo,
+        periodo: periodoSolicitado,
         rutUsuario,
         claveTributaria: clave,
         sesionNueva,
@@ -99,12 +121,16 @@ export function RealGatewayPanel() {
         productosVerificados: true,
       });
       setResumen({
-        periodo,
+        // El servidor devuelve el periodo que realmente actualizó.
+        periodo: r.sincronizacion?.periodo ?? periodoSolicitado,
         fecha: new Date().toISOString(),
         texto: m.texto,
         tono: m.tono as "success" | "warning" | "error" | "info",
         f29: r.f29.mensaje,
+        f29Pendiente: r.f29.estado === "revisar" || r.f29.estado === "no_declarado",
+
       });
+
       if (m.tono === "error") toast.error(m.texto);
       else if (m.tono === "warning") toast.warning(m.texto);
       else if (m.tono === "info") toast.info(m.texto);
@@ -190,8 +216,14 @@ export function RealGatewayPanel() {
                 name="sii_periodo"
                 type="month"
                 value={periodo}
-                onChange={(e) => setPeriodo(e.target.value)}
+                onChange={(e) => {
+                  setPeriodoManual(true);
+                  setPeriodo(e.target.value);
+                }}
               />
+              <p className="text-xs text-muted-foreground">
+                Se actualizará {etiquetaPeriodo(periodo)} ({periodo}).
+              </p>
             </div>
           </div>
 
@@ -210,9 +242,11 @@ export function RealGatewayPanel() {
               onCheckedChange={(v) => setAcepta(v === true)}
             />
             <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
-              Autorizo actualizar mi información del SII para el periodo {periodo}.
+              Autorizo actualizar mi información del SII para {etiquetaPeriodo(periodo)}{" "}
+              ({periodo}).
             </Label>
           </div>
+
 
           {sesionNueva && (
             <p className="mt-3 rounded-xl bg-warning-soft px-3 py-2 text-xs">
@@ -225,8 +259,14 @@ export function RealGatewayPanel() {
             <Button
               type="submit"
               disabled={
-                !acepta || !rutUsuario || !clave || ejecutando || !diagnostico.puedeConsultar
+                !acepta ||
+                !rutUsuario ||
+                !clave ||
+                ejecutando ||
+                !esPeriodoValido(normalizarPeriodo(periodo) ?? "") ||
+                !diagnostico.puedeConsultar
               }
+
             >
               {ejecutando ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -240,15 +280,24 @@ export function RealGatewayPanel() {
 
         {resumen && (
           <div className={`mt-4 rounded-2xl border p-4 text-sm ${estilo}`}>
-            <p className="font-semibold">Última actualización · {resumen.periodo}</p>
+            <p className="font-semibold">
+              Última actualización · {etiquetaPeriodo(resumen.periodo)}
+            </p>
             <p className="mt-1">{resumen.texto}</p>
-            <p className="mt-1 text-muted-foreground">{resumen.f29}</p>
+            <p
+              className={`mt-1 ${
+                resumen.f29Pendiente ? "text-amber-700" : "text-muted-foreground"
+              }`}
+            >
+              {resumen.f29}
+            </p>
             <p className="mt-2 text-xs text-muted-foreground">
               {formatFechaHora(resumen.fecha)}. Estimación informativa: no reemplaza a
               tu contador.
             </p>
           </div>
         )}
+
       </SectionCard>
     </div>
   );
