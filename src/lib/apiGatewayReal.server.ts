@@ -218,7 +218,9 @@ export async function ejecutarPruebaRealApiGateway(
         proveedor,
         proveedorId: "api_gateway",
         registro,
-        omitirPoliticaCache: true,
+        // Cada periodo decide por sí mismo si necesita volver a consultarse.
+        politicaPorPeriodo: true,
+
       },
     );
   } catch (error) {
