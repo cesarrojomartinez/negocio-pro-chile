@@ -301,6 +301,32 @@ function suma(codigos: MapaCodigos, codes: string[]): number | null {
   return presentes.length ? presentes.reduce((a, b) => a + b, 0) : null;
 }
 
+/**
+ * El código 115 se imprime como porcentaje y admite tasas menores a 1 %
+ * ("0,1" = 0,1 %). Para no confundir 0,1 % con 10 % se elige la lectura que
+ * reproduce el PPM declarado (código 62) a partir de la base (código 563).
+ */
+export function conciliarTasaPpm(
+  tasa: number | null,
+  base: number | null,
+  ppm: number | null,
+): number | null {
+  if (tasa == null || tasa === 0) return tasa;
+  if (base == null || base <= 0 || ppm == null || ppm <= 0) return tasa;
+  const candidatas = [tasa, tasa / 100, tasa * 100];
+  let mejor = tasa;
+  let menorDiferencia = Number.POSITIVE_INFINITY;
+  for (const candidata of candidatas) {
+    const diferencia = Math.abs(base * candidata - ppm);
+    if (diferencia < menorDiferencia) {
+      menorDiferencia = diferencia;
+      mejor = candidata;
+    }
+  }
+  // Solo se corrige cuando la alternativa cuadra de verdad con el PPM.
+  return menorDiferencia <= Math.max(2, ppm * 0.01) ? mejor : tasa;
+}
+
 export function construirCamposNormalizados(codigos: MapaCodigos): CamposNormalizadosF29 {
   const totalCreditos = valor(codigos, "537");
   const remanenteAnterior = valor(codigos, "504");
@@ -308,6 +334,8 @@ export function construirCamposNormalizados(codigos: MapaCodigos): CamposNormali
     totalCreditos != null && remanenteAnterior != null
       ? totalCreditos - remanenteAnterior
       : suma(codigos, ["511", "520"]);
+  const basePpm = valor(codigos, "563");
+  const ppm = valor(codigos, "62");
 
   return {
     declared_vat_debit: valor(codigos, "538"),
@@ -316,9 +344,9 @@ export function construirCamposNormalizados(codigos: MapaCodigos): CamposNormali
     declared_total_vat_credits: totalCreditos,
     declared_vat_payable: valor(codigos, "89"),
     declared_new_carryforward: valor(codigos, "77"),
-    declared_ppm_base: valor(codigos, "563"),
-    declared_ppm_rate: valor(codigos, "115"),
-    declared_ppm: valor(codigos, "62"),
+    declared_ppm_base: basePpm,
+    declared_ppm_rate: conciliarTasaPpm(valor(codigos, "115"), basePpm, ppm),
+    declared_ppm: ppm,
     declared_subtotal: valor(codigos, "595"),
     declared_total_determined: valor(codigos, "547"),
     declared_total_payable: valor(codigos, "91"),
@@ -326,6 +354,7 @@ export function construirCamposNormalizados(codigos: MapaCodigos): CamposNormali
     declared_withholdings: suma(codigos, ["48", "151", "153", "50", "39"]),
   };
 }
+
 
 // -------------------------------------------------------------- validaciones
 
