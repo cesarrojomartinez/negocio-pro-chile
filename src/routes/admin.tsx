@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AlertTriangle, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 
@@ -94,10 +94,25 @@ function AdminPage() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <header>
+        <header className="space-y-2">
           <h1 className="text-xl font-bold sm:text-2xl">Panel de administración</h1>
           <p className="text-sm text-muted-foreground">
             Uso interno. Muestra clientes, planes, consumo y alertas operativas.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <Link to="/" className="font-medium text-primary hover:underline">
+              Volver al dashboard
+            </Link>
+            <span className="text-muted-foreground" aria-hidden>
+              ·
+            </span>
+            <Link to="/cuenta" className="text-muted-foreground hover:underline">
+              Cambiar mi contraseña
+            </Link>
+          </div>
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            Si ingresaste con una contraseña temporal, cámbiala desde la configuración de
+            tu cuenta.
           </p>
         </header>
 

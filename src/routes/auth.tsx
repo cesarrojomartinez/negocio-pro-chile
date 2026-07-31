@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { esAdministradorFn } from "@/lib/cuenta.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -58,6 +59,13 @@ function Autenticacion() {
       return;
     }
     toast.success("Sesión iniciada");
+    // El rol global se consulta en el servidor: nunca se confía en un valor
+    // guardado en el navegador para abrir el panel Master.
+    const rol = await esAdministradorFn();
+    if (rol.ok && rol.data) {
+      void navigate({ to: "/admin" });
+      return;
+    }
     void navigate({ to: "/" });
   }
 
