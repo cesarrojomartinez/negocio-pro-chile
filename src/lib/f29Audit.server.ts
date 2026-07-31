@@ -29,6 +29,8 @@ import {
   type AnalisisPayload,
 } from "@/integrations/sii/f29RawAnalysis";
 import { esRutValido, normalizarRut } from "@/lib/rut";
+import { aPeriodoCompacto } from "@/lib/periodo";
+
 import {
   empresaAutorizadaParaPruebaReal,
   leerConfiguracion,
