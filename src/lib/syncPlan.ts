@@ -411,27 +411,31 @@ export class ControlPlanEjecucion {
   }
 
   /**
-   * Descarga del PDF del F29. Además del recurso planificado, admite el caso
-   * de la RECTIFICATORIA: el periodo ya tenía un folio leído y el listado
-   * oficial informa uno distinto. Solo entonces se amplía el plan, por un
-   * único folio nuevo y dejando constancia.
+   * Incorpora un recurso al plan SOLO a partir de una ampliación ya aprobada
+   * (PlanAmendment). No existe ningún otro camino: el portero jamás autoriza
+   * por tipo de recurso, por folio nuevo, por rectificatoria ni por rol.
    */
-  autorizarDescargaF29(periodo: string, folio: string): void {
-    const id = `f29_pdf:${periodo}`;
-    const conocido = this.plan.knownFolios[periodo] ?? null;
-    if (!this.estaPlanificado(id) && conocido && conocido !== folio) {
-      this.cupos.set(id, MAX_PDF_POR_FOLIO);
-      this.plan.approvedResources.push({
-        id,
-        recurso: "f29_pdf",
-        referencia: periodo,
-        cupo: MAX_PDF_POR_FOLIO,
-      });
-      this.plan.foliosRequiringDownload.push(periodo);
-      this.plan.expectedPdfDownloads += MAX_PDF_POR_FOLIO;
-      this.plan.expectedProviderCalls += MAX_PDF_POR_FOLIO;
-    }
-    this.autorizar(id);
+  aplicarAmpliacion(ampliacion: AmpliacionAprobada): void {
+    if (this.cupos.has(ampliacion.recursoId)) return;
+    this.cupos.set(ampliacion.recursoId, ampliacion.llamadasAdicionales);
+    this.plan.approvedResources.push({
+      id: ampliacion.recursoId,
+      recurso: "f29_pdf",
+      referencia: ampliacion.periodo,
+      cupo: ampliacion.llamadasAdicionales,
+    });
+    if (!this.plan.foliosRequiringDownload.includes(ampliacion.periodo))
+      this.plan.foliosRequiringDownload.push(ampliacion.periodo);
+    this.plan.expectedPdfDownloads += ampliacion.llamadasAdicionales;
+    this.plan.expectedProviderCalls += ampliacion.llamadasAdicionales;
+    this.plan.expectedCreditRange = {
+      min: this.plan.expectedCreditRange.min,
+      max: Number(
+        (this.plan.expectedCreditRange.max + ampliacion.creditoAdicionalMax).toFixed(4),
+      ),
+    };
+    this.plan.planAmended = true;
+    this.plan.amendments = [...(this.plan.amendments ?? []), ampliacion];
   }
 
   /** Registra que un recurso planificado se resolvió con caché, sin costo. */
