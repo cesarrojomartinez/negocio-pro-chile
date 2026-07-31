@@ -11,14 +11,18 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ActualizarClaveRouteImport } from './routes/actualizar-clave'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ComprasRouteImport } from './routes/compras'
 import { Route as ConfiguracionRouteImport } from './routes/configuracion'
+import { Route as CuentaRouteImport } from './routes/cuenta'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
+import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
+import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as VentasRouteImport } from './routes/ventas'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const ActualizarClaveRoute = ActualizarClaveRouteImport.update({
   id: '/actualizar-clave',
   path: '/actualizar-clave',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -46,6 +55,11 @@ const ConfiguracionRoute = ConfiguracionRouteImport.update({
   path: '/configuracion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CuentaRoute = CuentaRouteImport.update({
+  id: '/cuenta',
+  path: '/cuenta',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DocumentosRoute = DocumentosRouteImport.update({
   id: '/documentos',
   path: '/documentos',
@@ -54,6 +68,11 @@ const DocumentosRoute = DocumentosRouteImport.update({
 const ImpuestosRoute = ImpuestosRouteImport.update({
   id: '/impuestos',
   path: '/impuestos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitacionRoute = InvitacionRouteImport.update({
+  id: '/invitacion',
+  path: '/invitacion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MetasRoute = MetasRouteImport.update({
@@ -71,6 +90,11 @@ const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
   path: '/recuperar-clave',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SoporteRoute = SoporteRouteImport.update({
+  id: '/soporte',
+  path: '/soporte',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VentasRoute = VentasRouteImport.update({
   id: '/ventas',
   path: '/ventas',
@@ -80,41 +104,53 @@ const VentasRoute = VentasRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/actualizar-clave': typeof ActualizarClaveRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/cuenta': typeof CuentaRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
+  '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/actualizar-clave': typeof ActualizarClaveRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/cuenta': typeof CuentaRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
+  '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/actualizar-clave': typeof ActualizarClaveRoute
+  '/admin': typeof AdminRoute
   '/auth': typeof AuthRoute
   '/compras': typeof ComprasRoute
   '/configuracion': typeof ConfiguracionRoute
+  '/cuenta': typeof CuentaRoute
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
+  '/invitacion': typeof InvitacionRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
 export interface FileRouteTypes {
@@ -122,54 +158,70 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/actualizar-clave'
+    | '/admin'
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/cuenta'
     | '/documentos'
     | '/impuestos'
+    | '/invitacion'
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/soporte'
     | '/ventas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/actualizar-clave'
+    | '/admin'
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/cuenta'
     | '/documentos'
     | '/impuestos'
+    | '/invitacion'
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/soporte'
     | '/ventas'
   id:
     | '__root__'
     | '/'
     | '/actualizar-clave'
+    | '/admin'
     | '/auth'
     | '/compras'
     | '/configuracion'
+    | '/cuenta'
     | '/documentos'
     | '/impuestos'
+    | '/invitacion'
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/soporte'
     | '/ventas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ActualizarClaveRoute: typeof ActualizarClaveRoute
+  AdminRoute: typeof AdminRoute
   AuthRoute: typeof AuthRoute
   ComprasRoute: typeof ComprasRoute
   ConfiguracionRoute: typeof ConfiguracionRoute
+  CuentaRoute: typeof CuentaRoute
   DocumentosRoute: typeof DocumentosRoute
   ImpuestosRoute: typeof ImpuestosRoute
+  InvitacionRoute: typeof InvitacionRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
+  SoporteRoute: typeof SoporteRoute
   VentasRoute: typeof VentasRoute
 }
 
@@ -187,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/actualizar-clave'
       fullPath: '/actualizar-clave'
       preLoaderRoute: typeof ActualizarClaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -210,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfiguracionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cuenta': {
+      id: '/cuenta'
+      path: '/cuenta'
+      fullPath: '/cuenta'
+      preLoaderRoute: typeof CuentaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/documentos': {
       id: '/documentos'
       path: '/documentos'
@@ -222,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/impuestos'
       fullPath: '/impuestos'
       preLoaderRoute: typeof ImpuestosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invitacion': {
+      id: '/invitacion'
+      path: '/invitacion'
+      fullPath: '/invitacion'
+      preLoaderRoute: typeof InvitacionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/metas': {
@@ -245,6 +318,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecuperarClaveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/soporte': {
+      id: '/soporte'
+      path: '/soporte'
+      fullPath: '/soporte'
+      preLoaderRoute: typeof SoporteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ventas': {
       id: '/ventas'
       path: '/ventas'
@@ -258,26 +338,20 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ActualizarClaveRoute: ActualizarClaveRoute,
+  AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   ComprasRoute: ComprasRoute,
   ConfiguracionRoute: ConfiguracionRoute,
+  CuentaRoute: CuentaRoute,
   DocumentosRoute: DocumentosRoute,
   ImpuestosRoute: ImpuestosRoute,
+  InvitacionRoute: InvitacionRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
+  SoporteRoute: SoporteRoute,
   VentasRoute: VentasRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

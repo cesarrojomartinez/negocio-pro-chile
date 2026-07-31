@@ -91,6 +91,47 @@ export type Database = {
           },
         ]
       }
+      tax_admin_alerts: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          message: string
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind: string
+          message: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind?: string
+          message?: string
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_admin_alerts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_alerts: {
         Row: {
           action_label: string | null
@@ -156,6 +197,63 @@ export type Database = {
             columns: ["tax_period_id"]
             isOneToOne: false
             referencedRelation: "tax_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_billing_events: {
+        Row: {
+          amount_clp: number | null
+          company_id: string
+          created_at: string
+          currency: string
+          event_type: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          reference: string | null
+          status: string
+          subscription_id: string | null
+        }
+        Insert: {
+          amount_clp?: number | null
+          company_id: string
+          created_at?: string
+          currency?: string
+          event_type: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          reference?: string | null
+          status?: string
+          subscription_id?: string | null
+        }
+        Update: {
+          amount_clp?: number | null
+          company_id?: string
+          created_at?: string
+          currency?: string
+          event_type?: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          reference?: string | null
+          status?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_billing_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_billing_events_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "tax_company_subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -271,6 +369,62 @@ export type Database = {
         }
         Relationships: []
       }
+      tax_company_invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          company_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          revoked_at: string | null
+          role: Database["public"]["Enums"]["app_company_role"]
+          status: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id: string
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["app_company_role"]
+          status?: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          company_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          revoked_at?: string | null
+          role?: Database["public"]["Enums"]["app_company_role"]
+          status?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_company_invitations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_company_members: {
         Row: {
           company_id: string
@@ -373,6 +527,84 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: true
             referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_company_subscriptions: {
+        Row: {
+          cancelled_at: string | null
+          company_id: string
+          created_at: string
+          current_period_start: string
+          external_reference: string | null
+          id: string
+          next_renewal_at: string | null
+          payment_method_label: string | null
+          payment_provider: string | null
+          plan_id: string
+          started_at: string
+          status: Database["public"]["Enums"]["account_status"]
+          suspended_at: string | null
+          suspension_reason: string | null
+          trial_ends_at: string | null
+          updated_at: string
+          updates_used: number
+          usage_month: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          company_id: string
+          created_at?: string
+          current_period_start?: string
+          external_reference?: string | null
+          id?: string
+          next_renewal_at?: string | null
+          payment_method_label?: string | null
+          payment_provider?: string | null
+          plan_id: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["account_status"]
+          suspended_at?: string | null
+          suspension_reason?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+          updates_used?: number
+          usage_month?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          company_id?: string
+          created_at?: string
+          current_period_start?: string
+          external_reference?: string | null
+          id?: string
+          next_renewal_at?: string | null
+          payment_method_label?: string | null
+          payment_provider?: string | null
+          plan_id?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["account_status"]
+          suspended_at?: string | null
+          suspension_reason?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string
+          updates_used?: number
+          usage_month?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_company_subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_company_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "tax_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -501,6 +733,53 @@ export type Database = {
             columns: ["run_id"]
             isOneToOne: false
             referencedRelation: "tax_mirror_calculation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_data_requests: {
+        Row: {
+          company_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          reason: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_data_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
             referencedColumns: ["id"]
           },
         ]
@@ -2156,6 +2435,63 @@ export type Database = {
           },
         ]
       }
+      tax_plans: {
+        Row: {
+          accountant_access: boolean
+          code: string
+          created_at: string
+          description: string | null
+          gateway_budget_units: number
+          id: string
+          initial_history_periods: number
+          is_active: boolean
+          max_companies: number
+          max_users: number
+          monthly_updates_included: number
+          name: string
+          price_clp: number | null
+          sort_order: number
+          support_level: string
+          updated_at: string
+        }
+        Insert: {
+          accountant_access?: boolean
+          code: string
+          created_at?: string
+          description?: string | null
+          gateway_budget_units?: number
+          id?: string
+          initial_history_periods?: number
+          is_active?: boolean
+          max_companies?: number
+          max_users?: number
+          monthly_updates_included?: number
+          name: string
+          price_clp?: number | null
+          sort_order?: number
+          support_level?: string
+          updated_at?: string
+        }
+        Update: {
+          accountant_access?: boolean
+          code?: string
+          created_at?: string
+          description?: string | null
+          gateway_budget_units?: number
+          id?: string
+          initial_history_periods?: number
+          is_active?: boolean
+          max_companies?: number
+          max_users?: number
+          monthly_updates_included?: number
+          name?: string
+          price_clp?: number | null
+          sort_order?: number
+          support_level?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tax_provider_snapshots: {
         Row: {
           company_id: string
@@ -2385,6 +2721,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tax_sii_connections_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tax_support_tickets: {
+        Row: {
+          attachment_path: string | null
+          category: string
+          company_id: string | null
+          created_at: string
+          id: string
+          message: string
+          period: string | null
+          sanitized_code: string | null
+          status: string
+          sync_run_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attachment_path?: string | null
+          category: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          period?: string | null
+          sanitized_code?: string | null
+          status?: string
+          sync_run_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attachment_path?: string | null
+          category?: string
+          company_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          period?: string | null
+          sanitized_code?: string | null
+          status?: string
+          sync_run_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_support_tickets_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "tax_companies"
@@ -2801,6 +3190,65 @@ export type Database = {
           },
         ]
       }
+      tax_usage_ledger: {
+        Row: {
+          cache_hits: number
+          category: string
+          company_id: string
+          cost_units: number
+          created_at: string
+          errors: number
+          id: string
+          new_pdfs: number
+          occurred_at: string
+          outside_economic_flow: boolean
+          period: string | null
+          requests: number
+          sync_run_id: string | null
+          usage_month: string
+        }
+        Insert: {
+          cache_hits?: number
+          category: string
+          company_id: string
+          cost_units?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          new_pdfs?: number
+          occurred_at?: string
+          outside_economic_flow?: boolean
+          period?: string | null
+          requests?: number
+          sync_run_id?: string | null
+          usage_month: string
+        }
+        Update: {
+          cache_hits?: number
+          category?: string
+          company_id?: string
+          cost_units?: number
+          created_at?: string
+          errors?: number
+          id?: string
+          new_pdfs?: number
+          occurred_at?: string
+          outside_economic_flow?: boolean
+          period?: string | null
+          requests?: number
+          sync_run_id?: string | null
+          usage_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_usage_ledger_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "tax_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_validation_runs: {
         Row: {
           actual_credits: number
@@ -2921,6 +3369,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2929,7 +3398,14 @@ export type Database = {
       normalize_rut: { Args: { _rut: string }; Returns: string }
     }
     Enums: {
+      account_status:
+        | "trial"
+        | "active"
+        | "payment_pending"
+        | "suspended"
+        | "cancelled"
       app_company_role: "owner" | "business_user" | "accountant" | "viewer"
+      app_role: "admin" | "support" | "user"
       company_member_status: "invited" | "active" | "suspended" | "removed"
       sii_auth_method: "demo" | "tax_key" | "certificate"
       sii_connection_status:
@@ -3138,7 +3614,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: [
+        "trial",
+        "active",
+        "payment_pending",
+        "suspended",
+        "cancelled",
+      ],
       app_company_role: ["owner", "business_user", "accountant", "viewer"],
+      app_role: ["admin", "support", "user"],
       company_member_status: ["invited", "active", "suspended", "removed"],
       sii_auth_method: ["demo", "tax_key", "certificate"],
       sii_connection_status: [
