@@ -281,6 +281,7 @@ export function RealGatewayPanel() {
       rutUsuario,
       claveTributaria: clave,
       periodos: listaFinal,
+      incluirDetalle,
     });
     // La clave se descarta del formulario apenas comienza el trabajo.
     setClave("");
