@@ -193,6 +193,16 @@ export interface OpcionesAdaptadorReal {
    * consulta de la ejecución. Nunca queda activado de forma permanente.
    */
   sesionNueva?: boolean;
+  /**
+   * Modo económico (el de la actualización normal): se leen únicamente los
+   * RESÚMENES oficiales del RCV. No se descarga el detalle documento por
+   * documento ni se consultan los estados secundarios de compras, porque la
+   * pantalla no los usa y sus cifras ya vienen en el resumen.
+   * El detalle sigue existiendo como capacidad técnica interna.
+   */
+  soloResumen?: boolean;
+  /** Estados de compras a consultar. Por omisión, los del flujo normal. */
+  estadosCompras?: readonly string[];
 }
 
 /**
@@ -204,8 +214,12 @@ export function crearAdaptadorApiGateway(
 ): SiiProviderAdapter {
   const { config, credenciales, registro } = opciones;
   const maxTipos = opciones.maxTiposPorModulo ?? 6;
+  const soloResumen = opciones.soloResumen === true;
+  const estadosPermitidos: readonly string[] =
+    opciones.estadosCompras ?? Object.values(ESTADOS_RCV_COMPRAS);
   /** Se consume en la primera solicitud y no se vuelve a aplicar. */
   let sinCacheAuthPendiente = opciones.sesionNueva === true;
+
 
   // Cuerpo EXACTO exigido por API Gateway: solo `auth.pass.rut` (el RUT del
   // usuario autorizado, sin puntos y con guion) y `auth.pass.clave`.
