@@ -95,18 +95,28 @@ export function ReservaCard({
         </ul>
       )}
 
-      <div className="mt-4">
-        <Progress value={cobertura} aria-label="Cobertura de la reserva" />
-        <p className="mt-2 text-xs text-muted-foreground">
-          Tu reserva cubre {Math.round(cobertura)}% de la estimación actual.
-        </p>
-      </div>
+      {!aFavor && (
+        <div className="mt-4">
+          <Progress value={cobertura} aria-label="Cobertura de la reserva" />
+          <p className="mt-2 text-xs text-muted-foreground">
+            Tu reserva cubre {Math.round(cobertura)}% de la estimación actual.
+          </p>
+        </div>
+      )}
 
       <div className="mt-4 rounded-2xl bg-card p-4">
         <DataRow
           label="Impuestos estimados"
           value={formatCLP(resumen.totalTributarioEstimado)}
         />
+        {remanente > 0 && (
+          <DataRow
+            label="Remanente de IVA a tu favor"
+            value={formatCLP(remanente)}
+            tone="success"
+          />
+        )}
+
         <DataRow
           label="Margen preventivo"
           value={formatCLP(resumen.margenPreventivo)}
