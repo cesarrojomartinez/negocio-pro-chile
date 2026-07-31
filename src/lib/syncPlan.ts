@@ -13,6 +13,11 @@ import {
   puedeReintentarDescargaF29,
   type MotivoActualizacion,
 } from "@/lib/syncEconomica";
+/** Solo el tipo: la evaluación de la ampliación vive en `planAmendment`. */
+import type { PropuestaAmpliacion } from "@/lib/planAmendment";
+
+/** Ampliación ya aprobada por `evaluarAmpliacion`. */
+export type AmpliacionAprobada = PropuestaAmpliacion;
 
 /* --------------------------- Límites internos --------------------------- */
 
