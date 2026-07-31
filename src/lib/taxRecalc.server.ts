@@ -363,6 +363,7 @@ export async function recalculateTaxPeriod(
   const periodoData: PeriodoData = {
     periodo: entrada.periodo,
     documentosVenta: docs.venta,
+    ventasAgregadasResumen: ventasAgregadasDelResumen(periodoRow.rcv_summary),
     documentosCompra: docs.compra,
     remanenteAnterior: parametros.remanenteAnterior,
     fuenteRemanente: parametros.fuenteRemanente,
