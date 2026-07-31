@@ -176,13 +176,15 @@ export function interpretarAntecedenteF29(
 
   const coherencia = evaluarCoherenciaPpmF29(codigos);
   const tasaLeida = numero(bruto.ppm_rate);
+  const efectiva = tasaPpmEfectivaF29(codigos, tasaLeida);
 
   return {
     confirmado,
     remanenteAnterior: numero(fila.vat_carryforward),
-    // Una tasa que no cuadra con la base y el PPM del propio formulario no se
-    // entrega: arrastrarla contamina la estimación de los meses siguientes.
-    tasaPpm: coherencia.ppmCoherente ? tasaLeida : null,
+    // Si la tasa leída no cuadra con la base y el PPM del propio formulario, se
+    // deduce del formulario en vez de descartarse: dejarla en blanco hacía que
+    // el motor arrastrara la tasa del mes anterior y sobreestimara el PPM.
+    tasaPpm: efectiva.tasa,
     basePpmDeclarada: numero(bruto.ppm_tax_base),
     ppmDeclarado: numero(fila.declared_ppm),
     retenciones: numero(fila.declared_withholdings),
