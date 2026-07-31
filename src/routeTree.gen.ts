@@ -23,6 +23,7 @@ import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
+import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as VentasRouteImport } from './routes/ventas'
 
@@ -96,6 +97,11 @@ const RecuperarClaveRoute = RecuperarClaveRouteImport.update({
   path: '/recuperar-clave',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegistroRoute = RegistroRouteImport.update({
+  id: '/registro',
+  path: '/registro',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SoporteRoute = SoporteRouteImport.update({
   id: '/soporte',
   path: '/soporte',
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
@@ -140,6 +147,7 @@ export interface FileRoutesByTo {
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
+  '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
 }
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
   fileRoutesByTo: FileRoutesByTo
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
   id:
@@ -215,6 +226,7 @@ export interface FileRouteTypes {
     | '/metas'
     | '/onboarding'
     | '/recuperar-clave'
+    | '/registro'
     | '/soporte'
     | '/ventas'
   fileRoutesById: FileRoutesById
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
+  RegistroRoute: typeof RegistroRoute
   SoporteRoute: typeof SoporteRoute
   VentasRoute: typeof VentasRoute
 }
@@ -338,6 +351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecuperarClaveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/registro': {
+      id: '/registro'
+      path: '/registro'
+      fullPath: '/registro'
+      preLoaderRoute: typeof RegistroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/soporte': {
       id: '/soporte'
       path: '/soporte'
@@ -370,6 +390,7 @@ const rootRouteChildren: RootRouteChildren = {
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
+  RegistroRoute: RegistroRoute,
   SoporteRoute: SoporteRoute,
   VentasRoute: VentasRoute,
 }
