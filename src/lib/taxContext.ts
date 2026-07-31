@@ -369,7 +369,11 @@ export function construirContextoTributario(
     special_credits: creditosEspeciales,
     total_vat_credits: totalCreditos,
     gross_vat_position: posicion,
+    vat_advance_available: anticipo.disponible,
+    vat_advance_applied: anticipo.aplicado,
+    vat_advance_carryforward: anticipo.remanenteSiguiente,
     estimated_vat_payable: ivaPorPagar,
+
     estimated_new_carryforward: nuevoRemanente,
     ppm_tax_base: basePpm,
     ppm_rate: ppmDesconocido ? null : tasaPpm,
