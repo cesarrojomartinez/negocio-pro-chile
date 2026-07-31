@@ -75,7 +75,7 @@ function Inicio() {
             {nombreSaludo ? `Hola, ${nombreSaludo}` : "Hola"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Así va {nombreEmpresa} en {etiquetaPeriodo}.
+            Así va {nombreEmpresa} en {etiquetaPeriodoActual}.
           </p>
         </header>
 
