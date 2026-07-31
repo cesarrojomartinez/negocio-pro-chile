@@ -865,7 +865,7 @@ export function construirResumenCompras(
     montoFirmado(d[campo], efectoTributario(d.tipoDocumento as string));
   const aggFacturas = agregadas?.facturas;
   const aggNotas = agregadas?.notasCredito;
-  const agregado = (campo: "neto" | "iva" | "total") =>
+  const agregado = (campo: "neto" | "iva" | "total" | "exento") =>
     redondear((aggFacturas?.[campo] ?? 0) - (aggNotas?.[campo] ?? 0));
 
   const comprasTotales =
@@ -887,7 +887,8 @@ export function construirResumenCompras(
       .reduce((a, d) => a + ivaAbsoluto(d), 0) + Math.abs(seguro(aggNotas?.iva ?? 0)),
   );
   const comprasSinIva = redondear(
-    consideradas.reduce((a, d) => a + Math.abs(seguro(d.exento)), 0),
+    consideradas.reduce((a, d) => a + Math.abs(seguro(d.exento)), 0) +
+      Math.max(0, agregado("exento")),
   );
 
   const porProveedor = new Map<string, { monto: number; documentos: number }>();
