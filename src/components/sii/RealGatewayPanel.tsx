@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { KeyRound, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { KeyRound, Loader2, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { SectionCard } from "@/components/shared/SectionCard";
