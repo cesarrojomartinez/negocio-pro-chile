@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { KeyRound, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { SectionCard } from "@/components/shared/SectionCard";
@@ -9,53 +9,54 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useCompany } from "@/hooks/useCompany";
 import { useTaxDashboard } from "@/hooks/useTaxDashboard";
+import { useActualizacionMasiva } from "@/hooks/useActualizacionMasiva";
 import { apiGatewayService } from "@/services/apiGatewayService";
 import type { DiagnosticoApiGateway } from "@/lib/apiGateway.server";
 import { formatFechaHora } from "@/utils/currency";
-import { mensajeProveedor } from "@/utils/mensajesProveedor";
 import { esRutValido, formatearRut } from "@/lib/rut";
-import { esPeriodoValido, etiquetaPeriodo, normalizarPeriodo } from "@/lib/periodo";
+import {
+  esPeriodoValido,
+  etiquetaPeriodo,
+  normalizarPeriodo,
+  periodoSiguiente,
+} from "@/lib/periodo";
 
+/** Máximo de periodos por trabajo, para no saturar al proveedor. */
+const MAX_PERIODOS = 12;
 
-/** Códigos que indican sesión vencida del proveedor (no clave incorrecta). */
-const CODIGOS_SESION_VENCIDA = ["SESSION_INVALID", "SESSION_EXPIRED", "AUTH_EXPIRED"];
+/** Devuelve todos los meses entre dos periodos, ambos incluidos. */
+function rangoPeriodos(desde: string, hasta: string): string[] {
+  const lista: string[] = [];
+  let actual = desde;
+  while (actual <= hasta && lista.length <= MAX_PERIODOS) {
+    lista.push(actual);
+    actual = periodoSiguiente(actual);
+  }
+  return lista;
+}
 
 /**
- * Actualización del periodo con la información real del SII.
+ * Actualización con la información real del SII.
  *
- * Un solo paso para la persona: RUT, Clave Tributaria y Actualizar. La
- * aplicación trae las ventas y compras, busca el Formulario 29 del mismo
- * periodo, lo guarda y completa los cálculos. La clave se usa una vez y nunca
- * se guarda.
+ * Se pueden elegir varios periodos, seguidos o sueltos. La aplicación trabaja
+ * un mes a la vez y el aviso flotante sigue el avance aunque se cambie de
+ * pantalla. La clave se usa una vez y nunca se guarda.
  */
 export function RealGatewayPanel() {
   const { empresaActiva } = useCompany();
-  const { periodoId, refrescarDatos, solicitudActualizacionReal } = useTaxDashboard();
+  const { periodoId, solicitudActualizacionReal } = useTaxDashboard();
+  const { iniciar, enCurso, terminado, items, totales } = useActualizacionMasiva();
   const contenedorRef = useRef<HTMLDivElement | null>(null);
 
   const [diagnostico, setDiagnostico] = useState<DiagnosticoApiGateway | null>(null);
   const [cargando, setCargando] = useState(true);
   const [rutUsuario, setRutUsuario] = useState("");
-  /** Se activa sola tras un error de sesión y se apaga después de usarla. */
-  const [sesionNueva, setSesionNueva] = useState(false);
   const [clave, setClave] = useState("");
-  const [periodo, setPeriodo] = useState(periodoId);
-  /** Última vez que el usuario tocó el selector de este formulario. */
-  const [periodoManual, setPeriodoManual] = useState(false);
-
+  /** Periodos elegidos para este trabajo (uno o varios, seguidos o sueltos). */
+  const [seleccionados, setSeleccionados] = useState<string[]>([]);
+  const [desde, setDesde] = useState(periodoId);
+  const [hasta, setHasta] = useState("");
   const [acepta, setAcepta] = useState(false);
-  const [ejecutando, setEjecutando] = useState(false);
-  /** Resumen simple de la última actualización, sin lenguaje técnico. */
-  const [resumen, setResumen] = useState<{
-    periodo: string;
-    fecha: string;
-    texto: string;
-    tono: "success" | "warning" | "error" | "info";
-    f29: string;
-    /** Verdadero cuando el RCV quedó al día pero el F29 no se pudo leer. */
-    f29Pendiente: boolean;
-
-  } | null>(null);
 
   const esDueno = empresaActiva?.rol === "owner";
 
@@ -93,86 +94,73 @@ export function RealGatewayPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solicitudActualizacionReal]);
 
-
-  // El formulario SIEMPRE sigue al periodo elegido en la pantalla, salvo que la
-  // persona haya elegido otro mes aquí mismo. Antes el valor quedaba congelado
-  // en el periodo que estaba activo al montar el panel y se actualizaba un mes
-  // distinto al seleccionado.
+  // Mientras no se agreguen periodos a mano, el trabajo sigue al mes visible.
   useEffect(() => {
-    if (!periodoManual && periodoId && periodoId !== periodo) setPeriodo(periodoId);
-  }, [periodoId, periodoManual, periodo]);
+    if (seleccionados.length === 0 && periodoId) setDesde(periodoId);
+  }, [periodoId, seleccionados.length]);
 
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
-  const actualizar = async () => {
-    if (!empresaActiva) return;
-    // El periodo viaja como texto AAAA-MM: nunca se convierte a fecha.
-    const periodoSolicitado = normalizarPeriodo(periodo);
-    if (!periodoSolicitado) {
+  const agregar = () => {
+    const inicio = normalizarPeriodo(desde);
+    if (!inicio) {
       toast.error("Elige un periodo válido (mes y año).");
       return;
     }
-    setEjecutando(true);
-    try {
-      const r = await apiGatewayService.ejecutarPrueba({
-        companyId: empresaActiva.id,
-        periodo: periodoSolicitado,
-        rutUsuario,
-        claveTributaria: clave,
-        sesionNueva,
-      });
-      // `auth_cache=0` nunca queda activo de forma permanente.
-      setSesionNueva(CODIGOS_SESION_VENCIDA.includes(r.errorCodigo ?? ""));
-      const m = mensajeProveedor({
-        proveedor: "api_gateway",
-        codigo: r.errorCodigo,
-        mensaje: r.mensaje,
-        productosVerificados: true,
-      });
-      setResumen({
-        // El servidor devuelve el periodo que realmente actualizó.
-        periodo: r.sincronizacion?.periodo ?? periodoSolicitado,
-        fecha: new Date().toISOString(),
-        texto: m.texto,
-        tono: m.tono as "success" | "warning" | "error" | "info",
-        f29: r.f29.mensaje,
-        f29Pendiente: r.f29.estado === "revisar" || r.f29.estado === "no_declarado",
-
-      });
-
-      if (m.tono === "error") toast.error(m.texto);
-      else if (m.tono === "warning") toast.warning(m.texto);
-      else if (m.tono === "info") toast.info(m.texto);
-      else toast.success(m.texto);
-      // Tras la actualización hay datos nuevos guardados: refrescamos el panel.
-      if (m.tono !== "error") await refrescarDatos();
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "No pudimos completar la actualización.",
-      );
-    } finally {
-      // La clave se descarta siempre, funcione o falle la actualización.
-      setClave("");
-      setEjecutando(false);
+    const fin = normalizarPeriodo(hasta);
+    if (fin && fin < inicio) {
+      toast.error("El periodo final debe ser posterior al inicial.");
+      return;
     }
+    const nuevos = fin ? rangoPeriodos(inicio, fin) : [inicio];
+    const union = Array.from(new Set([...seleccionados, ...nuevos])).sort();
+    if (union.length > MAX_PERIODOS) {
+      toast.warning(`Puedes actualizar hasta ${MAX_PERIODOS} periodos por vez.`);
+      return;
+    }
+    setSeleccionados(union);
+    setHasta("");
   };
 
-  const estilo =
-    resumen?.tono === "error"
-      ? "border-destructive/40 bg-destructive/5"
-      : resumen?.tono === "warning"
-        ? "border-warning/40 bg-warning-soft"
-        : resumen?.tono === "info"
-          ? "border-primary/30 bg-info-soft"
-          : "border-success/40 bg-success-soft";
+  const quitar = (p: string) =>
+    setSeleccionados((prev) => prev.filter((x) => x !== p));
+
+  const listaFinal =
+    seleccionados.length > 0
+      ? seleccionados
+      : [normalizarPeriodo(desde)].filter((p): p is string => !!p);
+
+  const enviar = () => {
+    if (!empresaActiva) return;
+    if (listaFinal.length === 0) {
+      toast.error("Elige al menos un periodo.");
+      return;
+    }
+    iniciar({
+      companyId: empresaActiva.id,
+      rutUsuario,
+      claveTributaria: clave,
+      periodos: listaFinal,
+    });
+    // La clave se descarta del formulario apenas comienza el trabajo.
+    setClave("");
+    setAcepta(false);
+    toast.success(
+      listaFinal.length === 1
+        ? "Actualizando el periodo elegido"
+        : `Actualizando ${listaFinal.length} periodos, uno por uno`,
+      {
+        description:
+          "Puedes cambiar de pantalla: el aviso flotante te mostrará cuando esté listo.",
+      },
+    );
+  };
 
   return (
     <div ref={contenedorRef} id="actualizar-sii" data-panel="sii-real">
       <SectionCard
         titulo="Actualizar con la información del SII"
-        descripcion="Elige el periodo, ingresa tu clave y la aplicación actualiza tus ventas, tus compras y tu Formulario 29 cuando ya está presentado."
+        descripcion="Elige uno o varios periodos, ingresa tu clave y la aplicación actualiza tus ventas, tus compras y tu Formulario 29 cuando ya está presentado."
         acciones={<RefreshCw className="h-5 w-5 text-primary" aria-hidden />}
       >
         <form
@@ -182,8 +170,8 @@ export function RealGatewayPanel() {
           action="#"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!acepta || !rutUsuario || !clave || ejecutando) return;
-            void actualizar();
+            if (!acepta || !rutUsuario || !clave || enCurso) return;
+            enviar();
           }}
         >
           <div className="grid gap-3 sm:grid-cols-2">
@@ -219,21 +207,64 @@ export function RealGatewayPanel() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="periodo-real">Periodo</Label>
+              <Label htmlFor="periodo-real">Periodo (o inicio del rango)</Label>
               <Input
                 id="periodo-real"
                 name="sii_periodo"
                 type="month"
-                value={periodo}
-                onChange={(e) => {
-                  setPeriodoManual(true);
-                  setPeriodo(e.target.value);
-                }}
+                value={desde}
+                onChange={(e) => setDesde(e.target.value)}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="periodo-real-hasta">Hasta (opcional)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="periodo-real-hasta"
+                  name="sii_periodo_hasta"
+                  type="month"
+                  value={hasta}
+                  onChange={(e) => setHasta(e.target.value)}
+                />
+                <Button type="button" variant="secondary" onClick={agregar}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Agregar
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                Se actualizará {etiquetaPeriodo(periodo)} ({periodo}).
+                Deja "Hasta" vacío para agregar un mes suelto.
               </p>
             </div>
+          </div>
+
+          <div className="mt-3">
+            <p className="text-xs font-medium text-foreground">
+              Periodos por actualizar ({listaFinal.length})
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {listaFinal.map((p) => (
+                <span
+                  key={p}
+                  className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-xs text-foreground"
+                >
+                  {etiquetaPeriodo(p)}
+                  {seleccionados.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => quitar(p)}
+                      aria-label={`Quitar ${etiquetaPeriodo(p)}`}
+                      className="rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" aria-hidden />
+                    </button>
+                  )}
+                </span>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Se actualizan de a uno, en orden. Puedes cambiar de pantalla mientras
+              tanto.
+            </p>
           </div>
 
           <div className="mt-3 space-y-1 rounded-2xl bg-secondary/60 px-3 py-3 text-xs text-muted-foreground">
@@ -251,18 +282,13 @@ export function RealGatewayPanel() {
               onCheckedChange={(v) => setAcepta(v === true)}
             />
             <Label htmlFor="consentimiento-real" className="text-sm leading-snug">
-              Autorizo actualizar mi información del SII para {etiquetaPeriodo(periodo)}{" "}
-              ({periodo}).
+              Autorizo actualizar mi información del SII para{" "}
+              {listaFinal.length === 1
+                ? `${etiquetaPeriodo(listaFinal[0])} (${listaFinal[0]})`
+                : `${listaFinal.length} periodos seleccionados`}
+              .
             </Label>
           </div>
-
-
-          {sesionNueva && (
-            <p className="mt-3 rounded-xl bg-warning-soft px-3 py-2 text-xs">
-              La sesión anterior venció. La próxima actualización abrirá una sesión
-              nueva por única vez.
-            </p>
-          )}
 
           <div className="mt-4">
             <Button
@@ -271,42 +297,48 @@ export function RealGatewayPanel() {
                 !acepta ||
                 !rutUsuario ||
                 !clave ||
-                ejecutando ||
-                !esPeriodoValido(normalizarPeriodo(periodo) ?? "") ||
+                enCurso ||
+                listaFinal.length === 0 ||
+                !listaFinal.every((p) => esPeriodoValido(p)) ||
                 !diagnostico.puedeConsultar
               }
-
             >
-              {ejecutando ? (
+              {enCurso ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               ) : (
                 <KeyRound className="h-4 w-4" aria-hidden />
               )}
-              {ejecutando ? "Actualizando" : "Actualizar"}
+              {enCurso ? "Actualizando" : "Actualizar"}
             </Button>
           </div>
         </form>
 
-        {resumen && (
-          <div className={`mt-4 rounded-2xl border p-4 text-sm ${estilo}`}>
+        {(enCurso || terminado) && items.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-border p-4 text-sm">
             <p className="font-semibold">
-              Última actualización · {etiquetaPeriodo(resumen.periodo)}
+              {enCurso
+                ? "Actualización en curso"
+                : "Listo: evaluación de periodos actualizados"}
             </p>
-            <p className="mt-1">{resumen.texto}</p>
-            <p
-              className={`mt-1 ${
-                resumen.f29Pendiente ? "text-amber-700" : "text-muted-foreground"
-              }`}
-            >
-              {resumen.f29}
-            </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {formatFechaHora(resumen.fecha)}. Estimación informativa: no reemplaza a
-              tu contador.
-            </p>
+            <ul className="mt-2 space-y-1 text-xs">
+              {items.map((i) => (
+                <li key={i.periodo}>
+                  <span className="font-medium">{etiquetaPeriodo(i.periodo)}:</span>{" "}
+                  {i.mensaje ??
+                    (i.estado === "en_curso" ? "Actualizando…" : "En espera")}
+                  {i.f29 ? ` · ${i.f29}` : ""}
+                </li>
+              ))}
+            </ul>
+            {terminado && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {totales.listos} al día · {totales.avisos} por revisar ·{" "}
+                {totales.errores} con problema. {formatFechaHora(new Date().toISOString())}.
+                Estimación informativa: no reemplaza a tu contador.
+              </p>
+            )}
           </div>
         )}
-
       </SectionCard>
     </div>
   );
