@@ -146,18 +146,57 @@ async function conexionDe(companyId: string, proveedor: SiiProviderId = "mock") 
 }
 
 
+/** Minutos sin actividad tras los cuales una ejecución se considera abandonada. */
+export const MINUTOS_EJECUCION_ABANDONADA = 15;
+
+/**
+ * Cierra ejecuciones que quedaron "en curso" (por ejemplo, si el navegador se
+ * cerró antes de recibir la respuesta). No consume créditos y libera el periodo
+ * para poder actualizarlo de nuevo.
+ */
+export async function cerrarEjecucionesColgadas(
+  companyId: string,
+  periodId: string | null,
+  ahora: Date,
+): Promise<number> {
+  const limite = new Date(
+    ahora.getTime() - MINUTOS_EJECUCION_ABANDONADA * 60_000,
+  ).toISOString();
+  let consulta = supabaseAdmin
+    .from("tax_sync_runs")
+    .update({
+      status: "failed",
+      error_code: "STALE_SYNC_RUN",
+      error_message:
+        "La actualización anterior quedó interrumpida y se cerró automáticamente.",
+      completed_at: ahora.toISOString(),
+    })
+    .eq("company_id", companyId)
+    .eq("status", "running")
+    .lt("started_at", limite);
+  if (periodId) consulta = consulta.eq("tax_period_id", periodId);
+  const { data } = await consulta.select("id");
+  return data?.length ?? 0;
+}
+
 /** Asegura la existencia del periodo y devuelve su id. */
 async function asegurarPeriodo(companyId: string, periodo: string) {
+  const p = normalizarPeriodo(periodo);
+  if (!p) throw new ErrorNegocio("El periodo debe tener el formato AAAA-MM.");
   const { data } = await supabaseAdmin
     .from("tax_periods")
     .select("id, status")
     .eq("company_id", companyId)
-    .eq("period", periodo)
+    .eq("period", p)
     .maybeSingle();
   if (data) return data;
 
-  const [year, month] = periodo.split("-").map(Number);
+  // El año y el mes salen del propio texto: nunca de una fecha ni de una zona.
+  const year = Number(p.slice(0, 4));
+  const month = Number(p.slice(5, 7));
+  const periodo_ = p;
   if (!year || !month) throw new ErrorNegocio("El periodo indicado no es válido.");
+
   const { data: creado, error } = await supabaseAdmin
     .from("tax_periods")
     .insert({
