@@ -463,6 +463,20 @@ export function RealGatewayPanel() {
 
           <div className="mt-3 flex items-start gap-2">
             <Checkbox
+              id="incluir-detalle"
+              checked={incluirDetalle}
+              onCheckedChange={(v) => setIncluirDetalle(v === true)}
+            />
+            <Label htmlFor="incluir-detalle" className="text-sm leading-snug">
+              Traer el detalle documento por documento (clientes, proveedores y
+              listado de documentos). Si lo desmarcas, solo se traen los totales
+              oficiales del periodo y se consumen menos créditos.
+            </Label>
+          </div>
+
+
+          <div className="mt-3 flex items-start gap-2">
+            <Checkbox
               id="consentimiento-real"
               checked={acepta}
               onCheckedChange={(v) => setAcepta(v === true)}
