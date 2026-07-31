@@ -52,6 +52,26 @@ import { ORIGEN_F29_PDF } from "@/lib/f29Antecedent";
 
 export const BUCKET_F29 = "tax-f29-pdfs";
 
+/**
+ * Convierte la fecha informada por el proveedor a formato ISO (AAAA-MM-DD).
+ * Acepta 12/03/2026, 12-03-2026 y 2026-03-12. Si no se entiende, devuelve
+ * `null`: la fecha es informativa y jamás debe impedir guardar la lectura.
+ */
+export function fechaIsoODescartar(valor: string | null | undefined): string | null {
+  const texto = (valor ?? "").trim();
+  if (!texto) return null;
+  const iso = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = texto.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  if (dmy) {
+    const dia = dmy[1].padStart(2, "0");
+    const mes = dmy[2].padStart(2, "0");
+    if (Number(mes) < 1 || Number(mes) > 12 || Number(dia) < 1 || Number(dia) > 31) return null;
+    return `${dmy[3]}-${mes}-${dia}`;
+  }
+  return null;
+}
+
 /** Errores propios de esta etapa. Nunca contienen contenido tributario. */
 export type CodigoErrorF29 =
   | "F29_NOT_DECLARED"
@@ -599,7 +619,7 @@ export async function extraerF29Compacto(
           tax_period_id: periodId,
           period: entrada.periodo,
           folio: elegida.folio,
-          declaration_date: elegida.fecha,
+          declaration_date: fechaIsoODescartar(elegida.fecha),
           declaration_status: elegida.estado,
           is_rectification: esRectificatoria,
           supersedes_folio: esRectificatoria ? (anteriores[0] ?? null) : null,
@@ -620,7 +640,11 @@ export async function extraerF29Compacto(
       )
       .select("*")
       .maybeSingle();
-    if (errorGuardado) throw new ErrorNegocio("No pudimos guardar la lectura del formulario.");
+    if (errorGuardado) {
+      throw new ErrorNegocio(
+        `No pudimos guardar la lectura del formulario. (${errorGuardado.code ?? "db"}: ${errorGuardado.message})`,
+      );
+    }
 
     // Los folios anteriores del mismo periodo quedan como historial.
     await supabaseAdmin
