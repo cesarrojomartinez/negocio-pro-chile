@@ -82,15 +82,29 @@ export function RealGatewayPanel() {
     }
   }, [solicitudActualizacionReal]);
 
+  // El formulario SIEMPRE sigue al periodo elegido en la pantalla, salvo que la
+  // persona haya elegido otro mes aquí mismo. Antes el valor quedaba congelado
+  // en el periodo que estaba activo al montar el panel y se actualizaba un mes
+  // distinto al seleccionado.
+  useEffect(() => {
+    if (!periodoManual && periodoId && periodoId !== periodo) setPeriodo(periodoId);
+  }, [periodoId, periodoManual, periodo]);
+
   if (cargando || !diagnostico?.modoPruebaHabilitado || !esDueno) return null;
 
   const actualizar = async () => {
     if (!empresaActiva) return;
+    // El periodo viaja como texto AAAA-MM: nunca se convierte a fecha.
+    const periodoSolicitado = normalizarPeriodo(periodo);
+    if (!periodoSolicitado) {
+      toast.error("Elige un periodo válido (mes y año).");
+      return;
+    }
     setEjecutando(true);
     try {
       const r = await apiGatewayService.ejecutarPrueba({
         companyId: empresaActiva.id,
-        periodo,
+        periodo: periodoSolicitado,
         rutUsuario,
         claveTributaria: clave,
         sesionNueva,
@@ -104,12 +118,14 @@ export function RealGatewayPanel() {
         productosVerificados: true,
       });
       setResumen({
-        periodo,
+        // El servidor devuelve el periodo que realmente actualizó.
+        periodo: r.sincronizacion?.periodo ?? periodoSolicitado,
         fecha: new Date().toISOString(),
         texto: m.texto,
         tono: m.tono as "success" | "warning" | "error" | "info",
         f29: r.f29.mensaje,
       });
+
       if (m.tono === "error") toast.error(m.texto);
       else if (m.tono === "warning") toast.warning(m.texto);
       else if (m.tono === "info") toast.info(m.texto);
