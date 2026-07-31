@@ -12,6 +12,7 @@ import {
   periodoAnterior,
 } from "@/lib/taxMappers";
 import { construirDashboard } from "@/lib/dashboardBuilder";
+import { ventasAgregadasDeResumenGuardado } from "@/integrations/sii/rcvSummary";
 import {
   aplicarAntecedenteF29,
   interpretarAntecedenteF29,
@@ -597,6 +598,8 @@ export const cloudTaxDataService: TaxDataService & {
       periodo: consulta.periodoId,
       documentosVenta: docs.venta,
       documentosCompra: docs.compra,
+      // Boletas y comprobantes que el SII solo informa como total del mes.
+      ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(periodRow?.rcv_summary),
       remanenteAnterior: parametros.remanenteAnterior,
       fuenteRemanente: parametros.fuenteRemanente,
       remanenteConocido: remanente.conocido || confirmado,
@@ -628,6 +631,9 @@ export const cloudTaxDataService: TaxDataService & {
             periodo: anteriorId,
             documentosVenta: docsAnterior.venta,
             documentosCompra: docsAnterior.compra,
+            ventasAgregadasResumen: ventasAgregadasDeResumenGuardado(
+              periodRowAnterior?.rcv_summary,
+            ),
             remanenteAnterior: 0,
             fuenteRemanente: "unknown",
             retencionesEstimadas: Number(
