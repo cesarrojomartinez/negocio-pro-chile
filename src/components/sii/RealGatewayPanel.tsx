@@ -254,8 +254,14 @@ export function RealGatewayPanel() {
             <Button
               type="submit"
               disabled={
-                !acepta || !rutUsuario || !clave || ejecutando || !diagnostico.puedeConsultar
+                !acepta ||
+                !rutUsuario ||
+                !clave ||
+                ejecutando ||
+                !esPeriodoValido(normalizarPeriodo(periodo) ?? "") ||
+                !diagnostico.puedeConsultar
               }
+
             >
               {ejecutando ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
