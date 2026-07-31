@@ -52,6 +52,8 @@ import {
 import { diaCivil } from "@/lib/syncPolicy";
 import { registrarEstadoPeriodo } from "@/lib/periodSyncState.server";
 import { normalizarRut } from "@/lib/rut";
+import { normalizarPeriodo } from "@/lib/periodo";
+
 
 
 
