@@ -7,6 +7,7 @@ import {
 import { DataRow, SectionCard } from "@/components/shared/SectionCard";
 import { formatCLP } from "@/utils/currency";
 import { descripcionOrigenEstimacion, textoRemanente } from "@/lib/f29Antecedent";
+import type { ConciliacionF29 } from "@/lib/f29Reconciliation";
 import type { FuentePeriodo, ResumenMensual } from "@/types/tax";
 import { MargenSelector } from "./MargenSelector";
 
@@ -16,6 +17,7 @@ export function ResumenTributario({
   onCambiarMargen,
   mostrarSelectorMargen = true,
   fuentePeriodo,
+  conciliacion,
 }: {
   resumen: ResumenMensual;
   margenPorcentaje: number;
@@ -23,12 +25,20 @@ export function ResumenTributario({
   mostrarSelectorMargen?: boolean;
   /** Origen real de la información del periodo seleccionado. */
   fuentePeriodo: FuentePeriodo;
+  /** Comparación interna con el Formulario 29 oficial del periodo. */
+  conciliacion?: ConciliacionF29;
 }) {
+  const oficial = conciliacion?.hayOficial === true;
   return (
     <SectionCard
-      titulo="Estimación tributaria del mes"
-      descripcion={descripcionOrigenEstimacion(fuentePeriodo)}
+      titulo={oficial ? "Resultado tributario del mes" : "Estimación tributaria del mes"}
+      descripcion={
+        oficial
+          ? "Cifras tomadas del Formulario 29 oficial del periodo."
+          : descripcionOrigenEstimacion(fuentePeriodo)
+      }
     >
+
       <div className="rounded-2xl bg-secondary/60 p-4">
         <DataRow
           label="IVA débito por ventas"
