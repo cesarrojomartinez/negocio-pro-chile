@@ -28,6 +28,7 @@ export function FlipStatCard({
   notaReverso,
   variacion,
   interpretarComoPositivo = true,
+  icono,
   destacado,
 }: FlipStatCardProps) {
   const [volteada, setVolteada] = useState(false);
