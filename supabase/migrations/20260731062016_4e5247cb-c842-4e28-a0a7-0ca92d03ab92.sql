@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.tax_sync_preferences_guard() FROM PUBLIC, anon, authenticated;
