@@ -686,25 +686,23 @@ const PPM_RATE: VersionedTaxRule = {
   calculate: (ctx) => {
     const base = leerCodigo(ctx.official, CODIGO.basePpm);
     const ppm = leerCodigo(ctx.official, CODIGO.ppm);
-    const propia = normalizarTasaPpm(leerCodigo(ctx.official, CODIGO.tasaPpm), {
-      base,
-      amount: ppm,
-    });
-    if (propia.rate != null) {
+    // El código 115 se lee tal como viene en el formulario: no se reinterpreta
+    // su unidad. Si no cuadra con la base y el monto, se informa la
+    // incoherencia en vez de corregirla en silencio.
+    const cruda = leerCodigo(ctx.official, CODIGO.tasaPpm);
+    if (cruda != null) {
       const warnings: string[] = [];
-      if (propia.ambiguous) warnings.push("unidad_tasa_ppm_ambigua");
-      if (tasaPpmIncoherente(propia, { base, amount: ppm })) {
+      if (tasaPpmIncoherente({ rate: cruda, unit: "fraction", ambiguous: false, impliedRate: null }, { base, amount: ppm })) {
         warnings.push("tasa_ppm_incoherente_con_base_y_monto");
       }
       return {
-        amount: propia.rate,
+        amount: cruda,
         status: "official",
         sources: [`f29:${CODIGO.tasaPpm}`],
         calculationDescription:
-          "Tasa de PPM declarada en el F29 (código 115), expresada como fracción.",
+          "Tasa de PPM declarada en el F29 (código 115), tal como fue informada.",
         inputValues: {
-          codigo_115: leerCodigo(ctx.official, CODIGO.tasaPpm),
-          unidad_detectada: propia.unit,
+          codigo_115: cruda,
           codigo_563: base,
           codigo_62: ppm,
         },
@@ -712,6 +710,7 @@ const PPM_RATE: VersionedTaxRule = {
         confidence: warnings.length > 0 ? "low" : "high",
       };
     }
+
     const declarada = normalizarTasaPpm(ctx.optionalConfig?.ppmRate ?? null, {
       base,
       amount: ppm,
