@@ -698,6 +698,7 @@ export const cloudTaxDataService: TaxDataService & {
       esDemo: !!empresaRow.is_demo,
       f29Confirmado: !!antecedenteF29?.confirmado,
       sincronizacionReal: !empresaRow.is_demo && informacionReal,
+      tasaPpmPersonalizada: consulta.tasaPpmPersonalizada ?? null,
     });
   },
 
