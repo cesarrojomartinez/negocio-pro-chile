@@ -258,6 +258,11 @@ export interface DashboardData {
   contexto: import("@/lib/taxContext").ContextoTributario;
   empresa: import("./company").Empresa;
   resumen: ResumenMensual;
+  /**
+   * Resumen tal como lo calculó el motor con el RCV, antes de aplicar las
+   * cifras del F29 oficial. Permite medir la precisión de la estimación.
+   */
+  resumenPreF29: ResumenMensual;
   /** Comparación interna entre la estimación y el F29 oficial del periodo. */
   conciliacionF29: import("@/lib/f29Reconciliation").ConciliacionF29;
 
