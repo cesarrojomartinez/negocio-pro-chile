@@ -62,6 +62,12 @@ export interface EntradaDecisionPeriodo {
   tieneF29Vigente: boolean;
   /** El periodo fue confirmado o cerrado por el usuario. */
   periodoCerrado: boolean;
+  /**
+   * El periodo ya tiene documentos reales del RCV guardados. Si es false, la
+   * caché nunca puede saltarse la descarga: un periodo vacío siempre se baja.
+   */
+  tieneDocumentosRcv: boolean;
+
 }
 
 export interface DecisionPeriodo {
