@@ -314,4 +314,142 @@ describe("plan de ejecución conectado al orquestador", () => {
     expect(serializado.toLowerCase()).not.toContain("clave");
     expect(serializado.toLowerCase()).not.toContain("password");
   });
+
+  /* --------- Ampliaciones: rechazos, duplicados y concurrencia --------- */
+
+  const contextoBase = {
+    permisosOk: true,
+    bloqueoVigente: true,
+    folioYaDescargado: false,
+    ampliacionPrevia: false,
+    descargasDelFolio: 0,
+    llamadasRealizadas: 0,
+    maximoLlamadasPorEjecucion: 24,
+    presupuestoBloqueado: false,
+    creditoDisponible: null as number | null,
+  };
+
+  function propuestaF29(folioNuevo = "222", folioAnterior: string | null = "111") {
+    return construirPropuestaAmpliacionF29({
+      planId: "plan-1",
+      companyId: "empresa-1",
+      periodo: "2026-05",
+      folioNuevo,
+      folioAnterior,
+    });
+  }
+
+  const planF29 = () =>
+    plan(["2026-05"], [estado({ periodo: "2026-05", tieneDatosRcv: true })]);
+
+  it("K. viewer (sin permisos) se bloquea antes de mirar plan o caché", () => {
+    const evaluacion = evaluarAmpliacion(planF29(), propuestaF29(), {
+      ...contextoBase,
+      permisosOk: false,
+      // Aunque todo lo demás estuviera bien, el permiso se evalúa primero.
+      bloqueoVigente: true,
+      folioYaDescargado: true,
+    });
+    expect(evaluacion).toMatchObject({
+      aprobada: false,
+      codigo: CODIGO_AMPLIACION_RECHAZADA,
+      motivo: "sin_permisos",
+    });
+  });
+
+  it("L. bloqueo vencido: la ampliación se rechaza", () => {
+    expect(
+      evaluarAmpliacion(planF29(), propuestaF29(), {
+        ...contextoBase,
+        bloqueoVigente: false,
+      }),
+    ).toMatchObject({ aprobada: false, motivo: "bloqueo_no_vigente" });
+  });
+
+  it("M. ampliación duplicada: no se aprueba dos veces el mismo folio", () => {
+    expect(
+      evaluarAmpliacion(planF29(), propuestaF29(), {
+        ...contextoBase,
+        ampliacionPrevia: true,
+      }),
+    ).toMatchObject({ aprobada: false, motivo: "ampliacion_duplicada" });
+  });
+
+  it("N. tope de consultas alcanzado: la ampliación se rechaza", () => {
+    expect(
+      evaluarAmpliacion(planF29(), propuestaF29(), {
+        ...contextoBase,
+        maximoLlamadasPorEjecucion: 1,
+      }),
+    ).toMatchObject({ aprobada: false, motivo: "limite_global_del_plan" });
+  });
+
+  it("O. dos solicitudes concurrentes del mismo folio: una sola descarga", () => {
+    const p = planF29();
+    const control = new ControlPlanEjecucion(p);
+    const proveedor = proveedorFalso(control);
+
+    // El índice único parcial (plan_id, period, new_folio) sobre las filas
+    // aprobadas se simula con este conjunto: solo una inserción gana.
+    const aprobadas = new Set<string>();
+    function solicitar() {
+      const propuesta = propuestaF29();
+      const evaluacion = evaluarAmpliacion(control.plan, propuesta, {
+        ...contextoBase,
+        llamadasRealizadas: control.llamadasReales,
+        ampliacionPrevia: false, // ambas leyeron antes de que la otra insertara
+      });
+      if (!evaluacion.aprobada) return "rejected";
+      const llave = `${propuesta.planId}|${propuesta.periodo}|${propuesta.folioNuevo}`;
+      if (aprobadas.has(llave)) return "rejected"; // conflicto 23505
+      aprobadas.add(llave);
+      control.aplicarAmpliacion(propuesta);
+      return "approved";
+    }
+
+    const resultados = [solicitar(), solicitar()];
+    expect(resultados.filter((r) => r === "approved")).toHaveLength(1);
+    expect(resultados.filter((r) => r === "rejected")).toHaveLength(1);
+
+    proveedor.pdfF29("2026-05", "222");
+    expect(() => proveedor.pdfF29("2026-05", "222")).toThrow(ErrorPlanEjecucion);
+    expect(proveedor.llamadas).toEqual(["f29_pdf:2026-05"]);
+  });
+
+  it("P. ampliación rechazada: cero llamadas y el F29 anterior sigue vigente", () => {
+    const folioVigente = "111";
+    const p = plan(
+      ["2026-05"],
+      [
+        estado({
+          periodo: "2026-05",
+          tieneDatosRcv: true,
+          tieneF29Vigente: true,
+          folioConocido: folioVigente,
+          ultimaSincronizacionRcv: "2026-07-19T10:00:00.000Z",
+        }),
+      ],
+    );
+    const control = new ControlPlanEjecucion(p);
+    const proveedor = proveedorFalso(control);
+
+    const evaluacion = evaluarAmpliacion(p, propuestaF29("222", folioVigente), {
+      ...contextoBase,
+      presupuestoBloqueado: true,
+    });
+    expect(evaluacion.aprobada).toBe(false);
+    expect(() => proveedor.pdfF29("2026-05", "222")).toThrow(ErrorPlanEjecucion);
+    expect(proveedor.llamadas).toEqual([]);
+    expect(control.plan.planAmended ?? false).toBe(false);
+    // El folio anterior no se toca: no hubo ninguna descarga que lo reemplace.
+    expect(control.llamadasReales).toBe(0);
+  });
+
+  it("Q. la propuesta de ampliación nunca contiene la clave ni secretos", () => {
+    const serializado = JSON.stringify(propuestaF29());
+    expect(serializado).not.toContain(CLAVE);
+    expect(serializado.toLowerCase()).not.toContain("clave");
+    expect(serializado.toLowerCase()).not.toContain("token");
+  });
 });
+
