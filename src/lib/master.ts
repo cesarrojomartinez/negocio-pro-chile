@@ -20,6 +20,8 @@ export const MODULOS_MASTER = [
   "consumo",
   "metricas",
   "comunicacion",
+  "testimonios",
+  "pagina",
   "soporte",
 ] as const;
 
@@ -33,8 +35,11 @@ export const ETIQUETA_MODULO: Record<ModuloMaster, string> = {
   consumo: "Créditos API y consumo",
   metricas: "Métricas",
   comunicacion: "Comunicación",
+  testimonios: "Testimonios",
+  pagina: "Editor de página",
   soporte: "Soporte y actividad",
 };
+
 
 export function esModuloMaster(valor: unknown): valor is ModuloMaster {
   return (
