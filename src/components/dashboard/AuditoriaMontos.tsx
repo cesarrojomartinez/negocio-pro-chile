@@ -1,5 +1,9 @@
+import { useState } from "react";
 import { SectionCard } from "@/components/shared/SectionCard";
+import { Button } from "@/components/ui/button";
+import { VatDebitAuditModal } from "@/components/tax/VatDebitAuditModal";
 import { formatCLP } from "@/utils/currency";
+import { calculateVatDebit } from "@/utils/taxCalculations";
 import { ETIQUETA_FUENTE_CONCEPTO } from "@/lib/taxContext";
 import type { ConceptSource } from "@/types/engine";
 import type { DashboardData } from "@/types/tax";
@@ -39,9 +43,14 @@ function Etiqueta({ fuente }: { fuente: ConceptSource }) {
  * un origen distinto dentro del mismo periodo.
  */
 export function AuditoriaMontos({ data }: { data: DashboardData }) {
+  const [modalAuditOpen, setModalAuditOpen] = useState(false);
   const { resumen, ventas, compras, contexto } = data;
   const s = contexto.sources;
   const esDemo = data.fuentePeriodo === "mock";
+
+  const traceIvaDebito =
+    resumen.calculationTrace ??
+    calculateVatDebit(data.documentosVenta).calculationTrace;
 
   const tasaPpmTexto =
     contexto.ppm_rate != null
@@ -135,30 +144,49 @@ export function AuditoriaMontos({ data }: { data: DashboardData }) {
   ];
 
   return (
-    <SectionCard
-      titulo="Auditoría de los montos"
-      descripcion="Desglose de cada cifra y el origen de la información utilizada."
-    >
-      <ul className="space-y-3">
-        {lineas.map((l) => (
-          <li key={l.concepto} className="rounded-xl bg-secondary/60 p-3.5">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <p className="text-sm font-semibold">{l.concepto}</p>
-              <p className="shrink-0 text-sm font-bold tabular-nums">{l.monto}</p>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">{l.formula}</p>
-            <div className="mt-2">
-              <Etiqueta fuente={l.fuente} />
-            </div>
-          </li>
-        ))}
-      </ul>
+    <>
+      <SectionCard
+        titulo="Auditoría de los montos"
+        descripcion="Desglose de cada cifra y el origen de la información utilizada."
+      >
+        <ul className="space-y-3">
+          {lineas.map((l) => (
+            <li key={l.concepto} className="rounded-xl bg-secondary/60 p-3.5">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <p className="text-sm font-semibold">{l.concepto}</p>
+                <p className="shrink-0 text-sm font-bold tabular-nums">{l.monto}</p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{l.formula}</p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <Etiqueta fuente={l.fuente} />
+                {l.concepto === "IVA débito por ventas" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setModalAuditOpen(true)}
+                    className="h-7 text-xs px-2.5 font-medium"
+                  >
+                    Ver auditoría
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
 
-      <p className="mt-4 text-xs text-muted-foreground">
-        {esDemo
-          ? "Datos simulados para pruebas. No corresponden a información obtenida del SII."
-          : "Estimación informativa. El resultado definitivo debe ser confirmado por tu contador."}
-      </p>
-    </SectionCard>
+        <p className="mt-4 text-xs text-muted-foreground">
+          {esDemo
+            ? "Datos simulados para pruebas. No corresponden a información obtenida del SII."
+            : "Estimación informativa. El resultado definitivo debe ser confirmado por tu contador."}
+        </p>
+      </SectionCard>
+
+      <VatDebitAuditModal
+        open={modalAuditOpen}
+        onOpenChange={setModalAuditOpen}
+        calculationTrace={traceIvaDebito}
+        periodo={resumen.periodo}
+      />
+    </>
   );
 }

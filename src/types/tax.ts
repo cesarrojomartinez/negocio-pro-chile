@@ -59,6 +59,9 @@ export interface ResumenMensual {
   anticipoIvaAplicado?: number;
   anticipoIvaRemanente?: number;
 
+  /** Traza de auditoría técnica del cálculo de IVA débito u otros componentes. */
+  calculationTrace?: import("./engine").ComponentAuditTrace;
+
   /** IVA estimado si las compras pendientes llegaran a incorporarse. */
   ivaEstimadoConPendientes: number;
   ppmEstimado: number;
