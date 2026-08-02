@@ -57,7 +57,7 @@ function PlanesPage() {
             <Link to="/demo">Ver la demostración</Link>
           </Button>
           <Button asChild>
-            <Link to="/registro">Crear mi cuenta</Link>
+            <Link to="/registro" search={{ plan: undefined }}>Crear mi cuenta</Link>
           </Button>
         </div>
       </main>

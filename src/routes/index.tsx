@@ -119,7 +119,7 @@ function Landing() {
               className="border-primary-foreground/40 bg-transparent text-primary-foreground hover:bg-primary-foreground/10"
               asChild
             >
-              <Link to="/registro">{contenido.cierre.botonSecundario}</Link>
+              <Link to="/registro" search={{ plan: undefined }}>{contenido.cierre.botonSecundario}</Link>
             </Button>
           </div>
         </div>

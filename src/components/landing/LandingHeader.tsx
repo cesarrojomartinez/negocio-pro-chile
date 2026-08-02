@@ -74,7 +74,7 @@ export function LandingHeader() {
                 <Link to="/auth">Inicia sesión</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link to="/registro">Regístrate</Link>
+                <Link to="/registro" search={{ plan: undefined }}>Regístrate</Link>
               </Button>
             </>
           )}
@@ -123,7 +123,7 @@ export function LandingHeader() {
                     <Link to="/auth">Inicia sesión</Link>
                   </Button>
                   <Button asChild onClick={() => setAbierto(false)}>
-                    <Link to="/registro">Regístrate</Link>
+                    <Link to="/registro" search={{ plan: undefined }}>Regístrate</Link>
                   </Button>
                 </>
               )}

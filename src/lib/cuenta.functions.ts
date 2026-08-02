@@ -12,13 +12,28 @@ import {
   cambiarRolUsuario,
   cancelarSuscripcion,
   crearTicketSoporte,
+  actualizarPlanMaster,
+  asignarPlanClienteMaster,
+  crearPlanMaster,
   esAdministrador,
   exportarDatos,
   historialCobros,
   invitarUsuario,
+  actualizarSaldoCreditoIA,
+  listarApiHealthMaster,
   listarInvitaciones,
+  listarMetricasSaaSMaster,
   listarMiembros,
+  listarMovimientosCreditosIA,
   listarPlanes,
+  listarPlanesMasterAdmin,
+  listarResultadosParidadMaster,
+  listarSaludSiiMaster,
+  listarSuscripcionesMaster,
+  listarVersionesMotorMaster,
+  listarWalletsIAMaster,
+  obtenerConsumoIAMaster,
+  obtenerDetalleClienteMaster,
   panelMaster,
   quitarUsuario,
   reactivarSuscripcion,
@@ -26,6 +41,7 @@ import {
   revisarInvitacion,
   revocarInvitacion,
   solicitarEliminacion,
+  toggleEstadoPlanMaster,
 } from "@/lib/cuenta.server";
 
 export const listarPlanesFn = createServerFn({ method: "GET" })
@@ -169,3 +185,117 @@ export const cambiarEstadoCuentaFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) =>
     envolver(() => cambiarEstadoCuenta(context.userId, data)),
   );
+
+export const obtenerDetalleClienteMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => obtenerDetalleClienteMaster(context.userId, data.companyId)),
+  );
+
+export const listarPlanesMasterAdminFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarPlanesMasterAdmin(context.userId)),
+  );
+
+export const crearPlanMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: any) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => crearPlanMaster(context.userId, data)),
+  );
+
+export const actualizarPlanMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { planId: string; datos: any }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => actualizarPlanMaster(context.userId, data.planId, data.datos)),
+  );
+
+export const toggleEstadoPlanMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { planId: string; isActive: boolean }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => toggleEstadoPlanMaster(context.userId, data.planId, data.isActive)),
+  );
+
+export const listarSuscripcionesMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarSuscripcionesMaster(context.userId)),
+  );
+
+export const asignarPlanClienteMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string; planId: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => asignarPlanClienteMaster(context.userId, data.companyId, data.planId)),
+  );
+
+export const listarSaludSiiMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarSaludSiiMaster(context.userId)),
+  );
+
+export const listarApiHealthMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarApiHealthMaster(context.userId)),
+  );
+
+export const listarVersionesMotorMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarVersionesMotorMaster(context.userId)),
+  );
+
+export const listarResultadosParidadMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarResultadosParidadMaster(context.userId)),
+  );
+
+export const listarWalletsIAMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarWalletsIAMaster(context.userId)),
+  );
+
+export const obtenerConsumoIAMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => obtenerConsumoIAMaster(context.userId)),
+  );
+
+export const listarMovimientosCreditosIAFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId?: string } | undefined) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => listarMovimientosCreditosIA(context.userId, data?.companyId)),
+  );
+
+export const actualizarSaldoCreditoIAFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      companyId: string;
+      amount: number;
+      type: "asignacion" | "consumo" | "ajuste" | "regalo";
+      description: string;
+    }) => data,
+  )
+  .handler(async ({ data, context }) =>
+    envolver(() => actualizarSaldoCreditoIA(context.userId, data)),
+  );
+
+export const listarMetricasSaaSMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) =>
+    envolver(() => listarMetricasSaaSMaster(context.userId)),
+  );
+
+
+
+
