@@ -181,7 +181,7 @@ async function guardarCorrida(
       rule_id: c.ruleId,
       rule_version: c.ruleVersion,
       sources: c.sources,
-      input_values: c.inputValues,
+      input_values: (c.inputValues ?? {}) as unknown as import("@/integrations/supabase/types").Json,
       missing_inputs: c.missingInputs ?? [],
       warnings: c.warnings ?? [],
       confidence: c.confidence,

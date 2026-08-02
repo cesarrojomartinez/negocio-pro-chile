@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ShieldCheck } from "lucide-react";
 
 import { AppShell } from "@/components/shared/AppShell";
 import { ScenarioSwitcher } from "@/components/shared/ScenarioSwitcher";
@@ -104,6 +104,16 @@ function Inicio() {
               ventas={data.ventas}
               comparacion={data.comparacion}
             />
+
+            <div className="flex items-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+              <ShieldCheck className="h-5 w-5 text-primary shrink-0" aria-hidden />
+              <div>
+                <h4 className="text-sm font-semibold text-foreground">Motor Tributario Espejo activo</h4>
+                <p className="text-xs text-muted-foreground">
+                  Los cálculos son procesados mediante reglas tributarias auditables.
+                </p>
+              </div>
+            </div>
 
             <div className="grid gap-5 xl:grid-cols-2">
               <ResumenTributario

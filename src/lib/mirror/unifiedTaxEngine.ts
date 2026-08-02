@@ -85,9 +85,9 @@ const SIN_MONTO: ReadonlySet<ComponentStatus> = new Set<ComponentStatus>([
 ]);
 
 function limpiarEntradas(
-  valores: Record<string, number | string | null | undefined>,
-): Record<string, number | string | null> {
-  const salida: Record<string, number | string | null> = {};
+  valores: Record<string, unknown>,
+): Record<string, unknown> {
+  const salida: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(valores)) salida[k] = v === undefined ? null : v;
   return salida;
 }

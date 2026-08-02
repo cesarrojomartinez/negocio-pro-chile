@@ -85,6 +85,7 @@ export interface VatDebitResult {
   inferred: boolean;
   inferredDocuments: number;
   exemptSales: number;
+  calculationTrace?: ComponentAuditTrace;
 }
 
 export interface VatCreditResult {
@@ -260,3 +261,47 @@ export interface ConfidenceResult {
 }
 
 export type EngineDocument = DocumentoTributario;
+
+/* ------------------------------------------------------------------ */
+/* Trazabilidad y Auditoría Tributaria (calculation_trace)            */
+/* ------------------------------------------------------------------ */
+
+export interface DocumentAuditEntry {
+  id: string;
+  folio: number | null;
+  tipoDocumento: string;
+  rutContraparte: string;
+  montoNeto: number;
+  montoIva: number;
+  montoTotal: number;
+  efectoTributario: 1 | -1;
+  motivoExclusion?: string;
+}
+
+export interface ComponentAuditTrace {
+  concept: string;
+  engineVersion: string;
+  ruleVersion: string;
+  calculatedAt: string;
+  formula: string;
+  finalAmount: number | null;
+  summary: {
+    consideredCount: number;
+    excludedCount: number;
+    totalConsideredNet: number;
+    totalConsideredVat: number;
+    totalExcludedVat: number;
+    [key: string]: number | string | boolean | undefined;
+  };
+  consideredDocuments: DocumentAuditEntry[];
+  excludedDocuments: DocumentAuditEntry[];
+  sourceOrigin?: string;
+}
+
+export interface CalculationTrace {
+  engineVersion: string;
+  ruleVersion: string;
+  calculatedAt: string;
+  components: Record<string, ComponentAuditTrace>;
+}
+

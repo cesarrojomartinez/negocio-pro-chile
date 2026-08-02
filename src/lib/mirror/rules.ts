@@ -69,10 +69,11 @@ export type RuleOutput = {
   status: ComponentStatus;
   sources: string[];
   calculationDescription: string;
-  inputValues: Record<string, number | string | null | undefined>;
+  inputValues: Record<string, unknown>;
   missingInputs?: string[];
   warnings?: string[];
   confidence?: MirrorConfidence;
+  calculationTrace?: import("@/types/engine").ComponentAuditTrace;
 };
 
 export interface VersionedTaxRule {
@@ -204,14 +205,70 @@ const VAT_DEBIT_FROM_RCV_SUMMARY: VersionedTaxRule = {
       lineas.filter((l) => resolverReglaDte(l.documentType, ctx.period)?.vatWithheldByBuyer),
       (l) => l.vatAmount,
     );
+    const trace: import("@/types/engine").ComponentAuditTrace = {
+      concept: "vat_debit",
+      engineVersion: "mirror-engine-1.0.0",
+      ruleVersion: V,
+      calculatedAt: ctx.calculatedAt ?? new Date().toISOString(),
+      formula: "VAT_DEBIT = SUM(rcv_sales_vat) - SUM(vatWithheldByBuyer)",
+      finalAmount: total,
+      summary: {
+        consideredCount: conDebito.length,
+        excludedCount: lineas.length - conDebito.length,
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria si no hay ventas netas
+        totalConsideredNet: sumaConSigno(conDebito, (l) => l.taxableNet) ?? 0,
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria si no hay IVA
+        totalConsideredVat: total ?? 0,
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria si no hay retencion
+        totalExcludedVat: retenido ?? 0,
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria si no hay retencion
+        vatWithheldByBuyer: retenido ?? 0,
+      },
+      consideredDocuments: conDebito.map((l, idx) => ({
+        id: l.rawHash || `summary-line-${l.documentType ?? "gen"}-${idx + 1}`,
+        folio: null,
+        tipoDocumento: String(l.documentType ?? "summary"),
+        rutContraparte: "",
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para neto ausente
+        montoNeto: Math.abs(l.taxableNet ?? 0),
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para IVA ausente
+        montoIva: Math.abs(l.vatAmount ?? 0),
+        // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para total ausente
+        montoTotal: Math.abs(l.totalAmount ?? 0),
+        efectoTributario: (l.taxEffect ?? 1) as 1 | -1,
+      })),
+      excludedDocuments: lineas
+        .filter((l) => resolverReglaDte(l.documentType, ctx.period)?.vatWithheldByBuyer)
+        .map((l, idx) => ({
+          id: l.rawHash || `summary-line-ex-${l.documentType ?? "gen"}-${idx + 1}`,
+          folio: null,
+          tipoDocumento: String(l.documentType ?? "summary"),
+          rutContraparte: "",
+          // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para neto ausente
+          montoNeto: Math.abs(l.taxableNet ?? 0),
+          // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para IVA ausente
+          montoIva: Math.abs(l.vatAmount ?? 0),
+          // TAX_ZERO_JUSTIFIED: valor cero por defecto en traza de auditoria para total ausente
+          montoTotal: Math.abs(l.totalAmount ?? 0),
+          efectoTributario: (l.taxEffect ?? 1) as 1 | -1,
+          motivoExclusion: "IVA retenido por el comprador (cambio de sujeto)",
+        })),
+      sourceOrigin: "rcv_sales_summary",
+    };
+
     return {
       amount: total,
       status: "estimated",
       sources: ["rcv:sales_summary"],
       calculationDescription:
         "Suma del IVA de las ventas con efecto tributario, excluyendo el IVA retenido por el comprador (factura de compra).",
-      inputValues: { iva_ventas: total, iva_retenido_por_comprador: retenido },
+      inputValues: {
+        iva_ventas: total,
+        iva_retenido_por_comprador: retenido,
+        calculation_trace: trace,
+      },
       confidence: "medium",
+      calculationTrace: trace,
     };
   },
 };

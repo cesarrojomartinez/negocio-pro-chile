@@ -130,11 +130,12 @@ export interface ComponentCalculation {
   /** Origen de cada dato usado, por ejemplo `f29:538` o `rcv:sales_summary`. */
   sources: string[];
   calculationDescription: string;
-  inputValues: Record<string, number | string | null>;
+  inputValues: Record<string, number | string | null | undefined | unknown>;
   missingInputs: string[];
   warnings: string[];
   confidence: MirrorConfidence;
   calculatedAt: string;
+  calculationTrace?: import("@/types/engine").ComponentAuditTrace;
 }
 
 export interface MirrorEngineResult {

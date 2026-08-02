@@ -111,7 +111,22 @@ export function montoFirmado(monto: number, efecto: 1 | -1): number {
 /* IVA débito                                                          */
 /* ------------------------------------------------------------------ */
 
-const VENTA_CONSIDERADA = new Set(["factura", "boleta", "notaDebito", "notaCredito"]);
+const VENTA_CONSIDERADA = new Set([
+  "factura",
+  "boleta",
+  "notaDebito",
+  "notaCredito",
+  "33",
+  "34",
+  "35",
+  "38",
+  "39",
+  "41",
+  "48",
+  "56",
+  "61",
+  "112",
+]);
 
 function ventaVigente(d: DocumentoTributario): boolean {
   return d.estado !== "anulado";
@@ -127,32 +142,87 @@ export function calculateVatDebit(documents: DocumentoTributario[]): VatDebitRes
   let vatDebit = 0;
   let inferredDocuments = 0;
   let exemptSales = 0;
+  const consideredDocuments: import("@/types/engine").DocumentAuditEntry[] = [];
+  const excludedDocuments: import("@/types/engine").DocumentAuditEntry[] = [];
+  let totalConsideredNet = 0;
+  let totalConsideredVat = 0;
+  let totalExcludedVat = 0;
 
   for (const d of documents) {
-    if (!ventaVigente(d)) continue;
     const tipo = d.tipoDocumento as string;
-    if (!VENTA_CONSIDERADA.has(tipo)) continue;
     const efecto = efectoTributario(tipo);
-
     let iva = Math.abs(seguro(d.iva));
-    if (iva === 0) {
-      const afecto = Math.abs(seguro(d.neto));
-      if (afecto > 0) {
-        iva = Math.round(afecto * VAT_RATE);
-        inferredDocuments += 1;
-      }
+    const neto = Math.abs(seguro(d.neto));
+    const total = Math.abs(seguro(d.total));
+
+    const entry: import("@/types/engine").DocumentAuditEntry = {
+      id: d.id,
+      folio: d.folio ?? null,
+      tipoDocumento: tipo,
+      rutContraparte: d.rutContraparte || "",
+      montoNeto: neto,
+      montoIva: iva,
+      montoTotal: total,
+      efectoTributario: efecto,
+    };
+
+    if (!ventaVigente(d)) {
+      entry.motivoExclusion = "Documento anulado";
+      totalExcludedVat += iva;
+      excludedDocuments.push(entry);
+      continue;
     }
+
+    if (!VENTA_CONSIDERADA.has(tipo)) {
+      entry.motivoExclusion = `Tipo de documento no considerado en ventas (${tipo})`;
+      totalExcludedVat += iva;
+      excludedDocuments.push(entry);
+      continue;
+    }
+
+    if (iva === 0 && neto > 0) {
+      iva = Math.round(neto * VAT_RATE);
+      entry.montoIva = iva;
+      inferredDocuments += 1;
+    }
+
     vatDebit += efecto * iva;
     exemptSales += montoFirmado(d.exento, efecto);
+    totalConsideredNet += efecto * neto;
+    totalConsideredVat += efecto * iva;
+    consideredDocuments.push(entry);
   }
 
+  const finalAmount = Math.max(0, redondear(vatDebit));
+  const calculatedAt = new Date().toISOString();
+
+  const calculationTrace: import("@/types/engine").ComponentAuditTrace = {
+    concept: "vat_debit",
+    engineVersion: "mirror-engine-1.0.0",
+    ruleVersion: "1.0.0",
+    calculatedAt,
+    formula: "VAT_DEBIT = SUM(Facturas IVA + Boletas IVA) - SUM(Notas Credito IVA) + Débitos Especiales",
+    finalAmount,
+    summary: {
+      consideredCount: consideredDocuments.length,
+      excludedCount: excludedDocuments.length,
+      totalConsideredNet,
+      totalConsideredVat,
+      totalExcludedVat,
+      inferredDocumentsCount: inferredDocuments,
+    },
+    consideredDocuments,
+    excludedDocuments,
+    sourceOrigin: documents.length > 0 ? "rcv_documents" : "rcv_summary",
+  };
+
   return {
-    vatDebit: Math.max(0, redondear(vatDebit)),
+    vatDebit: finalAmount,
     inferred: inferredDocuments > 0,
     inferredDocuments,
     exemptSales: Math.max(0, redondear(exemptSales)),
+    calculationTrace,
   };
-
 }
 
 /* ------------------------------------------------------------------ */
