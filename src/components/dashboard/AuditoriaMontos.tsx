@@ -161,10 +161,9 @@ export function AuditoriaMontos({ data }: { data: DashboardData }) {
                 <Etiqueta fuente={l.fuente} />
                 {l.concepto === "IVA débito por ventas" && (
                   <Button
-                    variant="outline"
                     size="sm"
                     onClick={() => setModalAuditOpen(true)}
-                    className="h-7 text-xs px-2.5 font-medium"
+                    className="h-7 text-xs px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
                   >
                     Ver auditoría
                   </Button>
