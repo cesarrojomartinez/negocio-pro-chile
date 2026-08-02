@@ -3,7 +3,7 @@ import { SectionCard } from "@/components/shared/SectionCard";
 import { Button } from "@/components/ui/button";
 import { VatDebitAuditModal } from "@/components/tax/VatDebitAuditModal";
 import { formatCLP } from "@/utils/currency";
-import { calculateVatDebit } from "@/utils/taxCalculations";
+import { calculateVatDebit, calculateVatCredit } from "@/utils/taxCalculations";
 import { ETIQUETA_FUENTE_CONCEPTO } from "@/lib/taxContext";
 import type { ConceptSource } from "@/types/engine";
 import type { DashboardData } from "@/types/tax";
@@ -44,6 +44,7 @@ function Etiqueta({ fuente }: { fuente: ConceptSource }) {
  */
 export function AuditoriaMontos({ data }: { data: DashboardData }) {
   const [modalAuditOpen, setModalAuditOpen] = useState(false);
+  const [modalAuditCreditoOpen, setModalAuditCreditoOpen] = useState(false);
   const { resumen, ventas, compras, contexto } = data;
   const s = contexto.sources;
   const esDemo = data.fuentePeriodo === "mock";
@@ -51,6 +52,10 @@ export function AuditoriaMontos({ data }: { data: DashboardData }) {
   const traceIvaDebito =
     resumen.calculationTrace ??
     calculateVatDebit(data.documentosVenta).calculationTrace;
+
+  const traceIvaCredito =
+    resumen.calculationTraceCredito ??
+    calculateVatCredit(data.documentosCompra).calculationTrace;
 
   const tasaPpmTexto =
     contexto.ppm_rate != null
@@ -168,6 +173,15 @@ export function AuditoriaMontos({ data }: { data: DashboardData }) {
                     Ver auditoría
                   </Button>
                 )}
+                {l.concepto === "IVA crédito por compras" && (
+                  <Button
+                    size="sm"
+                    onClick={() => setModalAuditCreditoOpen(true)}
+                    className="h-7 text-xs px-3 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
+                  >
+                    Ver auditoría
+                  </Button>
+                )}
               </div>
             </li>
           ))}
@@ -185,6 +199,14 @@ export function AuditoriaMontos({ data }: { data: DashboardData }) {
         onOpenChange={setModalAuditOpen}
         calculationTrace={traceIvaDebito}
         periodo={resumen.periodo}
+      />
+
+      <VatDebitAuditModal
+        open={modalAuditCreditoOpen}
+        onOpenChange={setModalAuditCreditoOpen}
+        calculationTrace={traceIvaCredito}
+        periodo={resumen.periodo}
+        titulo="Auditoría de IVA Crédito por Compras"
       />
     </>
   );

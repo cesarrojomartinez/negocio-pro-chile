@@ -14,6 +14,7 @@ export interface VatDebitAuditModalProps {
   onOpenChange: (open: boolean) => void;
   calculationTrace?: ComponentAuditTrace | null;
   periodo?: string;
+  titulo?: string;
 }
 
 function labelTipoDocumento(tipo: string): string {
@@ -34,6 +35,8 @@ function labelTipoDocumento(tipo: string): string {
       return "Boleta Electrónica (39)";
     case "41":
       return "Boleta Exenta (41)";
+    case "46":
+      return "Factura de Compra (46)";
     default:
       return tipo;
   }
@@ -44,13 +47,27 @@ export function VatDebitAuditModal({
   onOpenChange,
   calculationTrace,
   periodo,
+  titulo,
 }: VatDebitAuditModalProps) {
+  const esCredito = calculationTrace?.concept === "vat_credit";
+  const tituloModal =
+    titulo ??
+    (esCredito
+      ? "Auditoría de IVA Crédito por Compras"
+      : "Auditoría de IVA Débito");
+  const etiquetaResultado = esCredito
+    ? "Resultado IVA Crédito:"
+    : "Resultado IVA Débito:";
+  const etiquetaPositivo = esCredito
+    ? "IVA crédito positivo (Facturas de compra):"
+    : "IVA positivo (Facturas / Boletas):";
+
   if (!calculationTrace) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Auditoría de IVA Débito</DialogTitle>
+            <DialogTitle>{tituloModal}</DialogTitle>
             <DialogDescription>
               No hay traza de cálculo disponible para este período.
             </DialogDescription>
@@ -91,7 +108,7 @@ export function VatDebitAuditModal({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            Auditoría de IVA Débito
+            {tituloModal}
           </DialogTitle>
           <DialogDescription>
             Desglose paso a paso generado por el Motor Tributario Espejo.
@@ -125,7 +142,7 @@ export function VatDebitAuditModal({
           </div>
 
           <div className="mt-1 flex items-baseline justify-between border-t pt-2">
-            <span className="text-sm font-semibold">Resultado IVA Débito:</span>
+            <span className="text-sm font-semibold">{etiquetaResultado}</span>
             <span className="text-lg font-bold text-primary">
               {formatCLP(resultadoMatematico)}
             </span>
@@ -138,7 +155,7 @@ export function VatDebitAuditModal({
             Resumen Matemático
           </h4>
           <div className="flex justify-between">
-            <span>IVA positivo (Facturas / Boletas):</span>
+            <span>{etiquetaPositivo}</span>
             <span className="font-mono font-medium">{formatCLP(ivaPositivo)}</span>
           </div>
           <div className="flex justify-between text-destructive">

@@ -242,29 +242,98 @@ export function calculateVatCredit(documents: DocumentoTributario[]): VatCreditR
   let claimedDocuments = 0;
   let excludedDocuments = 0;
 
+  const consideredList: import("@/types/engine").DocumentAuditEntry[] = [];
+  const excludedList: import("@/types/engine").DocumentAuditEntry[] = [];
+  let totalConsideredNet = 0;
+  let totalConsideredVat = 0;
+  let totalExcludedVat = 0;
+
   for (const d of documents) {
     const estado = d.estado as string;
-    const iva = montoFirmado(d.iva, efectoTributario(d.tipoDocumento as string));
+    const efecto = efectoTributario(d.tipoDocumento as string);
+    const neto = Math.abs(seguro(d.neto));
+    const iva = Math.abs(seguro(d.iva));
+    const ivaFirmado = montoFirmado(d.iva, efecto);
+
+    const docId =
+      d.id ||
+      `doc-compra-${d.periodo}-${d.tipoDocumento}-${d.folio || Math.random().toString(36).substring(2, 7)}`;
+
+    const total = Math.abs(seguro(d.total ?? (neto + iva)));
+
+    const entry: import("@/types/engine").DocumentAuditEntry = {
+      id: docId,
+      tipoDocumento: d.tipoDocumento as string,
+      folio: d.folio ?? null,
+      rutContraparte: d.rutContraparte || "",
+      montoNeto: neto,
+      montoIva: iva,
+      montoTotal: total,
+      efectoTributario: efecto,
+    };
+
     if (CREDITO_UTILIZABLE.has(estado)) {
-      vatCreditUsable += iva;
+      vatCreditUsable += ivaFirmado;
       usableDocuments += 1;
+      totalConsideredNet += efecto * neto;
+      totalConsideredVat += efecto * iva;
+      consideredList.push(entry);
     } else if (CREDITO_POTENCIAL.has(estado)) {
-      vatCreditPotential += iva;
+      vatCreditPotential += ivaFirmado;
       pendingDocuments += 1;
+      totalExcludedVat += iva;
+      excludedList.push({
+        ...entry,
+        motivoExclusion: "Pendiente de acuse / recepción (crédito potencial)",
+      });
     } else if (estado === "reclamada") {
       claimedDocuments += 1;
+      totalExcludedVat += iva;
+      excludedList.push({
+        ...entry,
+        motivoExclusion: "Documento de compra reclamado ante el SII",
+      });
     } else {
       excludedDocuments += 1;
+      totalExcludedVat += iva;
+      excludedList.push({
+        ...entry,
+        motivoExclusion: `Estado no elegible para crédito (${estado})`,
+      });
     }
   }
 
+  const finalAmount = Math.max(0, redondear(vatCreditUsable));
+  const calculatedAt = new Date().toISOString();
+
+  const calculationTrace: import("@/types/engine").ComponentAuditTrace = {
+    concept: "vat_credit",
+    engineVersion: "mirror-engine-1.0.0",
+    ruleVersion: "1.0.0",
+    calculatedAt,
+    formula: "VAT_CREDIT = SUM(Facturas de Compra Aceptadas / Registradas) - SUM(Notas Credito Compra) + Créditos Especiales",
+    finalAmount,
+    summary: {
+      consideredCount: consideredList.length,
+      excludedCount: excludedList.length,
+      totalConsideredNet,
+      totalConsideredVat,
+      totalExcludedVat,
+      inferredDocumentsCount: 0,
+    },
+    consideredDocuments: consideredList,
+    excludedDocuments: excludedList,
+    sourceOrigin: documents.length > 0 ? "rcv_documents" : "rcv_summary",
+  };
+
   return {
-    vatCreditUsable: redondear(vatCreditUsable),
+    vatCreditUsable: finalAmount,
     vatCreditPotential: redondear(vatCreditPotential),
     usableDocuments,
     pendingDocuments,
     claimedDocuments,
     excludedDocuments,
+    calculationTrace,
   };
 }
 

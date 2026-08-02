@@ -95,6 +95,7 @@ export interface VatCreditResult {
   pendingDocuments: number;
   claimedDocuments: number;
   excludedDocuments: number;
+  calculationTrace?: ComponentAuditTrace;
 }
 
 export interface VatPositionInput {
