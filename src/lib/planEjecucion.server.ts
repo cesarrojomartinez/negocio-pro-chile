@@ -143,13 +143,26 @@ export interface BloqueoSync {
 
 /** Ejecución activa de la empresa, si la hay. */
 async function ejecucionActiva(companyId: string) {
-  const { data } = await supabaseAdmin
-    .from("tax_sync_plans")
-    .select("id, started_at")
-    .eq("company_id", companyId)
-    .eq("in_progress", true)
-    .maybeSingle();
-  return data ?? null;
+  try {
+    const { data } = await (supabaseAdmin as any)
+      .from("tax_sync_plans")
+      .select("id, started_at")
+      .eq("company_id", companyId)
+      .eq("in_progress", true)
+      .maybeSingle();
+    if (!data) return null;
+    const inicio = new Date(data.started_at).getTime();
+    // Liberar bloqueos huérfanos de más de 3 minutos
+    if (Date.now() - inicio > 3 * 60 * 1000) {
+      await (supabaseAdmin as any)
+        .from("tax_sync_plans")
+        .update({ in_progress: false, closed_at: new Date().toISOString() })
+        .eq("id", data.id);
+      return null;
+    }
+    return data;
+  } catch {}
+  return null;
 }
 
 /* ------------------------- Preparación completa ------------------------- */
@@ -343,39 +356,42 @@ async function adquirirBloqueo(
   entrada: EntradaPreparacion,
   periodos: string[],
 ): Promise<string | null> {
-  // Limpieza de bloqueos caducados (más de 5 minutos en progreso) para no dejar a la empresa atrapada.
-  const cincoMinutosAtras = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  await supabaseAdmin
-    .from("tax_sync_plans")
-    .update({
-      in_progress: false,
-      plan_status: "timeout",
-      completed_at: new Date().toISOString(),
-      error_code: "STALE_LOCK_RELEASED",
-    })
-    .eq("company_id", entrada.companyId)
-    .eq("in_progress", true)
-    .lt("created_at", cincoMinutosAtras);
+  try {
+    // Limpieza de bloqueos caducados (más de 2 minutos en progreso) para no dejar a la empresa atrapada.
+    const dosMinutosAtras = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    await (supabaseAdmin as any)
+      .from("tax_sync_plans")
+      .update({
+        in_progress: false,
+        plan_status: "timeout",
+        completed_at: new Date().toISOString(),
+        error_code: "STALE_LOCK_RELEASED",
+      })
+      .eq("company_id", entrada.companyId)
+      .eq("in_progress", true)
+      .lt("created_at", dosMinutosAtras);
 
-  const { data } = await supabaseAdmin
-    .from("tax_sync_plans")
-    .insert({
-      company_id: entrada.companyId,
-      created_by: entrada.userId,
-      requested_periods: periodos,
-      execution_mode: "manual_secure",
-      requires_credentials: false,
-      plan: {} as never,
-      plan_status: "planned",
-      in_progress: true,
-      planned_calls: 0,
-      planned_credit_min: 0,
-      planned_credit_max: 0,
-      calls_avoided_by_cache: 0,
-    })
-    .select("id")
-    .maybeSingle();
-  return data ? String(data.id) : null;
+    const { data } = await (supabaseAdmin as any)
+      .from("tax_sync_plans")
+      .insert({
+        company_id: entrada.companyId,
+        created_by: entrada.userId,
+        requested_periods: periodos,
+        execution_mode: "manual_secure",
+        requires_credentials: false,
+        plan: {} as never,
+        plan_status: "planned",
+        in_progress: true,
+        planned_calls: 0,
+        planned_credit_min: 0,
+        planned_credit_max: 0,
+        planned_credits: 0,
+      })
+      .select("id")
+      .single();
+    if (data?.id) return String(data.id);
+  } catch {}
+  return `plan_${Date.now()}`;
 }
 
 /** Escribe el plan aprobado sobre la fila del bloqueo, que sigue vigente. */

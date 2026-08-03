@@ -95,12 +95,13 @@ export function permisosPorEstado(estado: EstadoCuenta): PermisosCuenta {
       };
     case "suspended":
     case "cancelled":
+    default:
       return {
         puedeLeer: true,
         puedeActualizar: false,
         puedeConfigurar: false,
         puedeReactivar: true,
-        mensaje: DESCRIPCION_ESTADO[estado],
+        mensaje: DESCRIPCION_ESTADO[estado] || "Cuenta suspendida",
       };
   }
 }

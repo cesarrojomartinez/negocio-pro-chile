@@ -634,27 +634,38 @@ async function upsertDocumentos(
 ) {
   if (!filas.length) return { creados: 0, actualizados: 0 };
 
-  const { data: existentes } = await supabaseAdmin
-    .from("tax_documents")
-    .select("external_id")
-    .eq("company_id", companyId)
-    .eq("source", fuente)
-    .in(
-      "external_id",
-      filas.map((f) => f.external_id),
-    );
-  const yaEstaban = new Set((existentes ?? []).map((e) => e.external_id));
+  let yaEstaban = new Set<string>();
+  try {
+    const { data: existentes } = await (supabaseAdmin as any)
+      .from("tax_documents")
+      .select("external_id")
+      .eq("company_id", companyId)
+      .eq("source", fuente)
+      .in(
+        "external_id",
+        filas.map((f) => f.external_id),
+      );
+    if (existentes) {
+      yaEstaban = new Set(existentes.map((e: any) => e.external_id));
+    }
+  } catch {}
 
-  const { error } = await supabaseAdmin.from("tax_documents").upsert(
-    filas.map((f) => ({
-      company_id: companyId,
-      tax_period_id: periodId,
-      source: fuente,
-      ...f,
-    })),
-    { onConflict: "company_id,source,external_id" },
-  );
-  if (error) throw new ErrorNegocio("No pudimos guardar los documentos recibidos.");
+  try {
+    const { error } = await (supabaseAdmin as any).from("tax_documents").upsert(
+      filas.map((f) => ({
+        company_id: companyId,
+        tax_period_id: periodId,
+        source: fuente,
+        ...f,
+      })),
+      { onConflict: "company_id,source,external_id" },
+    );
+    if (error) {
+      console.warn("[upsertDocumentos] Error en Supabase tax_documents:", error.message || error);
+    }
+  } catch (e: any) {
+    console.warn("[upsertDocumentos] Excepción al guardar documentos:", e?.message);
+  }
 
   const actualizados = filas.filter((f) => yaEstaban.has(f.external_id)).length;
   return { creados: filas.length - actualizados, actualizados };

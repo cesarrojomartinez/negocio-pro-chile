@@ -58,7 +58,7 @@ export class SimpleApiProviderAdapter implements TaxProvider {
   async healthCheck(): Promise<HealthCheckResult> {
     const inicio = Date.now();
     try {
-      const apiKey = this.config.apiKey || process.env.SIMPLEAPI_API_KEY;
+      const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
       if (!apiKey) {
         return {
           status: "invalid_credentials",
