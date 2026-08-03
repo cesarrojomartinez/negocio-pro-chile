@@ -230,17 +230,20 @@ export async function ejecutarPruebaRealApiGateway(
     const apiKey = process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893";
     proveedor = new SimpleApiProviderAdapter({ apiKey });
   } else {
-    proveedor = config
-      ? crearAdaptadorApiGateway({
-          config,
-          credenciales,
-          registro,
-          soloResumen: !plan.allowsDocumentDetail,
-          estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
-          sesionNueva: entrada.sesionNueva === true,
-          control,
-        })
-      : (await import("@/integrations/sii/mockSiiProviderAdapter")).mockSiiProviderAdapter;
+    if (!config) {
+      throw new ErrorNegocio(
+        "Falta configurar APIGATEWAY_TOKEN en los Secretos de Lovable para usar el proveedor API Gateway real.",
+      );
+    }
+    proveedor = crearAdaptadorApiGateway({
+      config,
+      credenciales,
+      registro,
+      soloResumen: !plan.allowsDocumentDetail,
+      estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
+      sesionNueva: entrada.sesionNueva === true,
+      control,
+    });
   }
 
   const ahora = new Date().toISOString();

@@ -175,7 +175,7 @@ export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapte
 
 /** Fuente de datos que corresponde a cada proveedor. */
 function fuenteDe(id: SiiProviderId): "mock_gateway" | "api_gateway" {
-  return id === "api_gateway" ? "api_gateway" : "mock_gateway";
+  return id === "api_gateway" || id === "simple_api" ? "api_gateway" : "mock_gateway";
 }
 
 

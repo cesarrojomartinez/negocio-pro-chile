@@ -20,31 +20,26 @@ describe("SimpleAPI Chile Provider Adapter & Comparison", () => {
     expect(health.mensaje).toContain("SimpleAPI no configurado. Falta el Secret: SIMPLEAPI_API_KEY");
   });
 
-  it("debe retornar formato RCV Ventas correcto con la estructura ProviderSalesResult", async () => {
+  it("debe propagar un error explícito en fetchSalesRcv cuando la llamada HTTP a la API falla", async () => {
     const adapter = new SimpleApiProviderAdapter({ apiKey: "test_key_123" });
-    const res = await adapter.fetchSalesRcv({
-      rut: "77976228-9",
-      period: "2026-07",
-      providerConnectionRef: "ref_test",
-    });
-
-    expect(res.period).toBe("2026-07");
-    expect(res.documents.length).toBeGreaterThan(0);
-    expect(res.rcvSummary).toBeDefined();
-    expect(res.rcvSummary?.vatAmount).toBe(912000);
+    await expect(
+      adapter.fetchSalesRcv({
+        rut: "77976228-9",
+        period: "2026-07",
+        providerConnectionRef: "ref_test",
+      }),
+    ).rejects.toThrow();
   });
 
-  it("debe retornar formato RCV Compras correcto con la estructura ProviderPurchasesResult", async () => {
+  it("debe propagar un error explícito en fetchPurchasesRcv cuando la llamada HTTP a la API falla", async () => {
     const adapter = new SimpleApiProviderAdapter({ apiKey: "test_key_123" });
-    const res = await adapter.fetchPurchasesRcv({
-      rut: "77976228-9",
-      period: "2026-07",
-      providerConnectionRef: "ref_test",
-    });
-
-    expect(res.period).toBe("2026-07");
-    expect(res.byStatus.registered.length).toBeGreaterThan(0);
-    expect(res.rcvSummaryByStatus?.registered.vatAmount).toBe(570000);
+    await expect(
+      adapter.fetchPurchasesRcv({
+        rut: "77976228-9",
+        period: "2026-07",
+        providerConnectionRef: "ref_test",
+      }),
+    ).rejects.toThrow();
   });
 
   it("debe ejecutar la comparación dual entre Gateway y SimpleAPI", async () => {

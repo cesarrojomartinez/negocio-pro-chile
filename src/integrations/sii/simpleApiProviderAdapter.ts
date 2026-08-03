@@ -173,90 +173,93 @@ export class SimpleApiProviderAdapter implements TaxProvider {
     return;
   }
 
+  private formatoMesAnio(periodo: string): { mm: string; aaaa: string } {
+    const partes = periodo.split("-");
+    if (partes.length === 2) {
+      return { mm: partes[1].padStart(2, "0"), aaaa: partes[0] };
+    }
+    return { mm: "01", aaaa: "2025" };
+  }
+
   async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
-    const isTestKey = (this.config.apiKey || process.env.SIMPLEAPI_API_KEY) === "test_key_123";
-    if (!isTestKey) {
-      const health = await this.healthCheck();
-      if (health.status === "invalid_credentials") {
-        throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_sales_summary");
-      }
-      if (health.status === "down" || health.status === "unavailable") {
-        throw new SiiProviderError("PROVIDER_UNAVAILABLE", "rcv_sales_summary");
-      }
+    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
+    if (!apiKey) {
+      throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_sales_summary");
     }
 
-    const period = query.period;
+    const jwtToken = await this.obtenerJwtToken(apiKey);
+    if (!jwtToken) {
+      throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_sales_summary");
+    }
+
+    const { mm, aaaa } = this.formatoMesAnio(query.period);
+    const url = `https://servicios.simpleapi.cl/api/RCV/ventas/${mm}/${aaaa}`;
+
+    const formData = new FormData();
+    formData.append(
+      "input",
+      JSON.stringify({
+        RutCertificado: query.rut,
+        RutEmpresa: query.rut,
+        Ambiente: 0,
+        Password: "",
+      }),
+    );
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new SiiProviderError("PROVIDER_UNAVAILABLE", "rcv_sales_summary");
+    }
+
+    const data = await res.json();
     const ahora = new Date().toISOString();
 
-    // Estructura normalizada compatible con el motor tributario
     const summary: ProviderRcvSummary = {
-      lines: [
-        {
-          documentTypeCode: 33,
-          documentTypeLabel: "Factura Electrónica",
-          documentCount: 15,
-          netAmount: 5000000,
-          vatAmount: 950000,
-          exemptAmount: 0,
-          vatCommonUse: 0,
-          vatNonRecoverable: 0,
-          totalAmount: 5950000,
-          taxEffect: 1,
-        },
-        {
-          documentTypeCode: 61,
-          documentTypeLabel: "Nota de Crédito Electrónica",
-          documentCount: 2,
-          netAmount: 200000,
-          vatAmount: 38000,
-          exemptAmount: 0,
-          vatCommonUse: 0,
-          vatNonRecoverable: 0,
-          totalAmount: 238000,
-          taxEffect: -1,
-        },
-      ],
-      documentCount: 17,
-      netAmount: 4800000,
-      vatAmount: 912000,
-      exemptAmount: 0,
-      totalAmount: 5712000,
+      lines: (data.Detalles || data.Resumen || []).map((d: any) => ({
+        documentTypeCode: d.TipoDte || d.Codigo || 33,
+        documentTypeLabel: d.TipoDteNombre || "Documento",
+        documentCount: d.Cantidad || 0,
+        netAmount: d.MontoNeto || 0,
+        vatAmount: d.MontoIva || 0,
+        exemptAmount: d.MontoExento || 0,
+        vatCommonUse: 0,
+        vatNonRecoverable: 0,
+        totalAmount: d.MontoTotal || 0,
+        taxEffect: 1,
+      })),
+      documentCount: data.TotalDocumentos || 0,
+      netAmount: data.TotalNeto || 0,
+      vatAmount: data.TotalIva || 0,
+      exemptAmount: data.TotalExento || 0,
+      totalAmount: data.TotalMonto || 0,
       unclassifiedAmount: 0,
     };
 
-    const documents: ProviderDocument[] = [
-      {
-        externalId: `simpleapi_sale_${query.rut}_${period}_33_101`,
-        documentType: "factura",
-        folio: 101,
-        issueDate: `${period}-05`,
-        counterpartyName: "CLIENTE MODELO SIMPLEAPI SPAT",
-        counterpartyRut: "76192837-4",
-        netAmount: 5000000,
-        vatAmount: 950000,
-        exemptAmount: 0,
-        totalAmount: 5950000,
-        rcvStatus: "accepted",
-        taxEffect: 1,
-      },
-      {
-        externalId: `simpleapi_sale_${query.rut}_${period}_61_12`,
-        documentType: "notaCredito",
-        folio: 12,
-        issueDate: `${period}-15`,
-        counterpartyName: "CLIENTE MODELO SIMPLEAPI SPAT",
-        counterpartyRut: "76192837-4",
-        netAmount: 200000,
-        vatAmount: 38000,
-        exemptAmount: 0,
-        totalAmount: 238000,
-        rcvStatus: "accepted",
-        taxEffect: -1,
-      },
-    ];
+    const documents: ProviderDocument[] = (data.Documentos || []).map((doc: any, i: number) => ({
+      externalId: `simpleapi_sale_${query.rut}_${query.period}_${doc.Folio || i}`,
+      documentType: "factura",
+      folio: doc.Folio || i + 1,
+      issueDate: doc.FechaEmision || `${query.period}-01`,
+      counterpartyName: doc.RazonSocial || doc.RutReceptor || "CLIENTE",
+      counterpartyRut: doc.RutReceptor || "77976228-9",
+      netAmount: doc.MontoNeto || 0,
+      vatAmount: doc.MontoIva || 0,
+      exemptAmount: doc.MontoExento || 0,
+      totalAmount: doc.MontoTotal || 0,
+      rcvStatus: "accepted",
+      taxEffect: 1,
+    }));
 
     return {
-      period,
+      period: query.period,
       dataThroughDate: ahora,
       documents,
       summary: {
@@ -269,40 +272,64 @@ export class SimpleApiProviderAdapter implements TaxProvider {
   }
 
   async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
-    const isTestKey = (this.config.apiKey || process.env.SIMPLEAPI_API_KEY) === "test_key_123";
-    if (!isTestKey) {
-      const health = await this.healthCheck();
-      if (health.status === "invalid_credentials") {
-        throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_purchases_registered");
-      }
-      if (health.status === "down" || health.status === "unavailable") {
-        throw new SiiProviderError("PROVIDER_UNAVAILABLE", "rcv_purchases_registered");
-      }
+    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
+    if (!apiKey) {
+      throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_purchases_registered");
     }
 
-    const period = query.period;
+    const jwtToken = await this.obtenerJwtToken(apiKey);
+    if (!jwtToken) {
+      throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_purchases_registered");
+    }
+
+    const { mm, aaaa } = this.formatoMesAnio(query.period);
+    const url = `https://servicios.simpleapi.cl/api/RCV/compras/${mm}/${aaaa}`;
+
+    const formData = new FormData();
+    formData.append(
+      "input",
+      JSON.stringify({
+        RutCertificado: query.rut,
+        RutEmpresa: query.rut,
+        Ambiente: 0,
+        Password: "",
+      }),
+    );
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwtToken}`,
+      },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "");
+      throw new SiiProviderError("PROVIDER_UNAVAILABLE", "rcv_purchases_registered");
+    }
+
+    const data = await res.json();
     const ahora = new Date().toISOString();
 
     const registeredSummary: ProviderRcvSummary = {
-      lines: [
-        {
-          documentTypeCode: 33,
-          documentTypeLabel: "Factura Electrónica de Compra",
-          documentCount: 10,
-          netAmount: 3000000,
-          vatAmount: 570000,
-          exemptAmount: 0,
-          vatCommonUse: 0,
-          vatNonRecoverable: 0,
-          totalAmount: 3570000,
-          taxEffect: 1,
-        },
-      ],
-      documentCount: 10,
-      netAmount: 3000000,
-      vatAmount: 570000,
-      exemptAmount: 0,
-      totalAmount: 3570000,
+      lines: (data.Detalles || data.Resumen || []).map((d: any) => ({
+        documentTypeCode: d.TipoDte || d.Codigo || 33,
+        documentTypeLabel: d.TipoDteNombre || "Documento Compra",
+        documentCount: d.Cantidad || 0,
+        netAmount: d.MontoNeto || 0,
+        vatAmount: d.MontoIva || 0,
+        exemptAmount: d.MontoExento || 0,
+        vatCommonUse: 0,
+        vatNonRecoverable: 0,
+        totalAmount: d.MontoTotal || 0,
+        taxEffect: 1,
+      })),
+      documentCount: data.TotalDocumentos || 0,
+      netAmount: data.TotalNeto || 0,
+      vatAmount: data.TotalIva || 0,
+      exemptAmount: data.TotalExento || 0,
+      totalAmount: data.TotalMonto || 0,
       unclassifiedAmount: 0,
     };
 
@@ -316,25 +343,23 @@ export class SimpleApiProviderAdapter implements TaxProvider {
       unclassifiedAmount: 0,
     };
 
-    const registeredDocs: ProviderDocument[] = [
-      {
-        externalId: `simpleapi_pur_${query.rut}_${period}_33_550`,
-        documentType: "factura",
-        folio: 550,
-        issueDate: `${period}-10`,
-        counterpartyName: "PROVEEDOR SERVICIOS CHILE SPA",
-        counterpartyRut: "77889900-1",
-        netAmount: 3000000,
-        vatAmount: 570000,
-        exemptAmount: 0,
-        totalAmount: 3570000,
-        rcvStatus: "registered",
-        taxEffect: 1,
-      },
-    ];
+    const registeredDocs: ProviderDocument[] = (data.Documentos || []).map((doc: any, i: number) => ({
+      externalId: `simpleapi_pur_${query.rut}_${query.period}_${doc.Folio || i}`,
+      documentType: "factura",
+      folio: doc.Folio || i + 1,
+      issueDate: doc.FechaEmision || `${query.period}-01`,
+      counterpartyName: doc.RazonSocial || doc.RutEmisor || "PROVEEDOR",
+      counterpartyRut: doc.RutEmisor || "77889900-1",
+      netAmount: doc.MontoNeto || 0,
+      vatAmount: doc.MontoIva || 0,
+      exemptAmount: doc.MontoExento || 0,
+      totalAmount: doc.MontoTotal || 0,
+      rcvStatus: "registered",
+      taxEffect: 1,
+    }));
 
     return {
-      period,
+      period: query.period,
       dataThroughDate: ahora,
       byStatus: {
         registered: registeredDocs,

@@ -21,7 +21,7 @@ import {
 } from "./contracts";
 import { sanitizarProfundo } from "./sanitize";
 
-export const BASE_URL_POR_DEFECTO = "https://app.apigateway.cl/api/v2/";
+export const BASE_URL_POR_DEFECTO = "https://apigateway.cl/api/v2/";
 export const TIEMPO_MAXIMO_MS = 45_000;
 export const MAX_REAL_PROVIDER_REQUESTS_PER_SYNC = 24;
 /** Prueba controlada: como máximo un reintento automático. */
