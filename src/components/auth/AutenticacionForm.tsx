@@ -12,11 +12,19 @@ import { esAdministradorFn } from "@/lib/cuenta.functions";
 
 export function AutenticacionForm({
   pestanaInicial = "login",
+  destinoTrasLogin,
 }: {
   pestanaInicial?: "login" | "registro";
+  /** Ruta relativa del mismo origen a la que volver tras iniciar sesión. */
+  destinoTrasLogin?: string;
 }) {
   const { session, cargandoSesion, iniciarSesion, registrar } = useAuth();
   const navigate = useNavigate();
+
+  const retorno =
+    destinoTrasLogin && destinoTrasLogin.startsWith("/") && !destinoTrasLogin.startsWith("//")
+      ? destinoTrasLogin
+      : null;
 
   const [emailLogin, setEmailLogin] = useState("");
   const [passLogin, setPassLogin] = useState("");
@@ -29,16 +37,19 @@ export function AutenticacionForm({
   const [errorReg, setErrorReg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cargandoSesion && session) {
-      void esAdministradorFn().then((rol) => {
-        if (rol.ok && rol.data) {
-          void navigate({ to: "/admin" });
-        } else {
-          void navigate({ to: "/demo" });
-        }
-      });
+    if (cargandoSesion || !session) return;
+    if (retorno) {
+      window.location.href = retorno;
+      return;
     }
-  }, [cargandoSesion, session, navigate]);
+    void esAdministradorFn().then((rol) => {
+      if (rol.ok && rol.data) {
+        void navigate({ to: "/admin" });
+      } else {
+        void navigate({ to: "/demo" });
+      }
+    });
+  }, [cargandoSesion, session, navigate, retorno]);
 
   async function enviarLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -51,6 +62,10 @@ export function AutenticacionForm({
       return;
     }
     toast.success("Sesión iniciada");
+    if (retorno) {
+      window.location.href = retorno;
+      return;
+    }
     const rol = await esAdministradorFn();
     if (rol.ok && rol.data) {
       void navigate({ to: "/admin" });
