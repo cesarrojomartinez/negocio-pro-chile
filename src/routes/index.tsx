@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check, ShieldCheck, Sparkles } from "lucide-react";
 
 import { HeroPreview } from "@/components/landing/HeroPreview";
@@ -9,6 +10,8 @@ import { Testimonios } from "@/components/landing/Testimonios";
 import { Button } from "@/components/ui/button";
 import { landingPublicaFn } from "@/lib/landing.functions";
 import type { LandingPublica, SeccionLanding } from "@/lib/landing";
+import { useAuth } from "@/hooks/useAuth";
+import { esAdministradorFn } from "@/lib/cuenta.functions";
 
 export const Route = createFileRoute("/")({
   loader: async () => landingPublicaFn(),
@@ -35,6 +38,18 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const { contenido, planes, testimonios } = Route.useLoaderData() as LandingPublica;
+  const { session, cargandoSesion } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!cargandoSesion && session) {
+      void esAdministradorFn().then((rol) => {
+        if (rol.ok && rol.data) {
+          void navigate({ to: "/admin" });
+        }
+      });
+    }
+  }, [session, cargandoSesion, navigate]);
 
   const secciones: Record<SeccionLanding, React.ReactNode> = {
     problema: contenido.problema.visible ? (

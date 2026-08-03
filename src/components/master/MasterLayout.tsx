@@ -3,6 +3,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   Bell,
   ChevronRight,
+  ExternalLink,
   Menu,
   Search,
   ShieldAlert,
@@ -33,6 +34,8 @@ export function MasterLayout({ children }: { children?: React.ReactNode }) {
     if (path === "/admin/ia-creditos/configuracion") return "Tarifas & Proveedores IA";
     if (path.startsWith("/admin/ia-creditos")) return "Créditos IA & Billeteras";
     if (path.startsWith("/admin/metricas")) return "Métricas SaaS — MRR & Crecimiento";
+    if (path.startsWith("/admin/comunicacion")) return "Centro de Comunicación Administrativa";
+    if (path.startsWith("/admin/configuracion")) return "Centro de Configuración Global SaaS";
     if (path === "/admin/landing") return "Editor de Landing Page";
     return "Dashboard Ejecutivo Master";
   };
@@ -92,12 +95,12 @@ export function MasterLayout({ children }: { children?: React.ReactNode }) {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              className="h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/50 font-medium"
               asChild
             >
               <Link to="/demo">
-                <Sparkles className="h-3.5 w-3.5" />
-                Modo Demo
+                <ExternalLink className="h-3.5 w-3.5" />
+                Vista Cliente
               </Link>
             </Button>
 

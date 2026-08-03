@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Calculator, Menu } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,31 +11,15 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
-import { esAdministradorFn } from "@/lib/cuenta.functions";
 
 const ENLACES = [
-  { to: "/demo", label: "Demo" },
-  { to: "/planes", label: "Planes" },
+  { to: "/demo", label: "Demostración" },
+  { to: "/planes", label: "Planes y Tarifas" },
 ] as const;
 
 export function LandingHeader() {
   const { session, cargandoSesion } = useAuth();
-  const [esAdmin, setEsAdmin] = useState(false);
   const [abierto, setAbierto] = useState(false);
-
-  useEffect(() => {
-    let vigente = true;
-    if (!session) {
-      setEsAdmin(false);
-      return;
-    }
-    void esAdministradorFn().then((r) => {
-      if (vigente) setEsAdmin(r.ok && r.data === true);
-    });
-    return () => {
-      vigente = false;
-    };
-  }, [session]);
 
   const conSesion = !cargandoSesion && !!session;
 
@@ -58,16 +42,9 @@ export function LandingHeader() {
             </Button>
           ))}
           {conSesion ? (
-            <>
-              {esAdmin && (
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/admin">Ir al Master</Link>
-                </Button>
-              )}
-              <Button size="sm" asChild>
-                <Link to="/demo">Ir a mi negocio</Link>
-              </Button>
-            </>
+            <Button size="sm" asChild>
+              <Link to="/demo">Ir a mi negocio</Link>
+            </Button>
           ) : (
             <>
               <Button variant="ghost" size="sm" asChild>
@@ -103,16 +80,9 @@ export function LandingHeader() {
                 </Button>
               ))}
               {conSesion ? (
-                <>
-                  {esAdmin && (
-                    <Button variant="outline" asChild onClick={() => setAbierto(false)}>
-                      <Link to="/admin">Ir al Master</Link>
-                    </Button>
-                  )}
-                  <Button asChild onClick={() => setAbierto(false)}>
-                    <Link to="/demo">Ir a mi negocio</Link>
-                  </Button>
-                </>
+                <Button asChild onClick={() => setAbierto(false)}>
+                  <Link to="/demo">Ir a mi negocio</Link>
+                </Button>
               ) : (
                 <>
                   <Button

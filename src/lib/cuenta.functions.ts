@@ -34,6 +34,10 @@ import {
   listarWalletsIAMaster,
   obtenerConsumoIAMaster,
   obtenerDetalleClienteMaster,
+  obtenerFichaCliente360Master,
+  crearNotaAdminMaster,
+  actualizarTicketSoporteMaster,
+  registrarPagoManualMaster,
   panelMaster,
   quitarUsuario,
   reactivarSuscripcion,
@@ -295,6 +299,44 @@ export const listarMetricasSaaSMasterFn = createServerFn({ method: "POST" })
   .handler(async ({ context }) =>
     envolver(() => listarMetricasSaaSMaster(context.userId)),
   );
+
+export const obtenerFichaCliente360MasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => obtenerFichaCliente360Master(context.userId, data.companyId)),
+  );
+
+export const crearNotaAdminMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string; cuerpo: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => crearNotaAdminMaster(context.userId, data)),
+  );
+
+export const actualizarTicketSoporteMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ticketId: string; companyId: string; estado: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => actualizarTicketSoporteMaster(context.userId, data)),
+  );
+
+export const registrarPagoManualMasterFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (data: {
+      companyId: string;
+      montoClp: number;
+      estado?: string;
+      referencia?: string;
+      notas?: string;
+    }) => data,
+  )
+  .handler(async ({ data, context }) =>
+    envolver(() => registrarPagoManualMaster(context.userId, data)),
+  );
+
+
 
 
 

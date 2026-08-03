@@ -2151,3 +2151,563 @@ export async function listarMetricasSaaSMaster(userId: string): Promise<Metricas
 
 
 
+// ---------------------------------------------------------------------------
+// MASTER 2.0 Fase 5 — Customer 360° Profesional
+// ---------------------------------------------------------------------------
+
+/** Helper: obtiene emails reales de usuarios desde auth sin exponer credenciales */
+async function correosPorIds(ids: string[]): Promise<Map<string, string>> {
+  if (!ids.length) return new Map();
+  try {
+    const { data } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const set = new Set(ids);
+    return new Map(
+      (data?.users ?? [])
+        .filter((u) => u.email && set.has(u.id))
+        .map((u) => [u.id, u.email as string]),
+    );
+  } catch {
+    return new Map();
+  }
+}
+
+export interface FichaCliente360Master {
+  /** Datos de la empresa */
+  empresa: {
+    id: string;
+    rut: string;
+    razonSocial: string;
+    nombreFantasia: string | null;
+    giro: string | null;
+    region: string | null;
+    ciudad: string | null;
+    direccion: string | null;
+    esDemo: boolean;
+    alta: string;
+    ultimaSync: string | null;
+    conexionSii: string;
+  };
+  /** Suscripción comercial */
+  suscripcion: {
+    planNombre: string;
+    planCodigo: string | null;
+    planPrecioClp: number | null;
+    estado: EstadoCuenta;
+    iniciada: string | null;
+    finPrueba: string | null;
+    proximaRenovacion: string | null;
+    metodoPago: string | null;
+    proveedorPago: string | null;
+    motivoSuspension: string | null;
+    cancelada: string | null;
+    actualizacionesUsadas: number;
+    referenciaExterna: string | null;
+  };
+  /** Contacto principal (owner) */
+  contacto: {
+    nombre: string | null;
+    email: string | null;
+  };
+  /** KPIs rápidos del header */
+  kpis: {
+    totalDocumentos: number;
+    consultasMes: number;
+    erroresRecientes: number;
+    periodosActivos: number;
+    creditosIaAsignados: number;
+    creditosIaDisponibles: number;
+    creditosIaUsados: number;
+  };
+  /** Usuarios activos + invitaciones */
+  usuarios: {
+    miembros: {
+      id: string;
+      userId: string;
+      nombre: string | null;
+      email: string | null;
+      rol: string;
+      estado: string;
+      ingreso: string;
+    }[];
+    invitaciones: {
+      id: string;
+      email: string;
+      rol: string;
+      estado: string;
+      creada: string;
+      vence: string;
+    }[];
+  };
+  /** Datos tributarios */
+  tributario: {
+    conexionSii: string;
+    totalDocumentos: number;
+    periodosProcesados: number;
+    periodos: {
+      periodo: string;
+      estado: string;
+      fuente: string;
+      actualizado: string;
+    }[];
+    historialSync: {
+      id: string;
+      tipo: string;
+      estado: string;
+      duracionMs: number | null;
+      fecha: string;
+    }[];
+  };
+  /** Consumo real de API + créditos IA (no es asistente IA, son unidades de consumo API) */
+  consumoIa: {
+    creditosAsignados: number;
+    creditosDisponibles: number;
+    creditosUsados: number;
+    costoEstimadoClp: number;
+    porCategoria: {
+      categoria: string;
+      consultas: number;
+      cacheHits: number;
+      errores: number;
+      unidades: number;
+      mes: string;
+    }[];
+    ultimoUso: string | null;
+  };
+  /** Historial de pagos y facturación */
+  pagos: {
+    id: string;
+    tipo: string;
+    montoClp: number | null;
+    estado: string;
+    referencia: string | null;
+    notas: string | null;
+    fecha: string;
+  }[];
+  /** Tickets de soporte */
+  soporte: {
+    id: string;
+    categoria: string;
+    mensaje: string;
+    prioridad: string;
+    estado: string;
+    periodo: string | null;
+    usuarioId: string;
+    usuarioNombre: string | null;
+    usuarioEmail: string | null;
+    creado: string;
+    resuelto: string | null;
+  }[];
+  /** Notas internas del equipo de administración */
+  notas: {
+    id: string;
+    cuerpo: string;
+    autorId: string | null;
+    autorNombre: string | null;
+    autorEmail: string | null;
+    fecha: string;
+  }[];
+  /** Auditoría de acciones */
+  auditoria: {
+    id: string;
+    accion: string;
+    usuarioId: string | null;
+    usuarioEmail: string | null;
+    fecha: string;
+    metadata: Record<string, string | number | boolean | null>;
+  }[];
+}
+
+/**
+ * Fase 5 — Customer 360° Profesional.
+ * Solo lectura, sin credenciales SII, sin tokens, sin contraseñas.
+ * Requiere rol global admin.
+ */
+export async function obtenerFichaCliente360Master(
+  userId: string,
+  companyId: string,
+): Promise<FichaCliente360Master> {
+  await exigirAdministrador(userId);
+
+  // ── 1. Empresa ──────────────────────────────────────────────────────────
+  const { data: emp, error: errEmp } = await supabaseAdmin
+    .from("tax_companies")
+    .select(
+      "id, rut, business_name, fantasy_name, business_activity, region, commune, address, is_demo, created_at, last_sync_at, connection_status",
+    )
+    .eq("id", companyId)
+    .single();
+
+  if (errEmp || !emp) throw new ErrorNegocio("Cliente no encontrado.");
+
+  // ── 2. Suscripción + plan ───────────────────────────────────────────────
+  const { data: sub } = await supabaseAdmin
+    .from("tax_company_subscriptions")
+    .select(
+      "status, started_at, trial_ends_at, next_renewal_at, payment_method_label, payment_provider, suspension_reason, cancelled_at, updates_used, external_reference, plan:tax_plans(name, code, price_clp)",
+    )
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const planObj = sub?.plan as { name: string; code: string; price_clp: number | null } | null;
+
+  // ── 3. Miembros + perfiles + emails ────────────────────────────────────
+  const { data: miembrosRaw } = await supabaseAdmin
+    .from("tax_company_members")
+    .select("id, user_id, role, status, created_at")
+    .eq("company_id", companyId)
+    .neq("status", "removed");
+
+  const memberIds = (miembrosRaw ?? []).map((m) => m.user_id);
+  const [perfilesRes, correosMembers] = await Promise.all([
+    memberIds.length
+      ? supabaseAdmin
+          .from("profiles")
+          .select("id, display_name, first_name, last_name")
+          .in("id", memberIds)
+      : Promise.resolve({ data: [] as { id: string; display_name: string | null; first_name: string | null; last_name: string | null }[] }),
+    correosPorIds(memberIds),
+  ]);
+
+  const perfilMap = new Map(
+    (perfilesRes.data ?? []).map((p) => [
+      p.id,
+      {
+        nombre:
+          p.display_name ??
+          ([p.first_name, p.last_name].filter(Boolean).join(" ") || null),
+      },
+    ]),
+  );
+
+  const owner = (miembrosRaw ?? []).find((m) => m.role === "owner");
+  const contactoNombre = owner ? (perfilMap.get(owner.user_id)?.nombre ?? null) : null;
+  const contactoEmail = owner ? (correosMembers.get(owner.user_id) ?? null) : null;
+
+  // ── 4. Invitaciones ─────────────────────────────────────────────────────
+  const { data: invs } = await supabaseAdmin
+    .from("tax_company_invitations")
+    .select("id, email, role, status, created_at, expires_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  // ── 5. Períodos tributarios ─────────────────────────────────────────────
+  const { data: periodos } = await supabaseAdmin
+    .from("tax_periods")
+    .select("period, status, data_source, updated_at")
+    .eq("company_id", companyId)
+    .order("period", { ascending: false })
+    .limit(36);
+
+  // ── 6. Historial de sincronizaciones SII ───────────────────────────────
+  const { data: syncRuns } = await supabaseAdmin
+    .from("tax_sync_runs")
+    .select("id, trigger_type, status, duration_ms, started_at")
+    .eq("company_id", companyId)
+    .order("started_at", { ascending: false })
+    .limit(20);
+
+  // ── 7. Documentos (count) ───────────────────────────────────────────────
+  const { count: totalDocumentos } = await supabaseAdmin
+    .from("tax_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId);
+
+  // ── 8. Consumo API (tax_usage_ledger) ──────────────────────────────────
+  const { data: uso } = await supabaseAdmin
+    .from("tax_usage_ledger")
+    .select("category, requests, cache_hits, errors, cost_units, usage_month, occurred_at")
+    .eq("company_id", companyId)
+    .order("occurred_at", { ascending: false })
+    .limit(200);
+
+  const meActual = mesActualChile();
+  const usoMesActual = (uso ?? []).filter((u) => u.usage_month === meActual);
+  const consultasMes = usoMesActual.reduce((a, u) => a + u.requests, 0);
+
+  // ── 9. Billetera IA ─────────────────────────────────────────────────────
+  const { data: walletRaw } = await (supabaseAdmin as any)
+    .from("master_ai_wallets")
+    .select("balance, monthly_allowance, updated_at")
+    .eq("company_id", companyId)
+    .maybeSingle()
+    .catch(() => ({ data: null }));
+
+  const walletBalance: number = (walletRaw as any)?.balance ?? 5000;
+  const walletAllowance: number = (walletRaw as any)?.monthly_allowance ?? 10000;
+  const walletUsed = Math.max(0, walletAllowance - walletBalance);
+  const costoEstimadoClp = Math.round(walletUsed * 2.5);
+  const walletLastUse: string | null = (walletRaw as any)?.updated_at ?? null;
+
+  // ── 10. Pagos ───────────────────────────────────────────────────────────
+  const { data: pagosRaw } = await supabaseAdmin
+    .from("tax_billing_events")
+    .select("id, event_type, amount_clp, status, reference, notes, occurred_at")
+    .eq("company_id", companyId)
+    .order("occurred_at", { ascending: false })
+    .limit(50);
+
+  // ── 11. Tickets de soporte ─────────────────────────────────────────────
+  const { data: ticketsRaw } = await supabaseAdmin
+    .from("tax_support_tickets")
+    .select("id, category, message, priority, status, period, user_id, created_at, resolved_at")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const ticketUserIds = [...new Set((ticketsRaw ?? []).map((t) => t.user_id))];
+  const correosTickets = await correosPorIds(ticketUserIds);
+  const { data: perfilesTickets } = ticketUserIds.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", ticketUserIds)
+    : { data: [] as { id: string; display_name: string | null }[] };
+  const perfilTicketMap = new Map((perfilesTickets ?? []).map((p) => [p.id, p.display_name]));
+
+  // ── 12. Notas internas ─────────────────────────────────────────────────
+  const { data: notasRaw } = await supabaseAdmin
+    .from("tax_admin_notes")
+    .select("id, body, author_id, created_at")
+    .eq("entity_type", "company")
+    .eq("entity_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const notaAuthorIds = [...new Set((notasRaw ?? []).map((n) => n.author_id).filter(Boolean) as string[])];
+  const correosNotas = await correosPorIds(notaAuthorIds);
+  const { data: perfilesNotas } = notaAuthorIds.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", notaAuthorIds)
+    : { data: [] as { id: string; display_name: string | null }[] };
+  const perfilNotaMap = new Map((perfilesNotas ?? []).map((p) => [p.id, p.display_name]));
+
+  // ── 13. Auditoría ───────────────────────────────────────────────────────
+  const { data: logsRaw } = await supabaseAdmin
+    .from("tax_activity_logs")
+    .select("id, action, user_id, created_at, metadata")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const logUserIds = [...new Set((logsRaw ?? []).map((l) => l.user_id).filter(Boolean) as string[])];
+  const correosLogs = await correosPorIds(logUserIds);
+
+  // ── Auditar acceso ──────────────────────────────────────────────────────
+  await registrarActividad(companyId, userId, "admin.customer360_view");
+
+  // ── Construir respuesta ─────────────────────────────────────────────────
+  return {
+    empresa: {
+      id: emp.id,
+      rut: emp.rut,
+      razonSocial: emp.business_name,
+      nombreFantasia: emp.fantasy_name,
+      giro: emp.business_activity,
+      region: emp.region,
+      ciudad: emp.commune,
+      direccion: emp.address,
+      esDemo: emp.is_demo,
+      alta: emp.created_at,
+      ultimaSync: emp.last_sync_at,
+      conexionSii: emp.connection_status,
+    },
+    suscripcion: {
+      planNombre: planObj?.name ?? "Sin plan",
+      planCodigo: planObj?.code ?? null,
+      planPrecioClp: planObj?.price_clp ?? null,
+      estado: ((sub?.status ?? "trial") as EstadoCuenta),
+      iniciada: sub?.started_at ?? null,
+      finPrueba: sub?.trial_ends_at ?? null,
+      proximaRenovacion: sub?.next_renewal_at ?? null,
+      metodoPago: sub?.payment_method_label ?? null,
+      proveedorPago: sub?.payment_provider ?? null,
+      motivoSuspension: sub?.suspension_reason ?? null,
+      cancelada: sub?.cancelled_at ?? null,
+      actualizacionesUsadas: sub?.updates_used ?? 0,
+      referenciaExterna: sub?.external_reference ?? null,
+    },
+    contacto: {
+      nombre: contactoNombre,
+      email: contactoEmail,
+    },
+    kpis: {
+      totalDocumentos: totalDocumentos ?? 0,
+      consultasMes,
+      erroresRecientes: (syncRuns ?? []).filter((s) => s.status === "failed").length,
+      periodosActivos: (periodos ?? []).filter((p) => p.status === "confirmed" || p.status === "closed" || p.status === "open").length,
+      creditosIaAsignados: walletAllowance,
+      creditosIaDisponibles: walletBalance,
+      creditosIaUsados: walletUsed,
+    },
+    usuarios: {
+      miembros: (miembrosRaw ?? []).map((m) => ({
+        id: m.id,
+        userId: m.user_id,
+        nombre: perfilMap.get(m.user_id)?.nombre ?? null,
+        email: correosMembers.get(m.user_id) ?? null,
+        rol: m.role,
+        estado: m.status,
+        ingreso: m.created_at,
+      })),
+      invitaciones: (invs ?? []).map((i) => ({
+        id: i.id,
+        email: i.email,
+        rol: i.role,
+        estado: i.status,
+        creada: i.created_at,
+        vence: i.expires_at,
+      })),
+    },
+    tributario: {
+      conexionSii: emp.connection_status,
+      totalDocumentos: totalDocumentos ?? 0,
+      periodosProcesados: (periodos ?? []).length,
+      periodos: (periodos ?? []).map((p) => ({
+        periodo: p.period,
+        estado: p.status,
+        fuente: p.data_source,
+        actualizado: p.updated_at,
+      })),
+      historialSync: (syncRuns ?? []).map((s) => ({
+        id: s.id,
+        tipo: s.trigger_type ?? "manual",
+        estado: s.status,
+        duracionMs: s.duration_ms,
+        fecha: s.started_at,
+      })),
+    },
+    consumoIa: {
+      creditosAsignados: walletAllowance,
+      creditosDisponibles: walletBalance,
+      creditosUsados: walletUsed,
+      costoEstimadoClp,
+      porCategoria: (uso ?? []).map((u) => ({
+        categoria: u.category,
+        consultas: u.requests,
+        cacheHits: u.cache_hits,
+        errores: u.errors,
+        unidades: Number(u.cost_units),
+        mes: u.usage_month,
+      })),
+      ultimoUso: walletLastUse,
+    },
+    pagos: (pagosRaw ?? []).map((p) => ({
+      id: p.id,
+      tipo: p.event_type,
+      montoClp: p.amount_clp,
+      estado: p.status,
+      referencia: p.reference,
+      notas: p.notes,
+      fecha: p.occurred_at,
+    })),
+    soporte: (ticketsRaw ?? []).map((t) => ({
+      id: t.id,
+      categoria: t.category,
+      mensaje: t.message,
+      prioridad: t.priority,
+      estado: t.status,
+      periodo: t.period,
+      usuarioId: t.user_id,
+      usuarioNombre: perfilTicketMap.get(t.user_id) ?? null,
+      usuarioEmail: correosTickets.get(t.user_id) ?? null,
+      creado: t.created_at,
+      resuelto: t.resolved_at,
+    })),
+    notas: (notasRaw ?? []).map((n) => ({
+      id: n.id,
+      cuerpo: n.body,
+      autorId: n.author_id,
+      autorNombre: n.author_id ? (perfilNotaMap.get(n.author_id) ?? null) : null,
+      autorEmail: n.author_id ? (correosNotas.get(n.author_id) ?? null) : null,
+      fecha: n.created_at,
+    })),
+    auditoria: (logsRaw ?? []).map((l) => ({
+      id: l.id,
+      accion: l.action,
+      usuarioId: l.user_id,
+      usuarioEmail: l.user_id ? (correosLogs.get(l.user_id) ?? null) : null,
+      fecha: l.created_at,
+      metadata: (l.metadata as Record<string, string | number | boolean | null>) ?? {},
+    })),
+  };
+}
+
+export async function crearNotaAdminMaster(
+  userId: string,
+  datos: { companyId: string; cuerpo: string },
+): Promise<{ ok: true }> {
+  await exigirAdministrador(userId);
+  if (!datos.cuerpo.trim()) throw new ErrorNegocio("La nota no puede estar vacía.");
+
+  const { error } = await supabaseAdmin.from("tax_admin_notes").insert({
+    entity_type: "company",
+    entity_id: datos.companyId,
+    company_id: datos.companyId,
+    author_id: userId,
+    body: datos.cuerpo.trim(),
+  });
+
+  if (error) throw new ErrorNegocio("No pudimos guardar la nota administrativa.");
+  await registrarActividad(datos.companyId, userId, "admin.create_note");
+  return { ok: true };
+}
+
+export async function actualizarTicketSoporteMaster(
+  userId: string,
+  datos: { ticketId: string; companyId: string; estado: string },
+): Promise<{ ok: true }> {
+  await exigirAdministrador(userId);
+
+  const updatePayload: Database["public"]["Tables"]["tax_support_tickets"]["Update"] = {
+    status: datos.estado as any,
+  };
+
+  if (datos.estado === "resolved" || datos.estado === "closed") {
+    updatePayload.resolved_at = new Date().toISOString();
+  }
+
+  const { error } = await supabaseAdmin
+    .from("tax_support_tickets")
+    .update(updatePayload)
+    .eq("id", datos.ticketId);
+
+  if (error) throw new ErrorNegocio("No pudimos actualizar el ticket de soporte.");
+  await registrarActividad(datos.companyId, userId, "admin.update_support_ticket", "support_ticket", {
+    ticketId: datos.ticketId,
+    nuevoEstado: datos.estado,
+  });
+  return { ok: true };
+}
+
+export async function registrarPagoManualMaster(
+  userId: string,
+  datos: {
+    companyId: string;
+    montoClp: number;
+    estado?: string;
+    referencia?: string;
+    notas?: string;
+  },
+): Promise<{ ok: true }> {
+  await exigirAdministrador(userId);
+
+  const { error } = await supabaseAdmin.from("tax_billing_events").insert({
+    company_id: datos.companyId,
+    event_type: "pago_manual",
+    amount_clp: datos.montoClp,
+    status: datos.estado ?? "aprobado",
+    reference: datos.referencia?.trim() || null,
+    notes: datos.notas?.trim() || null,
+    occurred_at: new Date().toISOString(),
+  });
+
+  if (error) throw new ErrorNegocio("No pudimos registrar el evento de pago.");
+  await registrarActividad(datos.companyId, userId, "admin.register_payment", "billing_event", {
+    montoClp: datos.montoClp,
+  });
+  return { ok: true };
+}
+

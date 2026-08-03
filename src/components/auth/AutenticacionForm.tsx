@@ -29,7 +29,15 @@ export function AutenticacionForm({
   const [errorReg, setErrorReg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cargandoSesion && session) void navigate({ to: "/demo" });
+    if (!cargandoSesion && session) {
+      void esAdministradorFn().then((rol) => {
+        if (rol.ok && rol.data) {
+          void navigate({ to: "/admin" });
+        } else {
+          void navigate({ to: "/demo" });
+        }
+      });
+    }
   }, [cargandoSesion, session, navigate]);
 
   async function enviarLogin(e: React.FormEvent) {
@@ -43,8 +51,6 @@ export function AutenticacionForm({
       return;
     }
     toast.success("Sesión iniciada");
-    // El rol global se consulta en el servidor: nunca se confía en un valor
-    // guardado en el navegador para abrir el panel Master.
     const rol = await esAdministradorFn();
     if (rol.ok && rol.data) {
       void navigate({ to: "/admin" });

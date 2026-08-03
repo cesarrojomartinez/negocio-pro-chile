@@ -1,5 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  Activity,
   BarChart3,
   Bot,
   Building2,
@@ -16,6 +17,7 @@ import {
   Radio,
   Settings,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Users,
   Zap,
@@ -95,6 +97,11 @@ const GRUPOS_NAVEGACION: NavGrupo[] = [
     titulo: "INFRAESTRUCTURA Y TELEMETRÍA",
     items: [
       {
+        titulo: "Centro de Telemetría",
+        ruta: "/admin/telemetria",
+        icono: Activity,
+      },
+      {
         titulo: "Salud Gateway SII",
         ruta: "/admin/telemetria/sii",
         icono: Radio,
@@ -124,14 +131,17 @@ const GRUPOS_NAVEGACION: NavGrupo[] = [
         titulo: "Comunicación In-App",
         ruta: "/admin/comunicacion",
         icono: MessageSquare,
-        badge: "Pronto",
-        proximamente: true,
       },
     ],
   },
   {
     titulo: "MARKETING Y CONFIG",
     items: [
+      {
+        titulo: "Configuración Global",
+        ruta: "/admin/configuracion",
+        icono: SlidersHorizontal,
+      },
       {
         titulo: "Editor de Landing",
         ruta: "/admin/landing",
@@ -302,7 +312,7 @@ export function MasterAppSidebar({
           >
             <Link to="/demo">
               <Home className="h-3 w-3 mr-1" />
-              Cliente
+              Ver aplicación
             </Link>
           </Button>
           <Button

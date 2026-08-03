@@ -31,6 +31,8 @@ import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminLandingRouteImport } from './routes/admin_.landing'
 import { Route as AdminClientesIndexRouteImport } from './routes/admin/clientes/index'
 import { Route as AdminClientesCompanyIdRouteImport } from './routes/admin/clientes/$companyId'
+import { Route as AdminComunicacionIndexRouteImport } from './routes/admin/comunicacion/index'
+import { Route as AdminConfiguracionIndexRouteImport } from './routes/admin/configuracion/index'
 import { Route as AdminIaCreditosIndexRouteImport } from './routes/admin/ia-creditos/index'
 import { Route as AdminIaCreditosConfiguracionRouteImport } from './routes/admin/ia-creditos/configuracion'
 import { Route as AdminIaCreditosHistorialRouteImport } from './routes/admin/ia-creditos/historial'
@@ -154,6 +156,16 @@ const AdminClientesCompanyIdRoute = AdminClientesCompanyIdRouteImport.update({
   path: '/clientes/$companyId',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminComunicacionIndexRoute = AdminComunicacionIndexRouteImport.update({
+  id: '/comunicacion/',
+  path: '/comunicacion/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConfiguracionIndexRoute = AdminConfiguracionIndexRouteImport.update({
+  id: '/configuracion/',
+  path: '/configuracion/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminIaCreditosIndexRoute = AdminIaCreditosIndexRouteImport.update({
   id: '/ia-creditos/',
   path: '/ia-creditos/',
@@ -250,6 +262,8 @@ export interface FileRoutesByFullPath {
   '/admin/telemetria/api': typeof AdminTelemetriaApiRoute
   '/admin/telemetria/sii': typeof AdminTelemetriaSiiRoute
   '/admin/clientes/': typeof AdminClientesIndexRoute
+  '/admin/comunicacion/': typeof AdminComunicacionIndexRoute
+  '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
   '/admin/ia-creditos/': typeof AdminIaCreditosIndexRoute
   '/admin/metricas/': typeof AdminMetricasIndexRoute
   '/admin/planes/': typeof AdminPlanesIndexRoute
@@ -285,6 +299,8 @@ export interface FileRoutesByTo {
   '/admin/telemetria/api': typeof AdminTelemetriaApiRoute
   '/admin/telemetria/sii': typeof AdminTelemetriaSiiRoute
   '/admin/clientes': typeof AdminClientesIndexRoute
+  '/admin/comunicacion': typeof AdminComunicacionIndexRoute
+  '/admin/configuracion': typeof AdminConfiguracionIndexRoute
   '/admin/ia-creditos': typeof AdminIaCreditosIndexRoute
   '/admin/metricas': typeof AdminMetricasIndexRoute
   '/admin/planes': typeof AdminPlanesIndexRoute
@@ -322,6 +338,8 @@ export interface FileRoutesById {
   '/admin/telemetria/api': typeof AdminTelemetriaApiRoute
   '/admin/telemetria/sii': typeof AdminTelemetriaSiiRoute
   '/admin/clientes/': typeof AdminClientesIndexRoute
+  '/admin/comunicacion/': typeof AdminComunicacionIndexRoute
+  '/admin/configuracion/': typeof AdminConfiguracionIndexRoute
   '/admin/ia-creditos/': typeof AdminIaCreditosIndexRoute
   '/admin/metricas/': typeof AdminMetricasIndexRoute
   '/admin/planes/': typeof AdminPlanesIndexRoute
@@ -360,6 +378,8 @@ export interface FileRouteTypes {
     | '/admin/telemetria/api'
     | '/admin/telemetria/sii'
     | '/admin/clientes/'
+    | '/admin/comunicacion/'
+    | '/admin/configuracion/'
     | '/admin/ia-creditos/'
     | '/admin/metricas/'
     | '/admin/planes/'
@@ -395,6 +415,8 @@ export interface FileRouteTypes {
     | '/admin/telemetria/api'
     | '/admin/telemetria/sii'
     | '/admin/clientes'
+    | '/admin/comunicacion'
+    | '/admin/configuracion'
     | '/admin/ia-creditos'
     | '/admin/metricas'
     | '/admin/planes'
@@ -431,6 +453,8 @@ export interface FileRouteTypes {
     | '/admin/telemetria/api'
     | '/admin/telemetria/sii'
     | '/admin/clientes/'
+    | '/admin/comunicacion/'
+    | '/admin/configuracion/'
     | '/admin/ia-creditos/'
     | '/admin/metricas/'
     | '/admin/planes/'
@@ -615,6 +639,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminClientesCompanyIdRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/comunicacion/': {
+      id: '/admin/comunicacion/'
+      path: '/comunicacion'
+      fullPath: '/admin/comunicacion/'
+      preLoaderRoute: typeof AdminComunicacionIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/configuracion/': {
+      id: '/admin/configuracion/'
+      path: '/configuracion'
+      fullPath: '/admin/configuracion/'
+      preLoaderRoute: typeof AdminConfiguracionIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/ia-creditos/': {
       id: '/admin/ia-creditos/'
       path: '/ia-creditos'
@@ -714,6 +752,8 @@ interface AdminRouteChildren {
   AdminTelemetriaApiRoute: typeof AdminTelemetriaApiRoute
   AdminTelemetriaSiiRoute: typeof AdminTelemetriaSiiRoute
   AdminClientesIndexRoute: typeof AdminClientesIndexRoute
+  AdminComunicacionIndexRoute: typeof AdminComunicacionIndexRoute
+  AdminConfiguracionIndexRoute: typeof AdminConfiguracionIndexRoute
   AdminIaCreditosIndexRoute: typeof AdminIaCreditosIndexRoute
   AdminMetricasIndexRoute: typeof AdminMetricasIndexRoute
   AdminPlanesIndexRoute: typeof AdminPlanesIndexRoute
@@ -732,6 +772,8 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminTelemetriaApiRoute: AdminTelemetriaApiRoute,
   AdminTelemetriaSiiRoute: AdminTelemetriaSiiRoute,
   AdminClientesIndexRoute: AdminClientesIndexRoute,
+  AdminComunicacionIndexRoute: AdminComunicacionIndexRoute,
+  AdminConfiguracionIndexRoute: AdminConfiguracionIndexRoute,
   AdminIaCreditosIndexRoute: AdminIaCreditosIndexRoute,
   AdminMetricasIndexRoute: AdminMetricasIndexRoute,
   AdminPlanesIndexRoute: AdminPlanesIndexRoute,
