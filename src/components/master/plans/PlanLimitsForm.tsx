@@ -73,7 +73,7 @@ export function PlanLimitsForm({
 
           <div className="space-y-1.5">
             <Label htmlFor="monthlyUpdates" className="text-xs font-semibold">
-              Actualizaciones / DTEs Mensuales
+              Créditos IA Mensuales
             </Label>
             <Input
               id="monthlyUpdates"
@@ -83,7 +83,7 @@ export function PlanLimitsForm({
               onChange={(e) => setNumber("monthlyUpdatesIncluded", parseInt(e.target.value) || 0)}
               className="h-9 text-xs"
             />
-            <p className="text-[10px] text-muted-foreground">Syncs RCV/DTEs incluidos al mes</p>
+            <p className="text-[10px] text-muted-foreground">Cuota de créditos IA incluidos mensualmente</p>
           </div>
 
           <div className="space-y-1.5">
@@ -164,7 +164,7 @@ export function PlanLimitsForm({
             <div className="space-y-0.5">
               <span className="font-bold block">Auditoría Tributaria (Visor Trace)</span>
               <span className="text-[11px] text-muted-foreground">
-                Visor de traza matemática de DTEs considerados/excluidos
+                Visor de traza matemática de documentos considerados/excluidos
               </span>
             </div>
             <Switch

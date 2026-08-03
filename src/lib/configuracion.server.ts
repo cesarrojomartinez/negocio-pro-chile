@@ -109,21 +109,64 @@ export async function guardarGrupoConfiguracionMaster(
     }
   }
 
-  // 2. Intentar guardar en tabla master_settings
-  try {
-    await (supabaseAdmin as any).from("master_settings").upsert(
-      {
-        grupo,
-        clave: `config_${grupo}`,
-        valor_json: valores,
-        descripcion: `Configuración de ${grupo} actualizada por el panel Master.`,
-        updated_at: new Date().toISOString(),
-        updated_by: userId,
-      },
-      { onConflict: "grupo" },
-    );
-  } catch (err) {
-    console.warn("[configuracion.server] master_settings no disponible o error al guardar:", err);
+  // 2. Persistir en tabla master_settings con verificación estricta
+  const upsertPayload = {
+    grupo,
+    clave: `config_${grupo}`,
+    valor_json: valores,
+    descripcion: `Configuración de ${grupo} actualizada por el panel Master.`,
+    updated_at: new Date().toISOString(),
+    updated_by: userId,
+  };
+
+  // Nivel 1: intentar upsert por grupo
+  const { error: errNivel1 } = await (supabaseAdmin as any)
+    .from("master_settings")
+    .upsert(upsertPayload, { onConflict: "grupo" });
+
+  if (errNivel1) {
+    console.warn("[configuracion.server] Nivel 1 (onConflict grupo) falló:", errNivel1.message);
+
+    // Nivel 2: intentar upsert por clave
+    const { error: errNivel2 } = await (supabaseAdmin as any)
+      .from("master_settings")
+      .upsert(upsertPayload, { onConflict: "clave" });
+
+    if (errNivel2) {
+      console.warn("[configuracion.server] Nivel 2 (onConflict clave) falló:", errNivel2.message);
+
+      // Nivel 3: select + update/insert manual
+      const { data: existente } = await (supabaseAdmin as any)
+        .from("master_settings")
+        .select("id")
+        .eq("grupo", grupo)
+        .maybeSingle();
+
+      if (existente?.id) {
+        const { error: errUpdate } = await (supabaseAdmin as any)
+          .from("master_settings")
+          .update({
+            clave: upsertPayload.clave,
+            valor_json: upsertPayload.valor_json,
+            descripcion: upsertPayload.descripcion,
+            updated_at: upsertPayload.updated_at,
+            updated_by: upsertPayload.updated_by,
+          })
+          .eq("id", existente.id);
+
+        if (errUpdate) {
+          throw new ErrorNegocio(`Error crítico al guardar configuración (${grupo}): ${errUpdate.message}`);
+        }
+      } else {
+        const { error: errInsert } = await (supabaseAdmin as any)
+          .from("master_settings")
+          .insert(upsertPayload);
+
+        if (errInsert) {
+          throw new ErrorNegocio(`Error crítico al insertar configuración (${grupo}): ${errInsert.message}`);
+        }
+      }
+    }
   }
 
   // 3. Auditoría obligatoria en tax_activity_logs

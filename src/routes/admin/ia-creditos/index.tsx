@@ -89,7 +89,7 @@ function IaCreditosIndexPage() {
           <Button variant="outline" size="sm" asChild className="h-8 text-xs gap-1.5">
             <Link to="/admin/ia-creditos/configuracion">
               <Settings className="h-3.5 w-3.5" />
-              Configurar Tarifas
+              Centro Económico
             </Link>
           </Button>
 

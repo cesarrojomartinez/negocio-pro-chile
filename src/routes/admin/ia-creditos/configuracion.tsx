@@ -17,9 +17,9 @@ function IaConfiguracionPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Configuración de Tarifas y Proveedores IA</h1>
+      <h1 className="text-2xl font-bold tracking-tight">Centro Económico de Créditos IA</h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Ajusta costos de API, multiplicadores de margen comercial y equivalencias de créditos por llamada.
+          Configura costos de infraestructura, valor del crédito, catálogo de operaciones y simula la rentabilidad económica del Gateway IA.
         </p>
       </div>
 

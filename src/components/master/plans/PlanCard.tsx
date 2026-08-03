@@ -111,7 +111,7 @@ export function PlanCard({
             </div>
             <div className="flex items-center gap-1.5 text-foreground">
               <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span>{plan.monthlyUpdatesIncluded} DTEs/mes</span>
+              <span>{plan.monthlyUpdatesIncluded.toLocaleString("es-CL")} créditos IA/mes</span>
             </div>
             <div className="flex items-center gap-1.5 text-foreground">
               <Clock className="h-3.5 w-3.5 text-info shrink-0" />

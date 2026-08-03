@@ -92,14 +92,20 @@ export interface ConfiguracionGatewayApi {
   consumoMensualLlamadas: number;
 }
 
+export interface OperacionCredito {
+  nombre: string;
+  creditosConsumidos: number;
+}
+
 export interface ConfiguracionIaGateway {
-  proveedor: string;
-  modelo: string;
-  costoEntradaPorMilTokensClp: number;
-  costoSalidaPorMilTokensClp: number;
-  margenPlataformaMultiplicador: number;
-  costoPromedioConsultaClp: number;
-  consumoMensualCreditos: number;
+  costoMensualInfraestructuraClp: number;
+  costoPromedioProcesamientoClp: number;
+  costoOcrDocumentoClp: number;
+  costoProcesamientoAdicionalClp: number;
+  margenPlataformaPorcentaje: number;
+  costoMinimoOperacionClp: number;
+  valorUnCreditoClp: number;
+  operaciones: OperacionCredito[];
 }
 
 export interface PlantillaCorreo {
@@ -284,13 +290,23 @@ export const CONFIGURACION_POR_DEFECTO: ConfiguracionGlobal = {
     consumoMensualLlamadas: 42600,
   },
   ia_gateway: {
-    proveedor: "Gateway IA Empresarial (Motor Autónomo)",
-    modelo: "gateway-ia-auto",
-    costoEntradaPorMilTokensClp: 0.15,
-    costoSalidaPorMilTokensClp: 0.45,
-    margenPlataformaMultiplicador: 1.3,
-    costoPromedioConsultaClp: 12.5,
-    consumoMensualCreditos: 18500,
+    costoMensualInfraestructuraClp: 85000,
+    costoPromedioProcesamientoClp: 12,
+    costoOcrDocumentoClp: 8,
+    costoProcesamientoAdicionalClp: 5,
+    margenPlataformaPorcentaje: 35,
+    costoMinimoOperacionClp: 15,
+    valorUnCreditoClp: 0.40,
+    operaciones: [
+      { nombre: "Actualizar empresa pequeña", creditosConsumidos: 50 },
+      { nombre: "Actualizar empresa mediana", creditosConsumidos: 180 },
+      { nombre: "Actualizar empresa grande", creditosConsumidos: 700 },
+      { nombre: "Actualizar empresa corporativa", creditosConsumidos: 2500 },
+      { nombre: "Analizar F29", creditosConsumidos: 120 },
+      { nombre: "Analizar RCV", creditosConsumidos: 180 },
+      { nombre: "Generar informe", creditosConsumidos: 80 },
+      { nombre: "OCR documento", creditosConsumidos: 30 },
+    ],
   },
   correos: {
     bienvenida: { asunto: "¡Bienvenido a Mi Negocio al Día!", cuerpoHtml: "Hola {{nombre}}, tu cuenta está lista.", activado: true },
