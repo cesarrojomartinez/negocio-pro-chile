@@ -24,5 +24,10 @@ export const Route = createFileRoute("/auth")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => <AutenticacionForm pestanaInicial="login" />,
+  component: RutaAuth,
 });
+
+function RutaAuth() {
+  const { next } = Route.useSearch();
+  return <AutenticacionForm pestanaInicial="login" destinoTrasLogin={next} />;
+}
