@@ -15,6 +15,7 @@ import { useEffect, useMemo, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
+import { AnunciosInApp } from "@/components/shared/AnunciosInApp";
 
 import {
   Select,
@@ -314,6 +315,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Button>
               </div>
             )}
+
+            <AnunciosInApp companyId={empresaActiva?.id} />
 
             {children}
           </main>

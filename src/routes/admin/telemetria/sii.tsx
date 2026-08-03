@@ -116,18 +116,28 @@ function SaludSiiMasterPage() {
             <span
               className={cn(
                 "text-2xl font-black flex items-center gap-2",
-                salud.estadoGateway === "operativo"
+                salud.estadoGateway === "conectado" || salud.estadoGateway === "operativo"
                   ? "text-emerald-600"
-                  : salud.estadoGateway === "degradado"
-                    ? "text-amber-500"
-                    : "text-rose-600",
+                  : salud.estadoGateway === "demo"
+                    ? "text-blue-600"
+                    : salud.estadoGateway === "sin_configurar"
+                      ? "text-muted-foreground"
+                      : salud.estadoGateway === "desconectado" || salud.estadoGateway === "degradado"
+                        ? "text-amber-500"
+                        : "text-rose-600",
               )}
             >
-              {salud.estadoGateway === "operativo"
-                ? "🟢 Operativo"
-                : salud.estadoGateway === "degradado"
-                  ? "🟡 Degradado"
-                  : "🔴 Error"}
+              {salud.estadoGateway === "conectado" || salud.estadoGateway === "operativo"
+                ? "🟢 Conectado"
+                : salud.estadoGateway === "demo"
+                  ? "🔵 Modo demostración"
+                  : salud.estadoGateway === "sin_configurar"
+                    ? "⚪ Sin configurar"
+                    : salud.estadoGateway === "desconectado"
+                      ? "🟡 Desconectado"
+                      : salud.estadoGateway === "degradado"
+                        ? "🟠 Degradado"
+                        : "🔴 Error real"}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground pt-2 border-t">

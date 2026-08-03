@@ -149,7 +149,7 @@ const GRUPOS_NAVEGACION: NavGrupo[] = [
       },
       {
         titulo: "Mi Cuenta Admin",
-        ruta: "/cuenta",
+        ruta: "/admin/cuenta",
         icono: Settings,
       },
     ],

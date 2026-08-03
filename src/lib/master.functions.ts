@@ -9,6 +9,7 @@ import {
   cambiarEstadoPago,
   cambiarPlanCliente,
   comunicacionMaster,
+  comunicadosParaEmpresa,
   consumoMaster,
   eliminarComunicado,
   fichaCliente,
@@ -144,4 +145,11 @@ export const actualizarTicketMasterFn = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) =>
     envolver(() => actualizarTicket(context.userId, data)),
+  );
+
+export const comunicadosParaEmpresaFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId?: string | null }) => data)
+  .handler(async ({ data }) =>
+    envolver(() => comunicadosParaEmpresa(data.companyId ?? null)),
   );

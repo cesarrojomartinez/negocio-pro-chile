@@ -1475,7 +1475,7 @@ export async function asignarPlanClienteMaster(
 // ---------------------------------------------------------------------------
 
 export interface SaludSiiMaster {
-  estadoGateway: "operativo" | "degradado" | "error";
+  estadoGateway: "conectado" | "desconectado" | "demo" | "sin_configurar" | "operativo" | "degradado" | "error";
   ultimaSyncExitosa: string | null;
   syncsUltimas24h: number;
   erroresUltimos7Dias: number;
@@ -1578,10 +1578,25 @@ export async function listarSaludSiiMaster(userId: string): Promise<SaludSiiMast
   const fallidas7d = syncs7d.filter((s) => s.status === "failed");
 
   const tasaExito24h = syncs24h.length > 0 ? exitosas / syncs24h.length : 1;
-  const estadoGateway: "operativo" | "degradado" | "error" =
-    tasaExito24h >= 0.9 ? "operativo" : tasaExito24h >= 0.6 ? "degradado" : "error";
-
   const ultimaExitosa = (syncs ?? []).find((s) => s.status === "success")?.started_at ?? null;
+
+  // Determinar estado real del Gateway SII
+  const { data: creds } = await supabaseAdmin.from("tax_company_sii_credentials" as any).select("id").limit(1);
+  const { data: empresasDemo } = await supabaseAdmin.from("tax_companies").select("id, is_demo").limit(10);
+
+  const hayCredenciales = (creds ?? []).length > 0;
+  const soloDemo = (empresasDemo ?? []).length > 0 && (empresasDemo ?? []).every((e) => e.is_demo);
+
+  let estadoGateway: SaludSiiMaster["estadoGateway"] = "conectado";
+  if (!hayCredenciales && soloDemo) {
+    estadoGateway = "demo";
+  } else if (!hayCredenciales) {
+    estadoGateway = "sin_configurar";
+  } else if (syncs24h.length === 0 && !ultimaExitosa) {
+    estadoGateway = "desconectado";
+  } else {
+    estadoGateway = tasaExito24h >= 0.9 ? "conectado" : tasaExito24h >= 0.5 ? "degradado" : "error";
+  }
 
   const duraciones = (syncs ?? []).map((s) => s.duration_ms).filter((d): d is number => d !== null && d > 0);
   const promedioMs = duraciones.length > 0 ? Math.round(duraciones.reduce((a, b) => a + b, 0) / duraciones.length) : 180;

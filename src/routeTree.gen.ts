@@ -31,7 +31,8 @@ import { Route as VentasRouteImport } from './routes/ventas'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as AdminLandingRouteImport } from './routes/admin_.landing'
+import { Route as AdminCuentaRouteImport } from './routes/admin/cuenta'
+import { Route as AdminLandingRouteImport } from './routes/admin/landing'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AdminClientesIndexRouteImport } from './routes/admin/clientes/index'
@@ -163,10 +164,15 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCuentaRoute = AdminCuentaRouteImport.update({
+  id: '/cuenta',
+  path: '/cuenta',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLandingRoute = AdminLandingRouteImport.update({
-  id: '/admin_/landing',
-  path: '/admin/landing',
-  getParentRoute: () => rootRouteImport,
+  id: '/landing',
+  path: '/landing',
+  getParentRoute: () => AdminRoute,
 } as any)
 const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   id: '/.lovable/oauth/consent',
@@ -286,6 +292,7 @@ export interface FileRoutesByFullPath {
   '/ventas': typeof VentasRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/cuenta': typeof AdminCuentaRoute
   '/admin/landing': typeof AdminLandingRoute
   '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/ventas': typeof VentasRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/admin/cuenta': typeof AdminCuentaRoute
   '/admin/landing': typeof AdminLandingRoute
   '/admin': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -372,7 +380,8 @@ export interface FileRoutesById {
   '/ventas': typeof VentasRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  '/admin_/landing': typeof AdminLandingRoute
+  '/admin/cuenta': typeof AdminCuentaRoute
+  '/admin/landing': typeof AdminLandingRoute
   '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -417,6 +426,7 @@ export interface FileRouteTypes {
     | '/ventas'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/cuenta'
     | '/admin/landing'
     | '/admin/'
     | '/.lovable/oauth/consent'
@@ -459,6 +469,7 @@ export interface FileRouteTypes {
     | '/ventas'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/admin/cuenta'
     | '/admin/landing'
     | '/admin'
     | '/.lovable/oauth/consent'
@@ -502,7 +513,8 @@ export interface FileRouteTypes {
     | '/ventas'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
-    | '/admin_/landing'
+    | '/admin/cuenta'
+    | '/admin/landing'
     | '/admin/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -546,7 +558,6 @@ export interface RootRouteChildren {
   VentasRoute: typeof VentasRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
-  AdminLandingRoute: typeof AdminLandingRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
@@ -707,12 +718,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin_/landing': {
-      id: '/admin_/landing'
-      path: '/admin/landing'
+    '/admin/cuenta': {
+      id: '/admin/cuenta'
+      path: '/cuenta'
+      fullPath: '/admin/cuenta'
+      preLoaderRoute: typeof AdminCuentaRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/landing': {
+      id: '/admin/landing'
+      path: '/landing'
       fullPath: '/admin/landing'
       preLoaderRoute: typeof AdminLandingRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/.lovable/oauth/consent': {
       id: '/.lovable/oauth/consent'
@@ -844,6 +862,8 @@ declare module '@tanstack/react-router' {
 }
 
 interface AdminRouteChildren {
+  AdminCuentaRoute: typeof AdminCuentaRoute
+  AdminLandingRoute: typeof AdminLandingRoute
   AdminIndexRoute: typeof AdminIndexRoute
   AdminClientesCompanyIdRoute: typeof AdminClientesCompanyIdRoute
   AdminIaCreditosConfiguracionRoute: typeof AdminIaCreditosConfiguracionRoute
@@ -864,6 +884,8 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminCuentaRoute: AdminCuentaRoute,
+  AdminLandingRoute: AdminLandingRoute,
   AdminIndexRoute: AdminIndexRoute,
   AdminClientesCompanyIdRoute: AdminClientesCompanyIdRoute,
   AdminIaCreditosConfiguracionRoute: AdminIaCreditosConfiguracionRoute,
@@ -908,7 +930,6 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
-  AdminLandingRoute: AdminLandingRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }

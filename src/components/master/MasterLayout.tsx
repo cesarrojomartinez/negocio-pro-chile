@@ -37,6 +37,7 @@ export function MasterLayout({ children }: { children?: React.ReactNode }) {
     if (path.startsWith("/admin/comunicacion")) return "Centro de Comunicación Administrativa";
     if (path.startsWith("/admin/configuracion")) return "Centro de Configuración Global SaaS";
     if (path === "/admin/landing") return "Editor de Landing Page";
+    if (path === "/admin/cuenta") return "Mi Cuenta de Administración";
     return "Dashboard Ejecutivo Master";
   };
 
