@@ -222,6 +222,13 @@ export function RealGatewayPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [solicitudActualizacionReal]);
 
+  // Prefijo automático del RUT del usuario con el RUT de la empresa activa si no se ha escrito uno.
+  useEffect(() => {
+    if (empresaActiva?.rut && !rutUsuario) {
+      setRutUsuario(formatearRut(empresaActiva.rut));
+    }
+  }, [empresaActiva?.rut, rutUsuario]);
+
   // Mientras no se agreguen periodos a mano, el trabajo sigue al mes visible.
   useEffect(() => {
     if (seleccionados.length === 0 && periodoId) setDesde(periodoId);
@@ -311,7 +318,32 @@ export function RealGatewayPanel() {
           action="#"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!acepta || !rutUsuario || !clave || enCurso) return;
+            if (enCurso) return;
+            if (!rutUsuario) {
+              toast.error("Ingresa el RUT del usuario autorizado.");
+              return;
+            }
+            if (!esRutValido(rutUsuario)) {
+              toast.error("El RUT del usuario autorizado no es válido.");
+              return;
+            }
+            if (!clave || clave.length < 4) {
+              toast.error("Ingresa tu Clave Tributaria (mínimo 4 caracteres).");
+              return;
+            }
+            if (!acepta) {
+              toast.error("Debes autorizar la actualización marcando la casilla.");
+              return;
+            }
+            if (diagnostico && !diagnostico.puedeConsultar) {
+              const falloComprobacion = diagnostico.comprobaciones.find((c) => !c.ok);
+              toast.error(
+                falloComprobacion
+                  ? `${falloComprobacion.titulo}: ${falloComprobacion.detalle}`
+                  : "La empresa no está habilitada para realizar consultas reales.",
+              );
+              return;
+            }
             enviar();
           }}
         >
@@ -494,13 +526,9 @@ export function RealGatewayPanel() {
             <Button
               type="submit"
               disabled={
-                !acepta ||
-                !rutUsuario ||
-                !clave ||
                 enCurso ||
                 listaFinal.length === 0 ||
-                !listaFinal.every((p) => esPeriodoValido(p)) ||
-                !diagnostico.puedeConsultar
+                !listaFinal.every((p) => esPeriodoValido(p))
               }
             >
               {enCurso ? (

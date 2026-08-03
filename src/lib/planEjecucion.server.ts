@@ -343,6 +343,20 @@ async function adquirirBloqueo(
   entrada: EntradaPreparacion,
   periodos: string[],
 ): Promise<string | null> {
+  // Limpieza de bloqueos caducados (más de 5 minutos en progreso) para no dejar a la empresa atrapada.
+  const cincoMinutosAtras = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  await supabaseAdmin
+    .from("tax_sync_plans")
+    .update({
+      in_progress: false,
+      plan_status: "timeout",
+      completed_at: new Date().toISOString(),
+      error_code: "STALE_LOCK_RELEASED",
+    })
+    .eq("company_id", entrada.companyId)
+    .eq("in_progress", true)
+    .lt("created_at", cincoMinutosAtras);
+
   const { data } = await supabaseAdmin
     .from("tax_sync_plans")
     .insert({
