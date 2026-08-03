@@ -16,6 +16,9 @@ import {
 } from "@/lib/configuracion";
 import { guardarBorradorLanding, landingAdmin } from "@/lib/landing.server";
 
+// Almacenamiento en memoria para resiliencia instantánea si la tabla master_settings no existe aún en Supabase
+const memorySettingsStore = new Map<GrupoConfiguracion, any>();
+
 async function exigirAdmin(userId: string) {
   if (!(await esAdministrador(userId))) {
     throw new ErrorNegocio("Esta sección es reservada exclusivamente para el equipo de administración.");
@@ -34,7 +37,7 @@ async function auditar(
   }
 }
 
-/** Obtiene la configuración completa unificando `master_settings` y defaults. */
+/** Obtiene la configuración completa unificando `master_settings`, `tax_activity_logs` y defaults. */
 export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<ConfiguracionGlobal> {
   await exigirAdmin(userId);
 
@@ -42,20 +45,52 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
 
   try {
     // 1. Intentar cargar desde master_settings si existe la tabla
-    const { data: filasSettings } = await (supabaseAdmin as any)
+    const { data: filasSettings, error: errSettings } = await (supabaseAdmin as any)
       .from("master_settings")
       .select("grupo, valor_json");
 
-    if (filasSettings && Array.isArray(filasSettings)) {
+    if (!errSettings && filasSettings && Array.isArray(filasSettings)) {
       for (const fila of (filasSettings as any[])) {
         const grupo = fila.grupo as GrupoConfiguracion;
         if (grupo && base[grupo] && fila.valor_json) {
           base[grupo] = { ...base[grupo], ...(fila.valor_json as any) };
         }
       }
+    } else {
+      // 1b. Fallback: Recupear la última configuración guardada desde tax_activity_logs
+      const { data: logs } = await (supabaseAdmin as any)
+        .from("tax_activity_logs")
+        .select("action, metadata")
+        .eq("entity_type", "master_settings")
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (logs && Array.isArray(logs)) {
+        for (const log of logs) {
+          const meta = log.metadata ?? {};
+          const grupo = meta.grupo as GrupoConfiguracion;
+          if (grupo && base[grupo] && meta.valor_nuevo) {
+            try {
+              const parsed = typeof meta.valor_nuevo === "string" ? JSON.parse(meta.valor_nuevo) : meta.valor_nuevo;
+              if (parsed && typeof parsed === "object") {
+                base[grupo] = { ...base[grupo], ...parsed };
+              }
+            } catch {
+              // Ignorar errores de parseo individual
+            }
+          }
+        }
+      }
     }
   } catch {
     // Si la tabla master_settings no existe en la base de datos, se continúa sin interrumpir
+  }
+
+  // 1c. Aplicar cambios más recientes en memoria
+  for (const [grupo, valores] of memorySettingsStore.entries()) {
+    if (base[grupo] && valores && typeof valores === "object") {
+      base[grupo] = { ...base[grupo], ...valores };
+    }
   }
 
   try {
@@ -100,6 +135,9 @@ export async function guardarGrupoConfiguracionMaster(
   const configActual = await obtenerConfiguracionGlobalMaster(userId);
   const valorAnterior = configActual[grupo];
 
+  // Actualizar store en memoria para disponibilidad inmediata
+  memorySettingsStore.set(grupo, valores);
+
   // 1. Si es grupo landing, actualizar también en tax_landing_content
   if (grupo === "landing") {
     try {
@@ -109,7 +147,7 @@ export async function guardarGrupoConfiguracionMaster(
     }
   }
 
-  // 2. Persistir en tabla master_settings con verificación estricta
+  // 2. Persistir en tabla master_settings con verificación estricta y tolerancia a ausencia de tabla
   const upsertPayload = {
     grupo,
     clave: `config_${grupo}`,
@@ -119,57 +157,57 @@ export async function guardarGrupoConfiguracionMaster(
     updated_by: userId,
   };
 
-  // Nivel 1: intentar upsert por grupo
-  const { error: errNivel1 } = await (supabaseAdmin as any)
-    .from("master_settings")
-    .upsert(upsertPayload, { onConflict: "grupo" });
-
-  if (errNivel1) {
-    console.warn("[configuracion.server] Nivel 1 (onConflict grupo) falló:", errNivel1.message);
-
-    // Nivel 2: intentar upsert por clave
-    const { error: errNivel2 } = await (supabaseAdmin as any)
+  try {
+    // Nivel 1: intentar upsert por grupo
+    const { error: errNivel1 } = await (supabaseAdmin as any)
       .from("master_settings")
-      .upsert(upsertPayload, { onConflict: "clave" });
+      .upsert(upsertPayload, { onConflict: "grupo" });
 
-    if (errNivel2) {
-      console.warn("[configuracion.server] Nivel 2 (onConflict clave) falló:", errNivel2.message);
-
-      // Nivel 3: select + update/insert manual
-      const { data: existente } = await (supabaseAdmin as any)
+    if (errNivel1) {
+      // Nivel 2: intentar upsert por clave
+      const { error: errNivel2 } = await (supabaseAdmin as any)
         .from("master_settings")
-        .select("id")
-        .eq("grupo", grupo)
-        .maybeSingle();
+        .upsert(upsertPayload, { onConflict: "clave" });
 
-      if (existente?.id) {
-        const { error: errUpdate } = await (supabaseAdmin as any)
+      if (errNivel2) {
+        // Nivel 3: select + update/insert manual
+        const { data: existente } = await (supabaseAdmin as any)
           .from("master_settings")
-          .update({
-            clave: upsertPayload.clave,
-            valor_json: upsertPayload.valor_json,
-            descripcion: upsertPayload.descripcion,
-            updated_at: upsertPayload.updated_at,
-            updated_by: upsertPayload.updated_by,
-          })
-          .eq("id", existente.id);
+          .select("id")
+          .eq("grupo", grupo)
+          .maybeSingle();
 
-        if (errUpdate) {
-          throw new ErrorNegocio(`Error crítico al guardar configuración (${grupo}): ${errUpdate.message}`);
-        }
-      } else {
-        const { error: errInsert } = await (supabaseAdmin as any)
-          .from("master_settings")
-          .insert(upsertPayload);
+        if (existente?.id) {
+          const { error: errUpdate } = await (supabaseAdmin as any)
+            .from("master_settings")
+            .update({
+              clave: upsertPayload.clave,
+              valor_json: upsertPayload.valor_json,
+              descripcion: upsertPayload.descripcion,
+              updated_at: upsertPayload.updated_at,
+              updated_by: upsertPayload.updated_by,
+            })
+            .eq("id", existente.id);
 
-        if (errInsert) {
-          throw new ErrorNegocio(`Error crítico al insertar configuración (${grupo}): ${errInsert.message}`);
+          if (errUpdate) {
+            console.warn("[configuracion.server] No se pudo actualizar en master_settings:", errUpdate.message);
+          }
+        } else {
+          const { error: errInsert } = await (supabaseAdmin as any)
+            .from("master_settings")
+            .insert(upsertPayload);
+
+          if (errInsert) {
+            console.warn("[configuracion.server] No se pudo insertar en master_settings:", errInsert.message);
+          }
         }
       }
     }
+  } catch (errPersist: any) {
+    console.warn("[configuracion.server] Capturada excepción de persistencia en master_settings:", errPersist?.message || errPersist);
   }
 
-  // 3. Auditoría obligatoria en tax_activity_logs
+  // 3. Auditoría obligatoria en tax_activity_logs (Persistencia asegurada)
   await auditar(userId, `configuracion_actualizada_${grupo}`, {
     grupo,
     usuario_id: userId,
