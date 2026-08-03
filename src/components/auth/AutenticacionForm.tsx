@@ -56,6 +56,10 @@ export function AutenticacionForm({
       return;
     }
     toast.success("Sesión iniciada");
+    if (retorno) {
+      window.location.href = retorno;
+      return;
+    }
     // El rol global se consulta en el servidor: nunca se confía en un valor
     // guardado en el navegador para abrir el panel Master.
     const rol = await esAdministradorFn();
