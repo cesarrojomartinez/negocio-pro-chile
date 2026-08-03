@@ -20,6 +20,7 @@ import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DocumentosRouteImport } from './routes/documentos'
 import { Route as ImpuestosRouteImport } from './routes/impuestos'
 import { Route as InvitacionRouteImport } from './routes/invitacion'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlanesRouteImport } from './routes/planes'
@@ -27,8 +28,12 @@ import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as SoporteRouteImport } from './routes/soporte'
 import { Route as VentasRouteImport } from './routes/ventas'
+import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminLandingRouteImport } from './routes/admin_.landing'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AdminClientesIndexRouteImport } from './routes/admin/clientes/index'
 import { Route as AdminClientesCompanyIdRouteImport } from './routes/admin/clientes/$companyId'
 import { Route as AdminIaCreditosIndexRouteImport } from './routes/admin/ia-creditos/index'
@@ -99,6 +104,11 @@ const InvitacionRoute = InvitacionRouteImport.update({
   path: '/invitacion',
   getParentRoute: () => rootRouteImport,
 } as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MetasRoute = MetasRouteImport.update({
   id: '/metas',
   path: '/metas',
@@ -134,6 +144,18 @@ const VentasRoute = VentasRouteImport.update({
   path: '/ventas',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Char91DotmcpChar93ListToolsRoute =
+  Char91DotmcpChar93ListToolsRouteImport.update({
+    id: '/.mcp/list-tools',
+    path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const Char91DotwellKnownChar93OauthProtectedResourceRoute =
+  Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
+    id: '/.well-known/oauth-protected-resource',
+    path: '/.well-known/oauth-protected-resource',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -144,6 +166,17 @@ const AdminLandingRoute = AdminLandingRouteImport.update({
   path: '/admin/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Char91DotmcpChar93InvokeToolToolRoute =
+  Char91DotmcpChar93InvokeToolToolRouteImport.update({
+    id: '/.mcp/invoke-tool/$tool',
+    path: '/.mcp/invoke-tool/$tool',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminClientesIndexRoute = AdminClientesIndexRouteImport.update({
   id: '/clientes/',
   path: '/clientes/',
@@ -231,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
+  '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/planes': typeof PlanesRoute
@@ -238,8 +272,12 @@ export interface FileRoutesByFullPath {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/landing': typeof AdminLandingRoute
   '/admin/': typeof AdminIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/clientes/$companyId': typeof AdminClientesCompanyIdRoute
   '/admin/ia-creditos/configuracion': typeof AdminIaCreditosConfiguracionRoute
   '/admin/ia-creditos/historial': typeof AdminIaCreditosHistorialRoute
@@ -266,6 +304,7 @@ export interface FileRoutesByTo {
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
+  '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/planes': typeof PlanesRoute
@@ -273,8 +312,12 @@ export interface FileRoutesByTo {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin/landing': typeof AdminLandingRoute
   '/admin': typeof AdminIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/clientes/$companyId': typeof AdminClientesCompanyIdRoute
   '/admin/ia-creditos/configuracion': typeof AdminIaCreditosConfiguracionRoute
   '/admin/ia-creditos/historial': typeof AdminIaCreditosHistorialRoute
@@ -303,6 +346,7 @@ export interface FileRoutesById {
   '/documentos': typeof DocumentosRoute
   '/impuestos': typeof ImpuestosRoute
   '/invitacion': typeof InvitacionRoute
+  '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
   '/planes': typeof PlanesRoute
@@ -310,8 +354,12 @@ export interface FileRoutesById {
   '/registro': typeof RegistroRoute
   '/soporte': typeof SoporteRoute
   '/ventas': typeof VentasRoute
+  '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
+  '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/admin_/landing': typeof AdminLandingRoute
   '/admin/': typeof AdminIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
+  '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/clientes/$companyId': typeof AdminClientesCompanyIdRoute
   '/admin/ia-creditos/configuracion': typeof AdminIaCreditosConfiguracionRoute
   '/admin/ia-creditos/historial': typeof AdminIaCreditosHistorialRoute
@@ -341,6 +389,7 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
+    | '/mcp'
     | '/metas'
     | '/onboarding'
     | '/planes'
@@ -348,8 +397,12 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin/landing'
     | '/admin/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/admin/clientes/$companyId'
     | '/admin/ia-creditos/configuracion'
     | '/admin/ia-creditos/historial'
@@ -376,6 +429,7 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
+    | '/mcp'
     | '/metas'
     | '/onboarding'
     | '/planes'
@@ -383,8 +437,12 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin/landing'
     | '/admin'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/admin/clientes/$companyId'
     | '/admin/ia-creditos/configuracion'
     | '/admin/ia-creditos/historial'
@@ -412,6 +470,7 @@ export interface FileRouteTypes {
     | '/documentos'
     | '/impuestos'
     | '/invitacion'
+    | '/mcp'
     | '/metas'
     | '/onboarding'
     | '/planes'
@@ -419,8 +478,12 @@ export interface FileRouteTypes {
     | '/registro'
     | '/soporte'
     | '/ventas'
+    | '/.mcp/list-tools'
+    | '/.well-known/oauth-protected-resource'
     | '/admin_/landing'
     | '/admin/'
+    | '/.lovable/oauth/consent'
+    | '/.mcp/invoke-tool/$tool'
     | '/admin/clientes/$companyId'
     | '/admin/ia-creditos/configuracion'
     | '/admin/ia-creditos/historial'
@@ -449,6 +512,7 @@ export interface RootRouteChildren {
   DocumentosRoute: typeof DocumentosRoute
   ImpuestosRoute: typeof ImpuestosRoute
   InvitacionRoute: typeof InvitacionRoute
+  McpRoute: typeof McpRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
   PlanesRoute: typeof PlanesRoute
@@ -456,7 +520,11 @@ export interface RootRouteChildren {
   RegistroRoute: typeof RegistroRoute
   SoporteRoute: typeof SoporteRoute
   VentasRoute: typeof VentasRoute
+  Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
+  Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   AdminLandingRoute: typeof AdminLandingRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
+  Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -538,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvitacionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/metas': {
       id: '/metas'
       path: '/metas'
@@ -587,6 +662,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VentasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/.mcp/list-tools': {
+      id: '/.mcp/list-tools'
+      path: '/.mcp/list-tools'
+      fullPath: '/.mcp/list-tools'
+      preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.well-known/oauth-protected-resource': {
+      id: '/.well-known/oauth-protected-resource'
+      path: '/.well-known/oauth-protected-resource'
+      fullPath: '/.well-known/oauth-protected-resource'
+      preLoaderRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -599,6 +688,20 @@ declare module '@tanstack/react-router' {
       path: '/admin/landing'
       fullPath: '/admin/landing'
       preLoaderRoute: typeof AdminLandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/.mcp/invoke-tool/$tool': {
+      id: '/.mcp/invoke-tool/$tool'
+      path: '/.mcp/invoke-tool/$tool'
+      fullPath: '/.mcp/invoke-tool/$tool'
+      preLoaderRoute: typeof Char91DotmcpChar93InvokeToolToolRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/clientes/': {
@@ -752,6 +855,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocumentosRoute: DocumentosRoute,
   ImpuestosRoute: ImpuestosRoute,
   InvitacionRoute: InvitacionRoute,
+  McpRoute: McpRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
   PlanesRoute: PlanesRoute,
@@ -759,7 +863,12 @@ const rootRouteChildren: RootRouteChildren = {
   RegistroRoute: RegistroRoute,
   SoporteRoute: SoporteRoute,
   VentasRoute: VentasRoute,
+  Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
+  Char91DotwellKnownChar93OauthProtectedResourceRoute:
+    Char91DotwellKnownChar93OauthProtectedResourceRoute,
   AdminLandingRoute: AdminLandingRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
+  Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

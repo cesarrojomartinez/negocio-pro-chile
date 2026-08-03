@@ -3,6 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AutenticacionForm } from "@/components/auth/AutenticacionForm";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Ingresar | Mi Negocio al Día" },
@@ -21,5 +24,10 @@ export const Route = createFileRoute("/auth")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => <AutenticacionForm pestanaInicial="login" />,
+  component: RutaAuth,
 });
+
+function RutaAuth() {
+  const { next } = Route.useSearch();
+  return <AutenticacionForm pestanaInicial="login" destinoTrasLogin={next} />;
+}

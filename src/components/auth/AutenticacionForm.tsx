@@ -12,11 +12,19 @@ import { esAdministradorFn } from "@/lib/cuenta.functions";
 
 export function AutenticacionForm({
   pestanaInicial = "login",
+  destinoTrasLogin,
 }: {
   pestanaInicial?: "login" | "registro";
+  /** Ruta relativa del mismo origen a la que volver tras iniciar sesión. */
+  destinoTrasLogin?: string;
 }) {
   const { session, cargandoSesion, iniciarSesion, registrar } = useAuth();
   const navigate = useNavigate();
+
+  const retorno =
+    destinoTrasLogin && destinoTrasLogin.startsWith("/") && !destinoTrasLogin.startsWith("//")
+      ? destinoTrasLogin
+      : null;
 
   const [emailLogin, setEmailLogin] = useState("");
   const [passLogin, setPassLogin] = useState("");
@@ -29,8 +37,13 @@ export function AutenticacionForm({
   const [errorReg, setErrorReg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!cargandoSesion && session) void navigate({ to: "/demo" });
-  }, [cargandoSesion, session, navigate]);
+    if (cargandoSesion || !session) return;
+    if (retorno) {
+      window.location.href = retorno;
+      return;
+    }
+    void navigate({ to: "/demo" });
+  }, [cargandoSesion, session, navigate, retorno]);
 
   async function enviarLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -43,6 +56,10 @@ export function AutenticacionForm({
       return;
     }
     toast.success("Sesión iniciada");
+    if (retorno) {
+      window.location.href = retorno;
+      return;
+    }
     // El rol global se consulta en el servidor: nunca se confía en un valor
     // guardado en el navegador para abrir el panel Master.
     const rol = await esAdministradorFn();
