@@ -166,6 +166,10 @@ async function decisionPorPeriodo(
 
 /** Selecciona el proveedor activo. */
 export function resolverProveedor(id: SiiProviderId = "mock"): SiiProviderAdapter {
+  if (id === "simple_api") {
+    const { simpleApiSiiProviderAdapter } = require("@/integrations/sii/simpleApiProviderAdapter");
+    return simpleApiSiiProviderAdapter;
+  }
   return id === "api_gateway" ? apiGatewaySiiProviderAdapter : mockSiiProviderAdapter;
 }
 
@@ -221,7 +225,7 @@ async function conexionDe(companyId: string, proveedor: SiiProviderId = "mock") 
     .from("tax_sii_connections")
     .select("*")
     .eq("company_id", companyId)
-    .eq("provider", proveedor)
+    .eq("provider", proveedor as any)
     .maybeSingle();
   return data ?? null;
 }
@@ -613,7 +617,7 @@ async function guardarSnapshot(entrada: {
     company_id: entrada.companyId,
     tax_period_id: entrada.periodId,
     sync_run_id: entrada.syncRunId,
-    provider: entrada.proveedor,
+    provider: entrada.proveedor as any,
     module: entrada.modulo,
     // Barrera dura: ninguna clave, token ni cookie llega a la base.
     payload: sanitizarProfundo(entrada.payload) as never,

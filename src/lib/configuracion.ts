@@ -81,7 +81,12 @@ export interface ConfiguracionComercial {
   fechaTerminoPromocion: string;
 }
 
+export type ModoProveedorTributario = "api_gateway" | "simple_api" | "automatic" | "compare";
+
 export interface ConfiguracionGatewayApi {
+  modoProveedor: ModoProveedorTributario;
+  apiKeySimpleApi?: string;
+  endpointSimpleApi?: string;
   proveedorActual: string;
   estado: "operativo" | "degradado" | "mantenimiento" | "error";
   versionGateway: string;
@@ -280,6 +285,9 @@ export const CONFIGURACION_POR_DEFECTO: ConfiguracionGlobal = {
     fechaTerminoPromocion: "2026-08-31",
   },
   gateway_api: {
+    modoProveedor: "api_gateway",
+    apiKeySimpleApi: "",
+    endpointSimpleApi: "https://api.simpleapi.cl",
     proveedorActual: "SII Gateway Core (Dual Engine v2.4)",
     estado: "operativo",
     versionGateway: "v2.4.12",

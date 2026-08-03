@@ -7,7 +7,7 @@
  * misma interfaz sin cambiar el resto de la aplicación.
  */
 
-export type SiiProviderId = "mock" | "api_gateway";
+export type SiiProviderId = "mock" | "api_gateway" | "simple_api";
 
 /** Método de autenticación declarado. En esta etapa siempre es demostrativo. */
 export type SiiAuthMethod = "demo" | "tax_key" | "certificate";
