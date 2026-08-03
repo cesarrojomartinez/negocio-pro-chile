@@ -93,17 +93,21 @@ export const ETIQUETA_ESTADO_PERIODO: Record<string, string> = {
   closed: "Cerrado",
 };
 
-export function periodoAnterior(periodo: string): string {
+export function periodoAnterior(periodo: string = "2026-07"): string {
+  if (!periodo || typeof periodo !== "string" || !periodo.includes("-")) return "2026-06";
   const [anio, mes] = periodo.split("-").map(Number);
   const d = new Date(Date.UTC(anio, mes - 2, 1));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 /** Días transcurridos y totales de un periodo YYYY-MM respecto de hoy. */
-export function diasDePeriodo(periodo: string): {
+export function diasDePeriodo(periodo: string = "2026-07"): {
   diasTranscurridos: number;
   diasTotales: number;
 } {
+  if (!periodo || typeof periodo !== "string" || !periodo.includes("-")) {
+    return { diasTranscurridos: 1, diasTotales: 30 };
+  }
   const [anio, mes] = periodo.split("-").map(Number);
   const diasTotales = new Date(Date.UTC(anio, mes, 0)).getUTCDate();
   const hoy = new Date();

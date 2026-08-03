@@ -22,7 +22,8 @@ export interface EstadoSincronizacionPeriodo {
 }
 
 /** Verdadero cuando el mes indicado (AAAA-MM) ya terminó. */
-export function periodoYaTermino(periodo: string, ahora: Date): boolean {
+export function periodoYaTermino(periodo: string = "2026-07", ahora: Date): boolean {
+  if (!periodo || typeof periodo !== "string" || !periodo.includes("-")) return false;
   const [a, m] = periodo.split("-").map(Number);
   const finDelMes = Date.UTC(a, m, 1, 4, 0, 0);
   return ahora.getTime() >= finDelMes;

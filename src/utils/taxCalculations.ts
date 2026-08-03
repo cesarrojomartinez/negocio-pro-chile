@@ -888,7 +888,8 @@ export function nivelDesdeEspanol(nivel: NivelConfiabilidad): ConfidenceLevel {
 /* Estado del periodo                                                  */
 /* ------------------------------------------------------------------ */
 
-export function estadoDelPeriodo(periodo: string, hoy = new Date()): PeriodState {
+export function estadoDelPeriodo(periodo: string = "2026-07", hoy = new Date()): PeriodState {
+  if (!periodo || typeof periodo !== "string" || !periodo.includes("-")) return "open";
   const [anio, mes] = periodo.split("-").map(Number);
   if (!anio || !mes) return "open";
   const actualAnio = hoy.getFullYear();

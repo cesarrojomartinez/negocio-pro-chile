@@ -206,20 +206,27 @@ export async function ejecutarPruebaRealApiGateway(
     rutUsuario,
     claveTributaria: entrada.claveTributaria,
   };
-  const proveedor = crearAdaptadorApiGateway({
-    config,
-    credenciales,
-    registro,
-    // Actualización normal: solo los RESÚMENES oficiales del RCV. Nada de
-    // detalle documento por documento ni estados secundarios de compras.
-    // Lo decide el PLAN, no el navegador.
-    soloResumen: !plan.allowsDocumentDetail,
-    estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
-    // Uso puntual: solo cuando la ejecución anterior indicó sesión vencida.
-    sesionNueva: entrada.sesionNueva === true,
-    // Portero del plan: cada consulta real debe estar aprobada.
-    control,
-  });
+  const { obtenerConfiguracionGlobalMaster } = await import("@/lib/configuracion.server");
+  const masterConfig = await obtenerConfiguracionGlobalMaster(userId);
+  const modoProveedor = masterConfig.gateway_api.modoProveedor;
+
+  let proveedor: any;
+  if (modoProveedor === "simple_api" || modoProveedor === "compare") {
+    const { SimpleApiProviderAdapter } = await import("@/integrations/sii/simpleApiProviderAdapter");
+    proveedor = new SimpleApiProviderAdapter();
+  } else {
+    proveedor = config
+      ? crearAdaptadorApiGateway({
+          config,
+          credenciales,
+          registro,
+          soloResumen: !plan.allowsDocumentDetail,
+          estadosCompras: NORMAL_SYNC_PURCHASE_STATES,
+          sesionNueva: entrada.sesionNueva === true,
+          control,
+        })
+      : (await import("@/integrations/sii/mockSiiProviderAdapter")).mockSiiProviderAdapter;
+  }
 
   const ahora = new Date().toISOString();
 
