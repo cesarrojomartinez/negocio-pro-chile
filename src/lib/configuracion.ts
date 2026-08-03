@@ -284,8 +284,8 @@ export const CONFIGURACION_POR_DEFECTO: ConfiguracionGlobal = {
     consumoMensualLlamadas: 42600,
   },
   ia_gateway: {
-    proveedor: "Google Gemini 2.5 Flash / Anthropic Claude 3.5",
-    modelo: "gemini-2.5-flash",
+    proveedor: "Gateway IA Empresarial (Motor Autónomo)",
+    modelo: "gateway-ia-auto",
     costoEntradaPorMilTokensClp: 0.15,
     costoSalidaPorMilTokensClp: 0.45,
     margenPlataformaMultiplicador: 1.3,

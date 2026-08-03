@@ -43,9 +43,9 @@ export function AiUsageTable({ consumos }: AiUsageTableProps) {
           </span>
           {[
             { id: "todos", label: "Todos" },
-            { id: "gemini", label: "Gemini" },
-            { id: "claude", label: "Claude" },
-            { id: "openai", label: "OpenAI" },
+            { id: "gemini", label: "Motor Primario" },
+            { id: "claude", label: "Motor Avanzado" },
+            { id: "openai", label: "Motor Rápido" },
           ].map((p) => (
             <Button
               key={p.id}

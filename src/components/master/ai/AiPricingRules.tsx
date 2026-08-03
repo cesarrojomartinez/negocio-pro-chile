@@ -45,9 +45,9 @@ export function AiPricingRules() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="gemini" className="text-xs">Google Gemini 1.5 Flash / Pro</SelectItem>
-                <SelectItem value="openai" className="text-xs">OpenAI GPT-4o / Mini</SelectItem>
-                <SelectItem value="claude" className="text-xs">Anthropic Claude 3.5 Sonnet</SelectItem>
+                <SelectItem value="gemini" className="text-xs">Motor IA Primario (Gateway IA)</SelectItem>
+                <SelectItem value="openai" className="text-xs">Motor IA Alta Velocidad (Gateway IA)</SelectItem>
+                <SelectItem value="claude" className="text-xs">Motor IA Razonamiento Avanzado (Gateway IA)</SelectItem>
               </SelectContent>
             </Select>
           </div>

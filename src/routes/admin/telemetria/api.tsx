@@ -231,8 +231,8 @@ function ApiHealthMasterPage() {
               <tr>
                 <th className="p-3">Fecha y Hora</th>
                 <th className="p-3">Empresa</th>
-                <th className="p-3">Proveedor</th>
-                <th className="p-3">Código Error</th>
+                <th className="p-3">Servicio / Gateway</th>
+                <th className="p-3">Código de Error</th>
                 <th className="p-3">Mensaje de Error</th>
               </tr>
             </thead>

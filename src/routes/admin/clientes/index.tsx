@@ -296,7 +296,7 @@ function ClientesMasterPage() {
 
                     {/* Consumo Mes */}
                     <td className="p-3 text-right font-mono">
-                      <div className="font-bold">{e.consultasMes} reqs</div>
+                      <div className="font-bold">{e.consultasMes} consultas</div>
                       <div className="text-[10px] text-muted-foreground">{e.periodosSincronizados} períodos</div>
                     </td>
 

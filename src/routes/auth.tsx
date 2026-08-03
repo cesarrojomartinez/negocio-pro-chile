@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AutenticacionForm } from "@/components/auth/AutenticacionForm";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (s: Record<string, unknown>) => ({
+  validateSearch: (s: Record<string, unknown>): { next?: string } => ({
     next: typeof s.next === "string" && s.next.startsWith("/") ? s.next : undefined,
   }),
   head: () => ({

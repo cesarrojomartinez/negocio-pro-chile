@@ -1911,11 +1911,18 @@ export async function listarWalletsIAMaster(userId: string): Promise<ResumenCred
 
   const subMap = new Map((subs ?? []).map((s) => [s.company_id, (s.plan as any)?.name ?? "Estándar"]));
 
-  const { data: walletsData } = await (supabaseAdmin as any)
-    .from("master_ai_wallets")
-    .select("*")
-    .in("company_id", ids)
-    .catch(() => ({ data: null }));
+  let walletsData: any[] | null = null;
+  if (ids.length) {
+    try {
+      const res = await (supabaseAdmin as any)
+        .from("master_ai_wallets")
+        .select("*")
+        .in("company_id", ids);
+      walletsData = res.data;
+    } catch {
+      walletsData = null;
+    }
+  }
 
   type WalletRow = { company_id: string; balance: number; monthly_allowance: number; updated_at: string | null };
   const walletMap = new Map<string, WalletRow>((walletsData ?? []).map((w: WalletRow) => [w.company_id, w]));
@@ -1962,12 +1969,17 @@ export async function listarWalletsIAMaster(userId: string): Promise<ResumenCred
 export async function obtenerConsumoIAMaster(userId: string): Promise<ConsumoIAMaster[]> {
   await exigirAdministrador(userId);
 
-  const { data: usageData } = await (supabaseAdmin as any)
-    .from("master_ai_usage")
-    .select("*, company:tax_companies(business_name)")
-    .order("created_at", { ascending: false })
-    .limit(100)
-    .catch(() => ({ data: null }));
+  let usageData: any[] | null = null;
+  try {
+    const res = await (supabaseAdmin as any)
+      .from("master_ai_usage")
+      .select("*, company:tax_companies(business_name)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    usageData = res.data;
+  } catch {
+    usageData = null;
+  }
 
   if (usageData && usageData.length > 0) {
     return usageData.map((u: any) => ({
@@ -1989,7 +2001,7 @@ export async function obtenerConsumoIAMaster(userId: string): Promise<ConsumoIAM
     .select("id, business_name, created_at")
     .limit(10);
 
-  const proveedores = ["Gemini 1.5 Pro", "Claude 3.5 Sonnet", "OpenAI GPT-4o"];
+  const proveedores = ["Motor IA Primario", "Motor IA Avanzado", "Motor IA Alta Velocidad"];
   const acciones = ["análisis_documento", "resumen_tributario", "explicación_iva", "asistente_contable"];
 
   return (empresas ?? []).map((e, idx) => ({
@@ -2012,12 +2024,19 @@ export async function listarMovimientosCreditosIA(
 ): Promise<TransaccionCreditoIAMaster[]> {
   await exigirAdministrador(userId);
 
-  const { data: txsData } = await (supabaseAdmin as any)
-    .from("master_ai_credit_transactions")
-    .select("*, company:tax_companies(business_name)")
-    .order("created_at", { ascending: false })
-    .limit(100)
-    .catch(() => ({ data: null }));
+  let txsData: any[] | null = null;
+  try {
+    const q = (supabaseAdmin as any)
+      .from("master_ai_credit_transactions")
+      .select("*, company:tax_companies(business_name)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (companyId) q.eq("company_id", companyId);
+    const res = await q;
+    txsData = res.data;
+  } catch {
+    txsData = null;
+  }
 
   if (txsData && txsData.length > 0) {
     return txsData.map((t: any) => ({
@@ -2046,16 +2065,19 @@ export async function actualizarSaldoCreditoIA(
 ): Promise<{ ok: true }> {
   await exigirAdministrador(userId);
 
-  await (supabaseAdmin as any)
-    .from("master_ai_credit_transactions")
-    .insert({
-      company_id: datos.companyId,
-      type: datos.type,
-      amount: datos.amount,
-      description: datos.description,
-      created_by: userId,
-    })
-    .catch(() => null);
+  try {
+    await (supabaseAdmin as any)
+      .from("master_ai_credit_transactions")
+      .insert({
+        company_id: datos.companyId,
+        type: datos.type,
+        amount: datos.amount,
+        description: datos.description,
+        created_by: userId,
+      });
+  } catch {
+    // Ignorar si la tabla no existe en la base de datos
+  }
 
   await registrarActividad(datos.companyId, userId, `admin.ai_credit_${datos.type}`);
   return { ok: true };
@@ -2426,12 +2448,17 @@ export async function obtenerFichaCliente360Master(
   const consultasMes = usoMesActual.reduce((a, u) => a + u.requests, 0);
 
   // ── 9. Billetera IA ─────────────────────────────────────────────────────
-  const { data: walletRaw } = await (supabaseAdmin as any)
-    .from("master_ai_wallets")
-    .select("balance, monthly_allowance, updated_at")
-    .eq("company_id", companyId)
-    .maybeSingle()
-    .catch(() => ({ data: null }));
+  let walletRaw: any = null;
+  try {
+    const res = await (supabaseAdmin as any)
+      .from("master_ai_wallets")
+      .select("balance, monthly_allowance, updated_at")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    walletRaw = res.data;
+  } catch {
+    walletRaw = null;
+  }
 
   const walletBalance: number = (walletRaw as any)?.balance ?? 5000;
   const walletAllowance: number = (walletRaw as any)?.monthly_allowance ?? 10000;
