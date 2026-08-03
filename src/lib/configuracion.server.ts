@@ -57,13 +57,13 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
         }
       }
     } else {
-      // 1b. Fallback: Recupear la última configuración guardada desde tax_activity_logs
+      // 1b. Fallback: Recuperar la última configuración guardada desde tax_activity_logs (orden ascendente)
       const { data: logs } = await (supabaseAdmin as any)
         .from("tax_activity_logs")
         .select("action, metadata")
         .eq("entity_type", "master_settings")
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .order("created_at", { ascending: true })
+        .limit(100);
 
       if (logs && Array.isArray(logs)) {
         for (const log of logs) {

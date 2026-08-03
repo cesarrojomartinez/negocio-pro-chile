@@ -27,9 +27,11 @@ import {
 } from "@/lib/simpleApi.functions";
 import type { HealthCheckResult } from "@/integrations/sii/taxProviderRegistry";
 import type { ResultadoComparacionProveedores } from "@/lib/providerComparison.server";
+import { useRouter } from "@tanstack/react-router";
 import { formatCLP } from "@/utils/currency";
 
 export function TabGatewayApi({ datos }: { datos: ConfiguracionGatewayApi }) {
+  const router = useRouter();
   const [modo, setModo] = useState<ModoProveedorTributario>(datos.modoProveedor || "api_gateway");
   const [endpoint, setEndpoint] = useState(datos.endpointSimpleApi || "https://api.simpleapi.cl");
   const [guardando, setGuardando] = useState(false);
@@ -56,7 +58,8 @@ export function TabGatewayApi({ datos }: { datos: ConfiguracionGatewayApi }) {
         toast.error(res.error);
         return;
       }
-      toast.success("Configuración de proveedores tributarios guardada con éxito.");
+      toast.success("Configuración de proveedores tributarios guardada y activada con éxito.");
+      await router.invalidate();
     } catch (e: any) {
       toast.error(e?.message || "No pudimos guardar la configuración.");
     } finally {
