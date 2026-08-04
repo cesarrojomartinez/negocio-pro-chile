@@ -97,6 +97,7 @@ export interface ConfiguracionGatewayApi {
   consumoMensualLlamadas: number;
 }
 
+/** @deprecated El catálogo de operaciones ya no se mide. Solo se miden créditos del API Gateway. */
 export interface OperacionCredito {
   nombre: string;
   creditosConsumidos: number;
@@ -109,8 +110,12 @@ export interface ConfiguracionIaGateway {
   costoProcesamientoAdicionalClp: number;
   margenPlataformaPorcentaje: number;
   costoMinimoOperacionClp: number;
+  costoMinimoOperacionClpLegacy?: number;
   valorUnCreditoClp: number;
-  operaciones: OperacionCredito[];
+  /** Créditos que consume una llamada estándar al API Gateway. */
+  creditosPorLlamadaGateway: number;
+  /** @deprecated ya no se usa; se conserva para compatibilidad de datos guardados. */
+  operaciones?: OperacionCredito[];
 }
 
 export interface PlantillaCorreo {
