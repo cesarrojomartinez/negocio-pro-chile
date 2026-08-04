@@ -310,7 +310,7 @@ export function MasterAppSidebar({
             className="h-7 text-[11px] justify-center px-2"
             asChild
           >
-            <Link to="/demo">
+            <Link to="/panel">
               <Home className="h-3 w-3 mr-1" />
               Ver aplicación
             </Link>

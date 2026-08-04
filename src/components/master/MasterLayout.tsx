@@ -99,7 +99,7 @@ export function MasterLayout({ children }: { children?: React.ReactNode }) {
               className="h-8 text-xs gap-1.5 border-emerald-500/30 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/50 font-medium"
               asChild
             >
-              <Link to="/demo">
+              <Link to="/panel">
                 <ExternalLink className="h-3.5 w-3.5" />
                 Vista Cliente
               </Link>

@@ -287,7 +287,7 @@ function DashboardMasterPage() {
                 </Link>
               </Button>
               <Button variant="outline" size="sm" className="w-full justify-start text-xs" asChild>
-                <Link to="/demo">
+                <Link to="/panel">
                   <FileCheck className="h-3.5 w-3.5 mr-2 text-primary" />
                   Ir al Dashboard Demostrativo
                 </Link>
