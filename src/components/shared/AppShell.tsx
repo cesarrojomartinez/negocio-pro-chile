@@ -386,7 +386,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card lg:hidden"
       >
         <ul className="mx-auto flex max-w-lg">
-          {NAV_MOVIL.map(({ to, label, icon: Icon }) => {
+          {[{ to: inicioTo, label: "Inicio", icon: Home } as const, ...NAV_MOVIL].map(
+            ({ to, label, icon: Icon }) => {
+
             const activo =
               pathname === to ||
               (to === "/ventas" && (pathname === "/compras" || pathname === "/impuestos"));
