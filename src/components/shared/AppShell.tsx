@@ -137,14 +137,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [esCloud, empresaId]);
 
   const creditosDisponibles = esCloud ? creditos?.disponibles : 5000;
-
+  // El inicio del cliente autenticado es su panel; la demostración pública
+  // mantiene su propia ruta para no mezclar datos de ejemplo con los reales.
+  const inicioTo = esCloud ? "/panel" : "/demo";
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-background">
       <div className="mx-auto flex w-full max-w-[1400px]">
         {/* Barra lateral de escritorio */}
         <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-sidebar px-4 py-6 lg:flex">
-          <Link to="/demo" className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
+          <Link to={inicioTo} className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
+
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Calculator className="h-5 w-5" aria-hidden />
             </span>
