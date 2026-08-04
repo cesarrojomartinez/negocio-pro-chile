@@ -17,6 +17,11 @@ export function AnunciosInApp({ companyId }: AnunciosInAppProps) {
     let activo = true;
     const cargar = async () => {
       try {
+        // Los comunicados son una función protegida: sin sesión no hay token que
+        // adjuntar y el servidor responde "Unauthorized".
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data: sesion } = await supabase.auth.getSession();
+        if (!sesion.session) return;
         const res = await comunicadosParaEmpresaFn({ data: { companyId } });
         if (activo && res.ok && Array.isArray(res.data)) {
           const ahora = new Date().toISOString();
