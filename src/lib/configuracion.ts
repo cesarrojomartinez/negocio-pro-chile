@@ -310,16 +310,8 @@ export const CONFIGURACION_POR_DEFECTO: ConfiguracionGlobal = {
     margenPlataformaPorcentaje: 35,
     costoMinimoOperacionClp: 15,
     valorUnCreditoClp: 0.40,
-    operaciones: [
-      { nombre: "Actualizar empresa pequeña", creditosConsumidos: 50 },
-      { nombre: "Actualizar empresa mediana", creditosConsumidos: 180 },
-      { nombre: "Actualizar empresa grande", creditosConsumidos: 700 },
-      { nombre: "Actualizar empresa corporativa", creditosConsumidos: 2500 },
-      { nombre: "Analizar F29", creditosConsumidos: 120 },
-      { nombre: "Analizar RCV", creditosConsumidos: 180 },
-      { nombre: "Generar informe", creditosConsumidos: 80 },
-      { nombre: "OCR documento", creditosConsumidos: 30 },
-    ],
+    creditosPorLlamadaGateway: 10,
+
   },
   correos: {
     bienvenida: { asunto: "¡Bienvenido a Mi Negocio al Día!", cuerpoHtml: "Hola {{nombre}}, tu cuenta está lista.", activado: true },
