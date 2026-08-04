@@ -83,8 +83,9 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
           }
         }
       }
-
+    }
   } catch {
+
     // Si la tabla master_settings no existe en la base de datos, se continúa sin interrumpir
   }
 
