@@ -97,6 +97,7 @@ export interface ConfiguracionGatewayApi {
   consumoMensualLlamadas: number;
 }
 
+/** @deprecated El catálogo de operaciones ya no se mide. Solo se miden créditos del API Gateway. */
 export interface OperacionCredito {
   nombre: string;
   creditosConsumidos: number;
@@ -109,8 +110,12 @@ export interface ConfiguracionIaGateway {
   costoProcesamientoAdicionalClp: number;
   margenPlataformaPorcentaje: number;
   costoMinimoOperacionClp: number;
+  costoMinimoOperacionClpLegacy?: number;
   valorUnCreditoClp: number;
-  operaciones: OperacionCredito[];
+  /** Créditos que consume una llamada estándar al API Gateway. */
+  creditosPorLlamadaGateway: number;
+  /** @deprecated ya no se usa; se conserva para compatibilidad de datos guardados. */
+  operaciones?: OperacionCredito[];
 }
 
 export interface PlantillaCorreo {
@@ -305,16 +310,8 @@ export const CONFIGURACION_POR_DEFECTO: ConfiguracionGlobal = {
     margenPlataformaPorcentaje: 35,
     costoMinimoOperacionClp: 15,
     valorUnCreditoClp: 0.40,
-    operaciones: [
-      { nombre: "Actualizar empresa pequeña", creditosConsumidos: 50 },
-      { nombre: "Actualizar empresa mediana", creditosConsumidos: 180 },
-      { nombre: "Actualizar empresa grande", creditosConsumidos: 700 },
-      { nombre: "Actualizar empresa corporativa", creditosConsumidos: 2500 },
-      { nombre: "Analizar F29", creditosConsumidos: 120 },
-      { nombre: "Analizar RCV", creditosConsumidos: 180 },
-      { nombre: "Generar informe", creditosConsumidos: 80 },
-      { nombre: "OCR documento", creditosConsumidos: 30 },
-    ],
+    creditosPorLlamadaGateway: 10,
+
   },
   correos: {
     bienvenida: { asunto: "¡Bienvenido a Mi Negocio al Día!", cuerpoHtml: "Hola {{nombre}}, tu cuenta está lista.", activado: true },
