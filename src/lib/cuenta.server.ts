@@ -2795,3 +2795,49 @@ export async function registrarPagoManualMaster(
   return { ok: true };
 }
 
+
+// ---------------------------------------------------------------------------
+// Saldo de créditos IA visible para el cliente (encabezado de la app)
+// ---------------------------------------------------------------------------
+
+export interface SaldoCreditosIaEmpresa {
+  companyId: string;
+  planNombre: string;
+  asignados: number;
+  disponibles: number;
+  usados: number;
+}
+
+export async function saldoCreditosIaEmpresa(
+  userId: string,
+  companyId: string,
+): Promise<SaldoCreditosIaEmpresa> {
+  await rolEnEmpresa(userId, companyId);
+
+  const suscripcion = await asegurarSuscripcion(companyId);
+  const asignadosPlan = suscripcion.plan.actualizacionesIncluidas ?? 0;
+
+  let wallet: { balance: number; monthly_allowance: number } | null = null;
+  try {
+    const res = await (supabaseAdmin as any)
+      .from("master_ai_wallets")
+      .select("balance, monthly_allowance")
+      .eq("company_id", companyId)
+      .maybeSingle();
+    wallet = res.data ?? null;
+  } catch {
+    wallet = null;
+  }
+
+  const asignados = wallet?.monthly_allowance ?? asignadosPlan;
+  const disponibles = wallet?.balance ?? asignados;
+  const usados = Math.max(0, asignados - disponibles);
+
+  return {
+    companyId,
+    planNombre: suscripcion.plan.nombre ?? "Sin plan",
+    asignados,
+    disponibles,
+    usados,
+  };
+}
