@@ -255,6 +255,22 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {actualizando ? "Actualizando" : "Actualizar"}
               </Button>
 
+              <Link
+                to="/cuenta"
+                aria-label="Créditos IA disponibles de tu cuenta"
+                className="flex h-10 items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground hover:bg-accent"
+              >
+                <Coins className="h-4 w-4 text-amber-500" aria-hidden />
+                <span className="tabular-nums">
+                  {creditosDisponibles !== undefined && creditosDisponibles !== null
+                    ? creditosDisponibles.toLocaleString("es-CL")
+                    : "—"}
+                </span>
+                <span className="hidden font-normal text-muted-foreground sm:inline">
+                  créditos
+                </span>
+              </Link>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -272,8 +288,18 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <span className="block text-xs font-normal text-muted-foreground">
                       {detalleUsuario}
                     </span>
+                    <span className="mt-1 block text-xs font-normal text-muted-foreground">
+                      Créditos IA disponibles:{" "}
+                      <span className="font-semibold text-foreground tabular-nums">
+                        {creditosDisponibles !== undefined && creditosDisponibles !== null
+                          ? creditosDisponibles.toLocaleString("es-CL")
+                          : "—"}
+                      </span>
+                      {creditos ? ` de ${creditos.asignados.toLocaleString("es-CL")}` : ""}
+                    </span>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+
                   <DropdownMenuItem asChild>
                     <Link to="/configuracion">Configuración</Link>
                   </DropdownMenuItem>
