@@ -116,6 +116,26 @@ export function AppShell({ children }: { children: ReactNode }) {
     ? (user?.email ?? "Sesión activa")
     : "Usuaria demostrativa";
 
+  // Créditos IA disponibles de la cuenta (visibles junto al nombre del usuario).
+  const [creditos, setCreditos] = useState<SaldoCreditosIaEmpresa | null>(null);
+  useEffect(() => {
+    if (!esCloud || !empresaId) {
+      setCreditos(null);
+      return;
+    }
+    let vivo = true;
+    void (async () => {
+      const res = await saldoCreditosIaFn({ data: { companyId: empresaId } });
+      if (vivo && res.ok) setCreditos(res.data);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [esCloud, empresaId]);
+
+  const creditosDisponibles = esCloud ? creditos?.disponibles : 5000;
+
+
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-background">
       <div className="mx-auto flex w-full max-w-[1400px]">
