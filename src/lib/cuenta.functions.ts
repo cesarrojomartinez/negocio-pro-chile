@@ -42,6 +42,7 @@ import {
   quitarUsuario,
   reactivarSuscripcion,
   resumenCuenta,
+  saldoCreditosIaEmpresa,
   revisarInvitacion,
   revocarInvitacion,
   solicitarEliminacion,
@@ -341,3 +342,10 @@ export const registrarPagoManualMasterFn = createServerFn({ method: "POST" })
 
 
 
+
+export const saldoCreditosIaFn = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { companyId: string }) => data)
+  .handler(async ({ data, context }) =>
+    envolver(() => saldoCreditosIaEmpresa(context.userId, data.companyId)),
+  );
