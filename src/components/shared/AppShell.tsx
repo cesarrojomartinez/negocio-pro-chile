@@ -161,8 +161,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
           <nav aria-label="Navegación principal" className="flex flex-col gap-1">
-            {NAV.map(({ to, label, icon: Icon }) => {
+            {[{ to: inicioTo, label: "Inicio", icon: Home } as const, ...NAV].map(
+              ({ to, label, icon: Icon }) => {
               const activo = pathname === to;
+
               return (
                 <Link
                   key={to}
