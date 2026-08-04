@@ -407,7 +407,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </li>
             );
-          })}
+            },
+          )}
+
         </ul>
       </nav>
     </div>
