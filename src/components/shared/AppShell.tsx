@@ -11,7 +11,10 @@ import {
   Target,
   UserRound,
 } from "lucide-react";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { saldoCreditosIaFn } from "@/lib/cuenta.functions";
+import type { SaldoCreditosIaEmpresa } from "@/lib/cuenta.server";
 
 import { Button } from "@/components/ui/button";
 import { SimulatedDataNotice } from "@/components/shared/SimulatedDataNotice";
