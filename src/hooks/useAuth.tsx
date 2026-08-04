@@ -156,6 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cerrarSesion = useCallback(async () => {
     await supabase.auth.signOut();
     setPerfil(null);
+    if (typeof window !== "undefined") {
+      window.location.assign("/");
+    }
   }, []);
 
   const recuperarClave = useCallback<AuthState["recuperarClave"]>(async (email) => {
