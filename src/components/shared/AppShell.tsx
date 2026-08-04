@@ -2,6 +2,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
   ArrowLeftRight,
   Calculator,
+  Coins,
   FileText,
   Home,
   Receipt,
