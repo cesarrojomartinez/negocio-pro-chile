@@ -57,16 +57,18 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
         }
       }
     } else {
-      // 1b. Fallback: Recuperar la última configuración guardada desde tax_activity_logs (orden ascendente)
+      // 1b. Fallback: Recuperar la última configuración guardada desde tax_activity_logs.
+      // Se leen los más recientes primero y luego se aplican en orden cronológico,
+      // de modo que el último cambio siempre prevalece aunque existan muchos registros.
       const { data: logs } = await (supabaseAdmin as any)
         .from("tax_activity_logs")
-        .select("action, metadata")
+        .select("action, metadata, created_at")
         .eq("entity_type", "master_settings")
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(100);
 
       if (logs && Array.isArray(logs)) {
-        for (const log of logs) {
+        for (const log of [...logs].reverse()) {
           const meta = log.metadata ?? {};
           const grupo = meta.grupo as GrupoConfiguracion;
           if (grupo && base[grupo] && meta.valor_nuevo) {
@@ -81,7 +83,7 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
           }
         }
       }
-    }
+
   } catch {
     // Si la tabla master_settings no existe en la base de datos, se continúa sin interrumpir
   }
