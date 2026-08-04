@@ -43,6 +43,10 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
 
   const base: ConfiguracionGlobal = JSON.parse(JSON.stringify(CONFIGURACION_POR_DEFECTO));
 
+  // Grupos ya resueltos desde la base de datos: la copia en memoria no debe
+  // sobrescribirlos, porque la base de datos es la fuente de verdad.
+  const gruposPersistidos = new Set<GrupoConfiguracion>();
+
   try {
     // 1. Intentar cargar desde master_settings si existe la tabla
     const { data: filasSettings, error: errSettings } = await (supabaseAdmin as any)
@@ -54,6 +58,7 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
         const grupo = fila.grupo as GrupoConfiguracion;
         if (grupo && base[grupo] && fila.valor_json) {
           base[grupo] = { ...base[grupo], ...(fila.valor_json as any) };
+          gruposPersistidos.add(grupo);
         }
       }
     } else {
@@ -89,12 +94,14 @@ export async function obtenerConfiguracionGlobalMaster(userId: string): Promise<
     // Si la tabla master_settings no existe en la base de datos, se continúa sin interrumpir
   }
 
-  // 1c. Aplicar cambios más recientes en memoria
+  // 1c. Copia en memoria: solo para grupos que aún no están persistidos.
   for (const [grupo, valores] of memorySettingsStore.entries()) {
+    if (gruposPersistidos.has(grupo)) continue;
     if (base[grupo] && valores && typeof valores === "object") {
       base[grupo] = { ...base[grupo], ...valores };
     }
   }
+
 
   try {
     // 2. Sincronizar datos de la landing si existen en tax_landing_content
