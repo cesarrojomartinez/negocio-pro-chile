@@ -110,8 +110,8 @@ export function TabIaGateway({
           </div>
 
           <div className="p-3.5 rounded-xl border bg-muted/40 text-xs text-foreground flex items-center justify-between font-medium">
-            <span>Operaciones configuradas</span>
-            <span className="font-bold text-sm">{form.operaciones.length} operaciones</span>
+            <span>Créditos por llamada al API Gateway</span>
+            <span className="font-bold text-sm">{form.creditosPorLlamadaGateway ?? 10} créditos</span>
           </div>
         </CardContent>
       </Card>
