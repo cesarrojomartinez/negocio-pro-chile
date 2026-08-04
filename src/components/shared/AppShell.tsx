@@ -181,7 +181,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               );
-            })}
+              },
+            )}
+
           </nav>
           <div className="mt-auto rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
             Estimaciones informativas. No corresponden a una declaración oficial del
