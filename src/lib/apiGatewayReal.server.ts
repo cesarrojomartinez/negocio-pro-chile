@@ -113,14 +113,20 @@ async function exigirPruebaRealPermitida(userId: string, companyId: string) {
   const modoProveedor = masterConfig.gateway_api.modoProveedor;
 
   if (modoProveedor === "simple_api" || modoProveedor === "compare") {
-    const apiKey = process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893";
+    const apiKey = process.env.SIMPLEAPI_API_KEY || "";
     if (!apiKey) {
       throw new ErrorNegocio(
         "Falta configurar la API Key de SimpleAPI en los Secretos de Lovable (SIMPLEAPI_API_KEY).",
       );
     }
-    return { baseUrl: "https://api.simpleapi.cl", token: apiKey, timeoutMs: 15000 };
+    // SimpleAPI entrega el Registro de Compras y Ventas solo con el certificado
+    // digital de la empresa (archivo .pfx y su contraseña). Mientras esa carga
+    // no exista, la actualización no puede ejecutarse con este proveedor.
+    throw new ErrorNegocio(
+      "SimpleAPI todavía no puede actualizar el Registro de Compras y Ventas: exige el certificado digital de la empresa (archivo .pfx y su contraseña), que aún no está disponible en la aplicación. Cambia el proveedor a Gateway Principal en el panel Master.",
+    );
   }
+
 
   if (!modoPruebaRealHabilitado())
     throw new ErrorNegocio(
@@ -227,7 +233,7 @@ export async function ejecutarPruebaRealApiGateway(
   let proveedor: any;
   if (modoProveedor === "simple_api" || modoProveedor === "compare") {
     const { SimpleApiProviderAdapter } = await import("@/integrations/sii/simpleApiProviderAdapter");
-    const apiKey = process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893";
+    const apiKey = process.env.SIMPLEAPI_API_KEY || "";
     proveedor = new SimpleApiProviderAdapter({ apiKey });
   } else {
     if (!config) {

@@ -174,14 +174,18 @@ export function TabGatewayApi({ datos }: { datos: ConfiguracionGatewayApi }) {
             >
               <div className="flex items-center justify-between mb-2">
                 <RadioGroupItem value="simple_api" id="p-simpleapi" />
-                <Badge variant="secondary" className="text-[10px]">Nuevo</Badge>
+                <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">
+                  Requiere certificado
+                </Badge>
               </div>
               <Label htmlFor="p-simpleapi" className="font-bold cursor-pointer block text-sm">
                 SimpleAPI Chile
               </Label>
               <p className="text-xs text-muted-foreground mt-1">
-                Conexión directa vía REST API mediante la infraestructura SimpleAPI.cl.
+                Conexión directa vía REST API. Todavía no puede leer el Registro de Compras y Ventas:
+                SimpleAPI exige el certificado digital de la empresa (.pfx y su contraseña).
               </p>
+
             </div>
 
             <div

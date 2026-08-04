@@ -58,7 +58,7 @@ export class SimpleApiProviderAdapter implements TaxProvider {
   async healthCheck(): Promise<HealthCheckResult> {
     const inicio = Date.now();
     try {
-      const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
+      const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "");
       if (!apiKey) {
         return {
           status: "invalid_credentials",
@@ -182,7 +182,7 @@ export class SimpleApiProviderAdapter implements TaxProvider {
   }
 
   async fetchSalesRcv(query: ProviderQuery): Promise<ProviderSalesResult> {
-    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
+    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "");
     if (!apiKey) {
       throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_sales_summary");
     }
@@ -272,7 +272,7 @@ export class SimpleApiProviderAdapter implements TaxProvider {
   }
 
   async fetchPurchasesRcv(query: ProviderQuery): Promise<ProviderPurchasesResult> {
-    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "2862-R340-6395-2321-7893");
+    const apiKey = this.config.apiKey !== undefined ? this.config.apiKey : (process.env.SIMPLEAPI_API_KEY || "");
     if (!apiKey) {
       throw new SiiProviderError("INVALID_CREDENTIALS", "rcv_purchases_registered");
     }

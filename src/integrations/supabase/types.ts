@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      master_settings: {
+        Row: {
+          clave: string
+          created_at: string
+          descripcion: string | null
+          grupo: string
+          id: string
+          updated_at: string
+          updated_by: string | null
+          valor_json: Json
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          descripcion?: string | null
+          grupo: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_json?: Json
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          descripcion?: string | null
+          grupo?: string
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valor_json?: Json
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
