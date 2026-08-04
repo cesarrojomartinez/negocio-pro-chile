@@ -860,34 +860,33 @@ export async function solicitarEliminacion(
 // Panel master (administración de la plataforma)
 // ---------------------------------------------------------------------------
 
+/**
+ * Correos autorizados para el Panel Master.
+ * Solo estas cuentas pueden entrar; cualquier otra queda fuera aunque esté
+ * autenticada en la plataforma.
+ */
+const CORREOS_ADMINISTRADORES = new Set(
+  (process.env.ADMIN_EMAILS || "cesar.r.preven@gmail.com")
+    .split(",")
+    .map((c) => c.trim().toLowerCase())
+    .filter(Boolean),
+);
+
 export async function esAdministrador(userId: string): Promise<boolean> {
   if (!userId) return false;
-  try {
-    const { data } = await (supabaseAdmin as any)
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (data) return true;
-  } catch {
-    // ignorar error de consulta
-  }
 
+  // Única condición válida: que el correo de la cuenta esté autorizado.
   try {
-    const { data: profile } = await (supabaseAdmin as any)
-      .from("profiles")
-      .select("is_admin")
-      .eq("id", userId)
-      .maybeSingle();
-    if (profile && (profile.is_admin === true || profile.is_admin === null)) return true;
+    const { data } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const correo = data?.user?.email?.trim().toLowerCase();
+    if (!correo) return false;
+    return CORREOS_ADMINISTRADORES.has(correo);
   } catch {
-    // ignorar error de consulta
+    // Ante cualquier duda, se niega el acceso.
+    return false;
   }
-
-  // Fallback seguro: Si el usuario está autenticado en la plataforma Master, conceder acceso
-  return true;
 }
+
 
 async function exigirAdministrador(userId: string) {
   if (!(await esAdministrador(userId)))
