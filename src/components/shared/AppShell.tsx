@@ -50,7 +50,6 @@ import { cn } from "@/lib/utils";
 import { FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
-  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Ventas", icon: Receipt },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/impuestos", label: "Impuestos", icon: Calculator },
@@ -60,12 +59,12 @@ const NAV = [
 ] as const;
 
 const NAV_MOVIL = [
-  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Movimientos", icon: ArrowLeftRight },
   { to: "/documentos", label: "Documentos", icon: FileText },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/configuracion", label: "Ajustes", icon: Settings },
 ] as const;
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const {
