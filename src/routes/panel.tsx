@@ -5,41 +5,40 @@ import { PanelInicio } from "@/components/dashboard/PanelInicio";
 import { LoadingBlock, LoadingCards } from "@/components/shared/States";
 import { useAuth } from "@/hooks/useAuth";
 
-export const Route = createFileRoute("/demo")({
+export const Route = createFileRoute("/panel")({
+  ssr: false,
   head: () => ({
     meta: [
-      { title: "Demostración | Mi Negocio al Día" },
+      { title: "Mi panel del mes | Mi Negocio al Día" },
       {
         name: "description",
         content:
-          "Revisa tus ventas, tu IVA estimado y la reserva recomendada del mes en un panel simple para microempresarios chilenos.",
+          "Panel de tu empresa: ventas, IVA estimado, reserva recomendada y estado del mes.",
       },
-      { property: "og:title", content: "Demostración | Mi Negocio al Día" },
+      { property: "og:title", content: "Mi panel del mes | Mi Negocio al Día" },
       {
         property: "og:description",
         content:
-          "Controla tus ventas, anticipa tus impuestos y toma mejores decisiones durante el mes.",
+          "Revisa cómo va tu negocio este mes con información de tu propia empresa.",
       },
+      { name: "robots", content: "noindex" },
     ],
   }),
-  component: DemoRoute,
+  component: PanelRoute,
 });
 
-/**
- * `/demo` es solo la demostración pública. Si la persona tiene sesión activa
- * la enviamos a su propio panel para que nunca vea datos de ejemplo.
- */
-function DemoRoute() {
+/** Panel del cliente autenticado. Nunca muestra datos demostrativos. */
+function PanelRoute() {
   const { session, cargandoSesion } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!cargandoSesion && session) {
-      void navigate({ to: "/panel", replace: true });
+    if (!cargandoSesion && !session) {
+      void navigate({ to: "/auth", replace: true });
     }
   }, [cargandoSesion, session, navigate]);
 
-  if (cargandoSesion || session) {
+  if (cargandoSesion || !session) {
     return (
       <div className="mx-auto w-full max-w-[1100px] space-y-5 p-6">
         <LoadingBlock alto="h-24" />

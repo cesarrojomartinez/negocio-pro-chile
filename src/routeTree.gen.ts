@@ -23,6 +23,7 @@ import { Route as InvitacionRouteImport } from './routes/invitacion'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as MetasRouteImport } from './routes/metas'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PanelRouteImport } from './routes/panel'
 import { Route as PlanesRouteImport } from './routes/planes'
 import { Route as RecuperarClaveRouteImport } from './routes/recuperar-clave'
 import { Route as RegistroRouteImport } from './routes/registro'
@@ -120,6 +121,11 @@ const MetasRoute = MetasRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PanelRoute = PanelRouteImport.update({
+  id: '/panel',
+  path: '/panel',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlanesRoute = PlanesRouteImport.update({
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/panel': typeof PanelRoute
   '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/panel': typeof PanelRoute
   '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/metas': typeof MetasRoute
   '/onboarding': typeof OnboardingRoute
+  '/panel': typeof PanelRoute
   '/planes': typeof PlanesRoute
   '/recuperar-clave': typeof RecuperarClaveRoute
   '/registro': typeof RegistroRoute
@@ -419,6 +428,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/metas'
     | '/onboarding'
+    | '/panel'
     | '/planes'
     | '/recuperar-clave'
     | '/registro'
@@ -462,6 +472,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/metas'
     | '/onboarding'
+    | '/panel'
     | '/planes'
     | '/recuperar-clave'
     | '/registro'
@@ -506,6 +517,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/metas'
     | '/onboarding'
+    | '/panel'
     | '/planes'
     | '/recuperar-clave'
     | '/registro'
@@ -551,6 +563,7 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   MetasRoute: typeof MetasRoute
   OnboardingRoute: typeof OnboardingRoute
+  PanelRoute: typeof PanelRoute
   PlanesRoute: typeof PlanesRoute
   RecuperarClaveRoute: typeof RecuperarClaveRoute
   RegistroRoute: typeof RegistroRoute
@@ -660,6 +673,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/panel': {
+      id: '/panel'
+      path: '/panel'
+      fullPath: '/panel'
+      preLoaderRoute: typeof PanelRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/planes': {
@@ -922,6 +942,7 @@ const rootRouteChildren: RootRouteChildren = {
   McpRoute: McpRoute,
   MetasRoute: MetasRoute,
   OnboardingRoute: OnboardingRoute,
+  PanelRoute: PanelRoute,
   PlanesRoute: PlanesRoute,
   RecuperarClaveRoute: RecuperarClaveRoute,
   RegistroRoute: RegistroRoute,

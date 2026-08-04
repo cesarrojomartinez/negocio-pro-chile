@@ -66,7 +66,7 @@ function Onboarding() {
       return;
     }
     toast.success("Empresa creada");
-    void navigate({ to: "/demo" });
+    void navigate({ to: "/panel" });
   }
 
   async function cargarDemo() {
@@ -81,7 +81,7 @@ function Onboarding() {
     toast.success("Empresa de ejemplo lista", {
       description: "Los datos son ficticios y sirven para explorar la aplicación.",
     });
-    void navigate({ to: "/demo" });
+    void navigate({ to: "/panel" });
   }
 
   return (

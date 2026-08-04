@@ -46,7 +46,7 @@ export function AutenticacionForm({
       if (rol.ok && rol.data) {
         void navigate({ to: "/admin" });
       } else {
-        void navigate({ to: "/demo" });
+        void navigate({ to: "/panel" });
       }
     });
   }, [cargandoSesion, session, navigate, retorno]);
@@ -71,7 +71,7 @@ export function AutenticacionForm({
       void navigate({ to: "/admin" });
       return;
     }
-    void navigate({ to: "/demo" });
+    void navigate({ to: "/panel" });
   }
 
   async function enviarRegistro(e: React.FormEvent) {

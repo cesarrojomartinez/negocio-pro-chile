@@ -43,7 +43,7 @@ export function LandingHeader() {
           ))}
           {conSesion ? (
             <Button size="sm" asChild>
-              <Link to="/demo">Ir a mi negocio</Link>
+              <Link to="/panel">Ir a mi negocio</Link>
             </Button>
           ) : (
             <>
@@ -81,7 +81,7 @@ export function LandingHeader() {
               ))}
               {conSesion ? (
                 <Button asChild onClick={() => setAbierto(false)}>
-                  <Link to="/demo">Ir a mi negocio</Link>
+                  <Link to="/panel">Ir a mi negocio</Link>
                 </Button>
               ) : (
                 <>

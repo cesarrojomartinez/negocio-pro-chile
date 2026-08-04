@@ -50,7 +50,6 @@ import { cn } from "@/lib/utils";
 import { FuentePeriodoBadge } from "./Badges";
 
 const NAV = [
-  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Ventas", icon: Receipt },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/impuestos", label: "Impuestos", icon: Calculator },
@@ -60,12 +59,12 @@ const NAV = [
 ] as const;
 
 const NAV_MOVIL = [
-  { to: "/demo", label: "Inicio", icon: Home },
   { to: "/ventas", label: "Movimientos", icon: ArrowLeftRight },
   { to: "/documentos", label: "Documentos", icon: FileText },
   { to: "/metas", label: "Metas", icon: Target },
   { to: "/configuracion", label: "Ajustes", icon: Settings },
 ] as const;
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const {
@@ -138,14 +137,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [esCloud, empresaId]);
 
   const creditosDisponibles = esCloud ? creditos?.disponibles : 5000;
-
+  // El inicio del cliente autenticado es su panel; la demostración pública
+  // mantiene su propia ruta para no mezclar datos de ejemplo con los reales.
+  const inicioTo = esCloud ? "/panel" : "/demo";
 
   return (
     <div className="min-h-dvh w-full overflow-x-hidden bg-background">
       <div className="mx-auto flex w-full max-w-[1400px]">
         {/* Barra lateral de escritorio */}
         <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-sidebar px-4 py-6 lg:flex">
-          <Link to="/demo" className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
+          <Link to={inicioTo} className="mb-8 flex items-center gap-3 rounded-lg px-2 py-1">
+
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <Calculator className="h-5 w-5" aria-hidden />
             </span>
@@ -159,8 +161,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
           <nav aria-label="Navegación principal" className="flex flex-col gap-1">
-            {NAV.map(({ to, label, icon: Icon }) => {
+            {[{ to: inicioTo, label: "Inicio", icon: Home } as const, ...NAV].map(
+              ({ to, label, icon: Icon }) => {
               const activo = pathname === to;
+
               return (
                 <Link
                   key={to}
@@ -177,7 +181,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   {label}
                 </Link>
               );
-            })}
+              },
+            )}
+
           </nav>
           <div className="mt-auto rounded-xl bg-secondary p-3 text-xs text-muted-foreground">
             Estimaciones informativas. No corresponden a una declaración oficial del
@@ -380,7 +386,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card lg:hidden"
       >
         <ul className="mx-auto flex max-w-lg">
-          {NAV_MOVIL.map(({ to, label, icon: Icon }) => {
+          {[{ to: inicioTo, label: "Inicio", icon: Home } as const, ...NAV_MOVIL].map(
+            ({ to, label, icon: Icon }) => {
+
             const activo =
               pathname === to ||
               (to === "/ventas" && (pathname === "/compras" || pathname === "/impuestos"));
@@ -399,7 +407,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               </li>
             );
-          })}
+            },
+          )}
+
         </ul>
       </nav>
     </div>
